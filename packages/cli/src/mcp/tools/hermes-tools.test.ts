@@ -1,9 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { searchSessionsDefinition, handleSearchSessions } from './search-sessions';
-import { summarizeSessionDefinition } from './summarize-session';
+import { summarizeSessionDefinition, handleSummarizeSession } from './summarize-session';
 import { insightsSummaryDefinition, handleInsightsSummary } from './insights-summary';
 import { CORE_TOOL_NAMES, STANDARD_TOOL_NAMES } from '../tool-tiers';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -102,5 +102,59 @@ describe('handleInsightsSummary integration', () => {
     } finally {
       rmSync(tmp, { recursive: true, force: true });
     }
+  });
+});
+
+describe('handleSummarizeSession integration', () => {
+  let tmp: string;
+  let prevKey: string | undefined;
+
+  beforeEach(() => {
+    tmp = mkdtempSync(join(tmpdir(), 'hermes-cli-mcp-summ-'));
+    prevKey = process.env.ANTHROPIC_API_KEY;
+    delete process.env.ANTHROPIC_API_KEY;
+  });
+
+  afterEach(() => {
+    rmSync(tmp, { recursive: true, force: true });
+    if (prevKey === undefined) {
+      delete process.env.ANTHROPIC_API_KEY;
+    } else {
+      process.env.ANTHROPIC_API_KEY = prevKey;
+    }
+  });
+
+  it('returns isError=true when sessionId is missing', async () => {
+    const res = await handleSummarizeSession({ path: tmp });
+    expect(res.isError).toBe(true);
+    expect(res.content[0]!.text).toMatch(/sessionId is required/);
+  });
+
+  it('returns isError=true when the archive directory does not exist', async () => {
+    const res = await handleSummarizeSession({ path: tmp, sessionId: 'missing-id' });
+    expect(res.isError).toBe(true);
+    expect(res.content[0]!.text).toMatch(/archived session not found/);
+  });
+
+  it('returns Ok with status="exists" when llm-summary.md already present (no force)', async () => {
+    const sessionId = 'sess-already-summarised';
+    const archiveDir = join(tmp, '.harness', 'archive', 'sessions', sessionId);
+    mkdirSync(archiveDir, { recursive: true });
+    writeFileSync(join(archiveDir, 'llm-summary.md'), '# already done\n');
+    const res = await handleSummarizeSession({ path: tmp, sessionId });
+    expect(res.isError).toBeUndefined();
+    const parsed = JSON.parse(res.content[0]!.text) as { status: string; sessionId: string };
+    expect(parsed.status).toBe('exists');
+    expect(parsed.sessionId).toBe(sessionId);
+  });
+
+  it('returns isError=true with no API key configured and force=true', async () => {
+    const sessionId = 'sess-needs-regen';
+    const archiveDir = join(tmp, '.harness', 'archive', 'sessions', sessionId);
+    mkdirSync(archiveDir, { recursive: true });
+    writeFileSync(join(archiveDir, 'llm-summary.md'), '# stale\n');
+    const res = await handleSummarizeSession({ path: tmp, sessionId, force: true });
+    expect(res.isError).toBe(true);
+    expect(res.content[0]!.text).toMatch(/No analysis provider configured/);
   });
 });

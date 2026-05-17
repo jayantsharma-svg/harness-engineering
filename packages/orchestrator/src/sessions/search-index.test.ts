@@ -164,7 +164,7 @@ describe('SqliteSearchIndex', () => {
 
 describe('searchIndexPath', () => {
   it('returns <project>/.harness/search-index.sqlite', () => {
-    expect(searchIndexPath('/tmp/foo')).toMatch(/\.harness\/search-index\.sqlite$/);
+    expect(searchIndexPath('/tmp/foo')).toBe(join('/tmp/foo', '.harness', 'search-index.sqlite'));
   });
 });
 
