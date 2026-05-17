@@ -104,6 +104,17 @@ function severityFromType(type: string): NotificationSeverity {
   return 'info';
 }
 
+function backfillEnvelope(
+  event: GatewayEvent,
+  partial: Partial<NotificationEnvelope>
+): NotificationEnvelope {
+  return {
+    title: truncate(partial.title ?? fallbackTitle(event), 280),
+    summary: partial.summary ?? fallbackSummary(event),
+    severity: partial.severity ?? severityFromType(event.type),
+  };
+}
+
 /**
  * Wrap a `GatewayEvent` into a platform-agnostic `NotificationEnvelope`.
  * Used when a sink has `wrap_response: true` in its config. Unknown event
@@ -113,11 +124,7 @@ function severityFromType(type: string): NotificationSeverity {
 export function wrapAsEnvelope(event: GatewayEvent): NotificationEnvelope {
   const deriver = ENVELOPE_DERIVERS[event.type];
   const partial = deriver ? deriver(event) : {};
-  const envelope: NotificationEnvelope = {
-    title: truncate(partial.title ?? fallbackTitle(event), 280),
-    summary: partial.summary ?? fallbackSummary(event),
-    severity: partial.severity ?? severityFromType(event.type),
-  };
+  const envelope = backfillEnvelope(event, partial);
   if (partial.actions) envelope.actions = partial.actions;
   if (partial.permalink) envelope.permalink = partial.permalink;
   if (event.correlationId) envelope.correlationId = event.correlationId;

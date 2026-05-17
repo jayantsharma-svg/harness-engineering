@@ -39,6 +39,39 @@ interface WireParams {
  * dashboard or webhook fanout. Slow sinks do not block fast sinks (each
  * deliver is started in parallel, not awaited).
  */
+function dispatchToEntry(
+  bus: EventEmitter,
+  entry: ReturnType<SinkRegistry['list']>[number],
+  event: GatewayEvent
+): void {
+  const eventType = event.type;
+  const matches = entry.config.events.some((p) => eventMatches(p, eventType));
+  if (!matches) return;
+  const payload = entry.config.wrap_response ? wrapAsEnvelope(event) : event;
+  const summaryBase = {
+    sinkId: entry.adapter.id,
+    kind: entry.adapter.kind,
+    eventType,
+    eventId: event.id,
+  };
+  void entry.adapter
+    .deliver({ payload, wrapped: entry.config.wrap_response })
+    .then((result) => {
+      bus.emit('notification.delivery.attempted', { ...summaryBase, ok: result.ok });
+      if (!result.ok) {
+        bus.emit('notification.delivery.failed', {
+          ...summaryBase,
+          ok: false,
+          error: result.error,
+        });
+      }
+    })
+    .catch((err: unknown) => {
+      const msg = err instanceof Error ? err.message : String(err);
+      bus.emit('notification.delivery.failed', { ...summaryBase, ok: false, error: msg });
+    });
+}
+
 export function wireNotificationSinks({ bus, registry }: WireParams): () => void {
   const handlers: Array<{ topic: string; fn: (data: unknown) => void }> = [];
 
@@ -54,35 +87,7 @@ export function wireNotificationSinks({ bus, registry }: WireParams): () => void
         data,
       };
       for (const entry of entries) {
-        const matches = entry.config.events.some((p) => eventMatches(p, eventType));
-        if (!matches) continue;
-        const payload = entry.config.wrap_response ? wrapAsEnvelope(event) : event;
-        void entry.adapter
-          .deliver({ payload, wrapped: entry.config.wrap_response })
-          .then((result) => {
-            const summary = {
-              sinkId: entry.adapter.id,
-              kind: entry.adapter.kind,
-              eventType,
-              eventId: event.id,
-              ok: result.ok,
-            };
-            bus.emit('notification.delivery.attempted', summary);
-            if (!result.ok) {
-              bus.emit('notification.delivery.failed', { ...summary, error: result.error });
-            }
-          })
-          .catch((err: unknown) => {
-            const msg = err instanceof Error ? err.message : String(err);
-            bus.emit('notification.delivery.failed', {
-              sinkId: entry.adapter.id,
-              kind: entry.adapter.kind,
-              eventType,
-              eventId: event.id,
-              ok: false,
-              error: msg,
-            });
-          });
+        dispatchToEntry(bus, entry, event);
       }
     };
     bus.on(topic, fn);

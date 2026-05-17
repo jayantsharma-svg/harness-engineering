@@ -465,29 +465,8 @@ export class Orchestrator extends EventEmitter {
       });
       webhookDelivery.start();
 
-      // Hermes Phase 3: in-process notification sinks subscribe to the
-      // same `bus` (`this`) as the webhook delivery fan-out. Each sink
-      // delivers directly to its destination (Slack incoming webhook,
-      // etc.) with optional envelope wrapping. A misconfigured sink
-      // (unknown kind, missing env var) logs + skips rather than
-      // breaking orchestrator startup — the doctor surfaces the gap.
-      const notifConfig = config.notifications;
-      if (notifConfig && notifConfig.sinks && notifConfig.sinks.length > 0) {
-        try {
-          this.notificationsRegistry = SinkRegistry.fromConfig(notifConfig, {
-            env: process.env,
-          });
-          this.notificationFanoutOff = wireNotificationSinks({
-            bus: this,
-            registry: this.notificationsRegistry,
-          });
-        } catch (err) {
-          this.logger.warn(
-            `notifications sink registry failed: ${err instanceof Error ? err.message : String(err)}; sinks disabled`
-          );
-          delete this.notificationsRegistry;
-        }
-      }
+      // Hermes Phase 3: in-process notification sinks. See setupNotifications.
+      this.setupNotifications(config.notifications);
 
       // Phase 5: OTLP/HTTP trace exporter. Constructed only when the
       // operator configures `telemetry.export.otlp` in harness.config.json.
@@ -1545,6 +1524,34 @@ export class Orchestrator extends EventEmitter {
       this.handleEffect(effect)
     );
     this.emit('state_change', this.getSnapshot());
+  }
+
+  /**
+   * Hermes Phase 3: wire in-process notification sinks against the
+   * orchestrator's event bus (`this`). A misconfigured sink (unknown kind,
+   * missing env var) logs + skips rather than breaking startup — the
+   * hardened doctor (`harness doctor`) surfaces the gap. Sinks subscribe
+   * to the same topics as `wireWebhookFanout`; a slow Slack call cannot
+   * block webhook delivery because the two paths fan out independently.
+   */
+  private setupNotifications(
+    notifConfig: import('@harness-engineering/types').NotificationsConfig | undefined
+  ): void {
+    if (!notifConfig || !notifConfig.sinks || notifConfig.sinks.length === 0) return;
+    try {
+      this.notificationsRegistry = SinkRegistry.fromConfig(notifConfig, {
+        env: process.env,
+      });
+      this.notificationFanoutOff = wireNotificationSinks({
+        bus: this,
+        registry: this.notificationsRegistry,
+      });
+    } catch (err) {
+      this.logger.warn(
+        `notifications sink registry failed: ${err instanceof Error ? err.message : String(err)}; sinks disabled`
+      );
+      delete this.notificationsRegistry;
+    }
   }
 
   /**
