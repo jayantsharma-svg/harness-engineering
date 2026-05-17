@@ -143,7 +143,7 @@ Lower `bm25` = better match (SQLite's convention).
 
 ```jsonc
 {
-  "hermes": {
+  "sessions": {
     "search": {
       "indexedFileKinds": ["summary", "learnings", "failures", "sections", "llm_summary"],
       "maxIndexBytesPerFile": 262144,

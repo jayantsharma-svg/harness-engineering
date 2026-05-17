@@ -104,7 +104,7 @@ Empty sections render as `_(none)_` so the file always has the same shape.
 
 ```jsonc
 {
-  "hermes": {
+  "sessions": {
     "summary": {
       "enabled": true, // default: true when intelligence.provider configured
       "inputBudgetTokens": 16000,

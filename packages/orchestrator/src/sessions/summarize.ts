@@ -1,5 +1,5 @@
 /**
- * Hermes Phase 1 — LLM-driven session summary.
+ * LLM-driven session summary.
  *
  * Hooks `archiveSession()` to invoke an `AnalysisProvider` against the
  * archived session's markdown files and write a structured `llm-summary.md`
@@ -13,7 +13,7 @@ import {
   SessionSummarySchema,
   type SessionSummary,
   type SessionSummaryMeta,
-  type HermesSummaryConfig,
+  type SessionSummarizationConfig,
 } from '@harness-engineering/types';
 import { Ok, Err, type Result } from '@harness-engineering/types';
 import type { AnalysisProvider } from '@harness-engineering/intelligence';
@@ -55,8 +55,8 @@ export interface SummarizeContext {
   archiveDir: string;
   /** Resolved AnalysisProvider — caller skips this step when no provider is available. */
   provider: AnalysisProvider;
-  /** Optional Hermes summary config, defaults applied when fields are missing. */
-  config?: HermesSummaryConfig | undefined;
+  /** Optional session summary config, defaults applied when fields are missing. */
+  config?: SessionSummarizationConfig | undefined;
   /** Optional logger; falls back to console.warn for diagnostics. */
   logger?: { warn?: (msg: string, meta?: Record<string, unknown>) => void };
   /** When true, on provider error a stub `llm-summary.md` is still written. Default true. */
@@ -202,7 +202,7 @@ export async function summarizeArchivedSession(
     ]);
   } catch (e) {
     const reason = e instanceof Error ? e.message : String(e);
-    ctx.logger?.warn?.('hermes summary: provider call failed', { reason });
+    ctx.logger?.warn?.('session summary: provider call failed', { reason });
     let stubPath: string | undefined;
     if (writeStubOnError) {
       try {
@@ -212,7 +212,7 @@ export async function summarizeArchivedSession(
       }
     }
     return Err(
-      new Error(`hermes summary failed: ${reason}` + (stubPath ? ` (stub: ${stubPath})` : ''))
+      new Error(`session summary failed: ${reason}` + (stubPath ? ` (stub: ${stubPath})` : ''))
     );
   }
 
@@ -220,7 +220,7 @@ export async function summarizeArchivedSession(
   const parsed = SessionSummarySchema.safeParse(response.result);
   if (!parsed.success) {
     const reason = `schema validation failed: ${parsed.error.message}`;
-    ctx.logger?.warn?.('hermes summary: invalid provider payload', { reason });
+    ctx.logger?.warn?.('session summary: invalid provider payload', { reason });
     if (writeStubOnError) {
       try {
         writeStubMarkdown(ctx.archiveDir, reason);
@@ -247,7 +247,7 @@ export async function summarizeArchivedSession(
 }
 
 /** Resolve whether summarization should run for the given config. */
-export function isSummaryEnabled(config?: HermesSummaryConfig): boolean {
+export function isSummaryEnabled(config?: SessionSummarizationConfig): boolean {
   if (!config) return false;
   if (config.enabled === false) return false;
   // `enabled === undefined` means "default to true when provider is available".

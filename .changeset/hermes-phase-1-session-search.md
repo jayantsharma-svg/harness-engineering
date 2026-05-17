@@ -28,7 +28,7 @@ attention / impact.
 
 ```jsonc
 {
-  "hermes": {
+  "sessions": {
     "search": { "indexedFileKinds": [...], "maxIndexBytesPerFile": 262144 },
     "summary": { "enabled": true, "inputBudgetTokens": 16000, "timeoutMs": 60000 }
   }

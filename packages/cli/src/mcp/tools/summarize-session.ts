@@ -83,7 +83,7 @@ export async function handleSummarizeSession(
       return resultToMcpResponse(
         Err({
           message:
-            'No analysis provider configured. Set ANTHROPIC_API_KEY to enable hermes summarization.',
+            'No analysis provider configured. Set ANTHROPIC_API_KEY to enable session summarization.',
         })
       );
     }

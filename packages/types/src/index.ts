@@ -214,8 +214,13 @@ export type {
   WebhookDelivery,
 } from './webhooks';
 
-// --- Hermes Phase 1 (Session Search + Insights) ---
-export { SessionSummarySchema, INDEXED_FILE_KINDS, INSIGHTS_KEYS, HERMES_DEFAULTS } from './hermes';
+// --- Session search + insights ---
+export {
+  SessionSummarySchema,
+  INDEXED_FILE_KINDS,
+  INSIGHTS_KEYS,
+  SESSIONS_DEFAULTS,
+} from './sessions';
 export type {
   IndexedFileKind,
   SessionSummary,
@@ -230,7 +235,7 @@ export type {
   InsightsAttentionBlock,
   InsightsImpactBlock,
   InsightsReport,
-  HermesSummaryConfig,
-  HermesSearchConfig,
-  HermesConfig,
-} from './hermes';
+  SessionSummarizationConfig,
+  SessionSearchConfig,
+  SessionsConfig,
+} from './sessions';

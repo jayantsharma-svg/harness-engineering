@@ -1,5 +1,5 @@
 /**
- * Hermes Phase 1 — archive hook bundle.
+ * Session archive hook bundle.
  *
  * `buildArchiveHooks()` returns an `ArchiveHooks` implementation that wires
  * `summarizeArchivedSession()` + `indexSessionDirectory()` together so the
@@ -10,7 +10,7 @@
  * failure as non-fatal.
  */
 import type { AnalysisProvider } from '@harness-engineering/intelligence';
-import type { HermesConfig } from '@harness-engineering/types';
+import type { SessionsConfig } from '@harness-engineering/types';
 import type { ArchiveHooks } from '@harness-engineering/core';
 import { summarizeArchivedSession, isSummaryEnabled, type SummarizeContext } from './summarize.js';
 import { openSearchIndex, indexSessionDirectory } from './search-index.js';
@@ -20,8 +20,8 @@ export interface BuildArchiveHooksOptions {
   projectPath: string;
   /** Optional AnalysisProvider — summarization is skipped when omitted. */
   provider?: AnalysisProvider | undefined;
-  /** Optional Hermes config slice. */
-  config?: HermesConfig | undefined;
+  /** Optional sessions config slice. */
+  config?: SessionsConfig | undefined;
   /** Optional logger; falls back to console.warn. */
   logger?: HookLogger | undefined;
 }
@@ -31,7 +31,7 @@ interface HookLogger {
 }
 
 const defaultLogger: HookLogger = {
-  warn: (msg, meta) => console.warn(`[hermes] ${msg}`, meta),
+  warn: (msg, meta) => console.warn(`[sessions] ${msg}`, meta),
 };
 
 async function runSummaryStep(
@@ -51,13 +51,13 @@ async function runSummaryStep(
   try {
     const result = await summarizeArchivedSession(ctx);
     if (!result.ok) {
-      logger.warn?.('hermes summary: failed', {
+      logger.warn?.('session summary: failed', {
         sessionId,
         error: result.error.message,
       });
     }
   } catch (e) {
-    logger.warn?.('hermes summary: threw', {
+    logger.warn?.('session summary: threw', {
       sessionId,
       error: e instanceof Error ? e.message : String(e),
     });
@@ -86,13 +86,13 @@ function runIndexStep(
         }),
       });
       if (result.docsWritten === 0) {
-        logger.warn?.('hermes index: no docs written', { sessionId, archiveDir });
+        logger.warn?.('session index: no docs written', { sessionId, archiveDir });
       }
     } finally {
       idx.close();
     }
   } catch (e) {
-    logger.warn?.('hermes index: failed', {
+    logger.warn?.('session index: failed', {
       sessionId,
       error: e instanceof Error ? e.message : String(e),
     });

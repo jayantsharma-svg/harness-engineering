@@ -1,5 +1,5 @@
 /**
- * @harness-engineering/types — Hermes Phase 1 (Session Search + Insights)
+ * @harness-engineering/types — session search + insights
  *
  * Types and Zod schemas for the session search index, LLM-generated session
  * summary, and the insights aggregator. Shared across orchestrator (concrete
@@ -106,7 +106,7 @@ export interface InsightsReport {
 }
 
 /** Per-summary configuration. Defaults: see proposal §"Config schema additions". */
-export interface HermesSummaryConfig {
+export interface SessionSummarizationConfig {
   enabled?: boolean;
   inputBudgetTokens?: number;
   timeoutMs?: number;
@@ -114,20 +114,20 @@ export interface HermesSummaryConfig {
 }
 
 /** Per-search configuration. */
-export interface HermesSearchConfig {
+export interface SessionSearchConfig {
   indexedFileKinds?: IndexedFileKind[];
   maxIndexBytesPerFile?: number;
 }
 
-/** Root Hermes config block (optional field on WorkflowConfig). */
-export interface HermesConfig {
+/** Root sessions config block (optional field on WorkflowConfig). */
+export interface SessionsConfig {
   enabled?: boolean;
-  summary?: HermesSummaryConfig;
-  search?: HermesSearchConfig;
+  summary?: SessionSummarizationConfig;
+  search?: SessionSearchConfig;
 }
 
 /** Defaults applied when reading config — exported for use by both consumers. */
-export const HERMES_DEFAULTS = {
+export const SESSIONS_DEFAULTS = {
   enabled: true,
   summary: {
     enabled: undefined as boolean | undefined,
