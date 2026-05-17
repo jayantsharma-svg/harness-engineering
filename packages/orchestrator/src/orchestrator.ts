@@ -42,6 +42,8 @@ import { WebhookDelivery } from './gateway/webhooks/delivery';
 import { WebhookQueue } from './gateway/webhooks/queue';
 import { wireWebhookFanout } from './gateway/webhooks/events';
 import { wireTelemetryFanout } from './gateway/telemetry/fanout';
+import { SinkRegistry } from './notifications/registry';
+import { wireNotificationSinks } from './notifications/events';
 import { CacheMetricsRecorder, OTLPExporter } from '@harness-engineering/core';
 import { StructuredLogger } from './logging/logger';
 import { scanWorkspaceConfig } from './workspace/config-scanner';
@@ -174,6 +176,13 @@ export class Orchestrator extends EventEmitter {
   private cacheMetrics?: CacheMetricsRecorder;
   private otlpExporter?: OTLPExporter;
   private telemetryFanoutOff?: () => void;
+  // Hermes Phase 3: in-process notification sinks subscribe to the same
+  // event bus (`this`) that webhook fanout uses, applying envelope
+  // formatting before delivering to Slack/etc. The registry + unwire
+  // handle are kept on the instance so stop() can detach listeners and
+  // call adapter dispose() in deterministic order.
+  private notificationsRegistry?: SinkRegistry;
+  private notificationFanoutOff?: () => void;
   private orchestratorIdPromise: Promise<string>;
   private recorder: StreamRecorder;
   private intelligenceRunner: IntelligencePipelineRunner;
@@ -455,6 +464,30 @@ export class Orchestrator extends EventEmitter {
         delivery: webhookDelivery,
       });
       webhookDelivery.start();
+
+      // Hermes Phase 3: in-process notification sinks subscribe to the
+      // same `bus` (`this`) as the webhook delivery fan-out. Each sink
+      // delivers directly to its destination (Slack incoming webhook,
+      // etc.) with optional envelope wrapping. A misconfigured sink
+      // (unknown kind, missing env var) logs + skips rather than
+      // breaking orchestrator startup — the doctor surfaces the gap.
+      const notifConfig = config.notifications;
+      if (notifConfig && notifConfig.sinks && notifConfig.sinks.length > 0) {
+        try {
+          this.notificationsRegistry = SinkRegistry.fromConfig(notifConfig, {
+            env: process.env,
+          });
+          this.notificationFanoutOff = wireNotificationSinks({
+            bus: this,
+            registry: this.notificationsRegistry,
+          });
+        } catch (err) {
+          this.logger.warn(
+            `notifications sink registry failed: ${err instanceof Error ? err.message : String(err)}; sinks disabled`
+          );
+          delete this.notificationsRegistry;
+        }
+      }
 
       // Phase 5: OTLP/HTTP trace exporter. Constructed only when the
       // operator configures `telemetry.export.otlp` in harness.config.json.
@@ -1734,6 +1767,18 @@ export class Orchestrator extends EventEmitter {
     if (this.webhookFanoutOff) {
       this.webhookFanoutOff();
       delete this.webhookFanoutOff;
+    }
+    // Hermes Phase 3: detach the notification listeners before the
+    // registry disposes so no in-flight emit pulls from a torn-down
+    // adapter. The deliver() promises that are already mid-flight resolve
+    // independently; their results no longer route to listeners.
+    if (this.notificationFanoutOff) {
+      this.notificationFanoutOff();
+      delete this.notificationFanoutOff;
+    }
+    if (this.notificationsRegistry) {
+      await this.notificationsRegistry.dispose();
+      delete this.notificationsRegistry;
     }
     // Phase 5: tear down telemetry fanout BEFORE the delivery worker so
     // late-arriving bus events do not enqueue into a draining queue.

@@ -567,6 +567,12 @@ export interface WorkflowConfig {
   maintenance?: MaintenanceConfig;
   /** Phase 5: telemetry export wiring (OTLP/HTTP traces). */
   telemetry?: TelemetryWorkflowConfig;
+  /**
+   * Hermes Phase 3: notification sinks (Slack-first). When present + non-empty,
+   * orchestrator boot constructs a `SinkRegistry` from this section and wires
+   * `wireNotificationSinks` against the orchestrator's event bus.
+   */
+  notifications?: import('./notifications').NotificationsConfig;
   /** Optional stable identity for this orchestrator instance. Auto-generated if omitted. */
   orchestratorId?: string;
 }

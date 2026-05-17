@@ -213,3 +213,23 @@ export type {
   WebhookDeliveryStatus,
   WebhookDelivery,
 } from './webhooks';
+
+// --- Notifications (Hermes Phase 3) ---
+export {
+  NotificationSinkKindSchema,
+  NotificationSeveritySchema,
+  NotificationActionSchema,
+  NotificationEnvelopeSchema,
+  NotificationSinkConfigSchema,
+  NotificationsConfigSchema,
+  NotificationDeliveryResultSchema,
+} from './notifications';
+export type {
+  NotificationSinkKind,
+  NotificationSeverity,
+  NotificationAction,
+  NotificationEnvelope,
+  NotificationSinkConfig,
+  NotificationsConfig,
+  NotificationDeliveryResult,
+} from './notifications';
