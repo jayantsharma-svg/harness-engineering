@@ -1,5 +1,86 @@
 # @harness-engineering/types
 
+## 0.13.0
+
+### Minor Changes
+
+- 3d6e340: Hermes Phase 1: Session Search + Insights
+
+  Adds a SQLite FTS5 full-text index over `.harness/sessions/` and
+  `.harness/archive/sessions/`, plus an LLM-generated retrospective summary
+  written to `<archive>/llm-summary.md` when a session is archived, plus a
+  composite `harness insights` aggregator covering health / entropy / decay /
+  attention / impact.
+
+  **New CLI:**
+  - `harness search "<query>"` — FTS5 + BM25 over indexed session memory.
+  - `harness insights` — composite project report.
+
+  **New MCP tools:**
+  - `search_sessions` (tier: core)
+  - `summarize_session` (tier: standard — LLM-spend implication)
+  - `insights_summary` (tier: core)
+
+  **New config (optional, all defaults are sensible):**
+
+  ```jsonc
+  {
+    "sessions": {
+      "search": { "indexedFileKinds": [...], "maxIndexBytesPerFile": 262144 },
+      "summary": { "enabled": true, "inputBudgetTokens": 16000, "timeoutMs": 60000 }
+    }
+  }
+  ```
+
+  **Backwards compatible:** existing `harness.config.json` files validate
+  unchanged; `archiveSession()`'s second argument is optional.
+
+  Dashboard Search + Insights pages are deferred to follow-up roadmap item
+  `hermes-phase-1.1-dashboard-ui`. See
+  `docs/changes/hermes-phase-1-session-search/proposal.md` and the
+  companion ADR
+  `docs/knowledge/decisions/0013-hermes-phase-1-session-memory-architecture.md`.
+
+- 2481e59: Hermes Phase 3: Multi-sink notifications + doctor hardening
+
+  Generalizes `CINotifier` into a `NotificationSink` interface, ships Slack
+  (incoming-webhook) as the first concrete in-tree adapter, adds a
+  `wrap_response` envelope formatter for platform-shape delivery, and extends
+  `harness doctor` with four content-aware checks (hook syntax, baseline
+  freshness, session-taint corruption, live pings).
+
+  **New surfaces:**
+  - `NotificationSink` interface + `eventTypeMatches` glob matcher
+    (`@harness-engineering/core`).
+  - `wrapResponse(event)` envelope formatter with per-event-type handlers
+    (`@harness-engineering/core`).
+  - `SlackSink` and `CIGithubSink` adapters
+    (`@harness-engineering/core`).
+  - `SinkRegistry` + `wireNotificationSinks` orchestrator wiring
+    (`@harness-engineering/orchestrator`).
+  - New config block on `WorkflowConfig.notifications` with Zod schemas
+    exposed from `@harness-engineering/types`.
+  - `harness notifications test` CLI subcommand
+    (`@harness-engineering/cli`).
+  - `harness doctor` gains hook-syntax, baseline-freshness, session-taint,
+    and `--live` ping checks.
+
+  **Backwards compatible:** existing `harness.config.json` files validate
+  unchanged; orchestrator boot constructs the registry only when
+  `notifications.sinks` is non-empty.
+
+  See `docs/changes/hermes-phase-3-notifications/proposal.md` for the
+  full design.
+
+- 2602530: Hermes Phase 5 — Dispatch Hardening.
+  - Adds `IsolationTier` (`'none' | 'container' | 'remote-sandbox'`) as the fourth routing axis on `BackendRouter`. Configs may declare `routing.isolation.{none,container,remote-sandbox}` and tasks may issue `{ kind: 'isolation', tier }` queries.
+  - Adds two new backend types: `SshBackendDef` (key-based SSH agent dispatch) and `ServerlessBackendDef` with the first `'oci'` adapter (`OciServerlessBackend` — cold-starts OCI images via `docker`/`podman`).
+  - Adds per-task cost ceiling: `TaskDefinition.costCeiling = { maxUsd, warnAtPct? }` with abort-on-exceed. `RunResult.costUsd` records cumulative spend. `CostCeilingMonitor` (singleton, telemetry-driven) emits `'abort'` at the turn boundary when cumulative cost exceeds the ceiling; the dispatched task fails with `error === 'cost_ceiling_exceeded'`.
+  - ADRs `0013-dispatch-isolation-tier` and `0014-cost-ceiling-policy` document the decisions.
+  - Knowledge docs added under `docs/knowledge/orchestrator/` for dispatch-isolation, cost-ceiling, backends-ssh, and backends-serverless.
+
+  No breaking changes. All existing routing use cases (`tier`, `intelligence`, `maintenance`, `chat`) resolve identically; configs without `routing.isolation` fall through to `routing.default`. Tasks without `costCeiling` execute as before.
+
 ## 0.12.0
 
 ### Minor Changes
