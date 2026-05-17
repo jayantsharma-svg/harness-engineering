@@ -4,7 +4,7 @@ version: 1
 created: 2026-03-21
 updated: 2026-04-24
 last_synced: 2026-05-15T18:43:18.077Z
-last_manual_edit: 2026-05-16T13:50:11.526Z
+last_manual_edit: 2026-05-17T19:30:00.000Z
 ---
 
 # Roadmap
@@ -1208,12 +1208,12 @@ last_manual_edit: 2026-05-16T13:50:11.526Z
 
 ### Hermes Phase 5: Dispatch Hardening
 
-- **Status:** planned
-- **Spec:** docs/changes/hermes-adoption/proposal.md
+- **Status:** done
+- **Spec:** docs/changes/hermes-phase-5-dispatch-hardening/proposal.md
 - **Summary:** SSH agent dispatch backend, serverless backend interface (Modal-style not Modal-coupled), isolation tier as fourth axis on BackendRouter (local/container/remote-sandbox), per-task cost ceiling with abort-on-exceed. Cost ceiling requires Phase 0 telemetry. From Hermes adoption meta-spec.
-- **Blockers:** Hermes Phase 0: Gateway API + Telemetry
-- **Plan:** —
-- **Assignee:** —
+- **Blockers:** —
+- **Plan:** docs/changes/hermes-phase-5-dispatch-hardening/plans/2026-05-16-main-plan.md
+- **Assignee:** @cwarner
 - **Priority:** —
 - **External-ID:** github:Intense-Visions/harness-engineering#315
 
