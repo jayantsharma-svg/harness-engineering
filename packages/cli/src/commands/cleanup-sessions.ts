@@ -1,4 +1,10 @@
 // packages/cli/src/commands/cleanup-sessions.ts
+//
+// Hermes Phase 2 — Extended to general `.harness/` disk hygiene while
+// preserving backwards-compat with the original sessions-only behavior:
+// `harness cleanup-sessions` (no flags) continues to sweep `.harness/sessions/`
+// at the 24h TTL; new `--all`, `--include`, `--exclude` flags select among
+// registered targets (cache, maintenance outputs, dashboard state, etc.).
 import { Command } from 'commander';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -6,8 +12,35 @@ import type { Result } from '@harness-engineering/core';
 import { Ok, Err } from '@harness-engineering/core';
 import { logger } from '../output/logger';
 import { CLIError, ExitCode } from '../utils/errors';
+import { resolveConfig } from '../config/loader';
 
 const STALE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+/**
+ * Hermes Phase 2 — Registered cleanup targets under `.harness/`.
+ *
+ * Default TTLs match the proposal §D7 table. Operators override per-target
+ * TTLs via `cleanup.ttlHours: { <name>: <hours> }` in `harness.config.json`;
+ * unknown keys are ignored.
+ */
+export interface CleanupTarget {
+  name: string;
+  /** Path relative to `.harness/`. */
+  relativeDir: string;
+  defaultTtlMs: number;
+}
+
+const ONE_HOUR_MS = 60 * 60 * 1000;
+const ONE_DAY_MS = 24 * ONE_HOUR_MS;
+
+export const CLEANUP_TARGETS: readonly CleanupTarget[] = [
+  { name: 'sessions', relativeDir: 'sessions', defaultTtlMs: 24 * ONE_HOUR_MS },
+  { name: 'cache', relativeDir: 'cache', defaultTtlMs: 7 * ONE_DAY_MS },
+  { name: 'maintenance', relativeDir: 'maintenance', defaultTtlMs: 30 * ONE_DAY_MS },
+  { name: 'dashboard-state', relativeDir: 'dashboard-state', defaultTtlMs: 14 * ONE_DAY_MS },
+  { name: 'snapshots', relativeDir: 'snapshots', defaultTtlMs: 14 * ONE_DAY_MS },
+  { name: 'analyzer-output', relativeDir: 'analyzer-output', defaultTtlMs: 7 * ONE_DAY_MS },
+];
 
 interface CleanupSessionsOptions {
   cwd?: string;
@@ -116,23 +149,212 @@ function printResult(result: CleanupSessionsResult, dryRun: boolean, asJson: boo
   }
 }
 
+/**
+ * Hermes Phase 2 — Per-target sweep result.
+ *
+ * `removed` / `kept` are entry names relative to the target directory
+ * (e.g. `cache/osv/foo@1.json` → `osv/foo@1.json`).
+ */
+export interface CleanupTargetResult {
+  target: string;
+  removed: string[];
+  kept: string[];
+}
+
+export interface CleanupAllOptions {
+  cwd?: string;
+  dryRun?: boolean;
+  include?: string[];
+  exclude?: string[];
+  /** Per-target TTL overrides keyed by target name. */
+  ttlHours?: Record<string, number>;
+}
+
+function selectTargets(opts: CleanupAllOptions): CleanupTarget[] {
+  const include = opts.include?.length ? new Set(opts.include) : null;
+  const exclude = opts.exclude?.length ? new Set(opts.exclude) : null;
+  return CLEANUP_TARGETS.filter((t) => {
+    if (include) return include.has(t.name);
+    if (exclude) return !exclude.has(t.name);
+    return true;
+  });
+}
+
+/**
+ * Sweep registered `.harness/` targets per their configured TTLs. The
+ * original `runCleanupSessions` remains the surface for the no-flag CLI
+ * path and is unchanged in semantics.
+ */
+export async function runCleanupAll(
+  opts: CleanupAllOptions
+): Promise<Result<CleanupTargetResult[], CLIError>> {
+  const cwd = opts.cwd ?? process.cwd();
+  const dryRun = opts.dryRun ?? false;
+  const ttlOverrides = opts.ttlHours ?? {};
+  const targets = selectTargets(opts);
+
+  const results: CleanupTargetResult[] = [];
+  for (const target of targets) {
+    const ttlMs =
+      (ttlOverrides[target.name] ?? 0) > 0
+        ? ttlOverrides[target.name]! * ONE_HOUR_MS
+        : target.defaultTtlMs;
+    const dir = path.join(cwd, '.harness', target.relativeDir);
+    const sweepResult = await sweepDirectory(dir, ttlMs, dryRun);
+    if (!sweepResult.ok) return Err(sweepResult.error);
+    results.push({ target: target.name, ...sweepResult.value });
+  }
+  return Ok(results);
+}
+
+async function sweepDirectory(
+  dir: string,
+  ttlMs: number,
+  dryRun: boolean
+): Promise<Result<{ removed: string[]; kept: string[] }, CLIError>> {
+  const removed: string[] = [];
+  const kept: string[] = [];
+  if (!fs.existsSync(dir)) return Ok({ removed, kept });
+
+  let entries: fs.Dirent[];
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch (err) {
+    return Err(
+      new CLIError(
+        `Failed to read ${dir}: ${err instanceof Error ? err.message : String(err)}`,
+        ExitCode.ERROR
+      )
+    );
+  }
+
+  const now = Date.now();
+  for (const entry of entries) {
+    const entryPath = path.join(dir, entry.name);
+    const ageMs = now - mtimeOf(entryPath);
+    if (ageMs > ttlMs) {
+      removed.push(entry.name);
+      if (!dryRun) {
+        try {
+          fs.rmSync(entryPath, { recursive: true, force: true });
+        } catch (err) {
+          return Err(
+            new CLIError(
+              `Failed to remove ${entryPath}: ${err instanceof Error ? err.message : String(err)}`,
+              ExitCode.ERROR
+            )
+          );
+        }
+      }
+    } else {
+      kept.push(entry.name);
+    }
+  }
+  return Ok({ removed, kept });
+}
+
+function mtimeOf(target: string): number {
+  try {
+    const stat = fs.statSync(target);
+    if (stat.isDirectory()) return getMostRecentMtime(target);
+    return stat.mtimeMs;
+  } catch {
+    return 0;
+  }
+}
+
+function printAllResult(results: CleanupTargetResult[], dryRun: boolean, asJson: boolean): void {
+  if (asJson) {
+    console.log(JSON.stringify({ results, dryRun }, null, 2));
+    return;
+  }
+  let totalRemoved = 0;
+  for (const r of results) {
+    const total = r.removed.length + r.kept.length;
+    if (total === 0) {
+      console.log(`[cleanup] ${r.target.padEnd(18)} (no entries)`);
+      continue;
+    }
+    const verb = dryRun ? 'would remove' : 'removed';
+    console.log(
+      `[cleanup] ${r.target.padEnd(18)} ${String(total).padStart(3)} entries  ${r.removed.length} ${verb}`
+    );
+    totalRemoved += r.removed.length;
+  }
+  if (totalRemoved > 0) {
+    console.log(
+      `\n${dryRun ? 'Would remove' : 'Removed'} ${totalRemoved} stale entry(ies) across targets.`
+    );
+  }
+}
+
 export function createCleanupSessionsCommand(): Command {
   const command = new Command('cleanup-sessions')
-    .description('Remove stale session directories from .harness/sessions/ (no write in 24h)')
-    .option('--dry-run', 'List stale sessions without deleting them', false)
+    .description(
+      'Remove stale entries from .harness/. Default: only .harness/sessions/ (no write in 24h).'
+    )
+    .option('--dry-run', 'List stale entries without deleting them', false)
     .option('--path <path>', 'Project root path', '.')
+    .option('--all', 'Hermes Phase 2: sweep every registered .harness/ target')
+    .option(
+      '--include <list>',
+      'Hermes Phase 2: comma-separated target names (mutually-exclusive with --exclude/--all)'
+    )
+    .option('--exclude <list>', 'Hermes Phase 2: comma-separated target names to skip')
     .action(async (opts, cmd) => {
       const globalOpts = cmd.optsWithGlobals();
       const cwd = path.resolve(opts.path);
-      const result = await runCleanupSessions({ cwd, dryRun: opts.dryRun });
-      if (!result.ok) {
-        logger.error(result.error.message);
-        process.exit(result.error.exitCode);
+      const asJson = Boolean(globalOpts.json);
+      if (opts.all || opts.include || opts.exclude) {
+        await runExtendedSweep(cwd, opts, asJson);
         return;
       }
-      printResult(result.value, opts.dryRun, globalOpts.json);
-      process.exit(ExitCode.SUCCESS);
+      await runSessionsOnlySweep(cwd, opts, asJson);
     });
 
   return command;
+}
+
+async function runExtendedSweep(
+  cwd: string,
+  opts: { dryRun?: boolean; include?: string; exclude?: string },
+  asJson: boolean
+): Promise<void> {
+  const configResult = resolveConfig();
+  const configuredTtls = configResult.ok ? configResult.value.cleanup?.ttlHours : undefined;
+  const cleanupOpts: CleanupAllOptions = { cwd, dryRun: Boolean(opts.dryRun) };
+  if (configuredTtls !== undefined) cleanupOpts.ttlHours = configuredTtls;
+  if (opts.include) {
+    cleanupOpts.include = String(opts.include)
+      .split(',')
+      .map((s) => s.trim());
+  }
+  if (opts.exclude) {
+    cleanupOpts.exclude = String(opts.exclude)
+      .split(',')
+      .map((s) => s.trim());
+  }
+  const result = await runCleanupAll(cleanupOpts);
+  if (!result.ok) {
+    logger.error(result.error.message);
+    process.exit(result.error.exitCode);
+    return;
+  }
+  printAllResult(result.value, Boolean(opts.dryRun), asJson);
+  process.exit(ExitCode.SUCCESS);
+}
+
+async function runSessionsOnlySweep(
+  cwd: string,
+  opts: { dryRun?: boolean },
+  asJson: boolean
+): Promise<void> {
+  const result = await runCleanupSessions({ cwd, dryRun: Boolean(opts.dryRun) });
+  if (!result.ok) {
+    logger.error(result.error.message);
+    process.exit(result.error.exitCode);
+    return;
+  }
+  printResult(result.value, Boolean(opts.dryRun), asJson);
+  process.exit(ExitCode.SUCCESS);
 }

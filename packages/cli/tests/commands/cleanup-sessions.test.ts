@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { runCleanupSessions } from '../../src/commands/cleanup-sessions';
+import { runCleanupSessions, runCleanupAll } from '../../src/commands/cleanup-sessions';
 
 describe('cleanup-sessions command', () => {
   let tmpDir: string;
@@ -73,5 +73,83 @@ describe('cleanup-sessions command', () => {
       expect(result.value.removed).toEqual([]);
       expect(result.value.kept).toEqual([]);
     }
+  });
+});
+
+describe('cleanup-sessions --all (Hermes Phase 2)', () => {
+  let tmpDir: string;
+
+  function writeAged(targetRel: string, name: string, ageMs: number): void {
+    const full = path.join(tmpDir, '.harness', targetRel, name);
+    fs.mkdirSync(path.dirname(full), { recursive: true });
+    fs.writeFileSync(full, 'x');
+    const t = new Date(Date.now() - ageMs);
+    fs.utimesSync(full, t, t);
+  }
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-cleanup-all-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('sweeps every registered target with their default TTLs', async () => {
+    // Session entries fresh + stale, cache stale, maintenance fresh
+    writeAged('sessions', 'stale.txt', 30 * 60 * 60 * 1000); // >24h
+    writeAged('sessions', 'fresh.txt', 1 * 60 * 60 * 1000);
+    writeAged('cache', 'old-osv.json', 10 * 24 * 60 * 60 * 1000); // >7d
+    writeAged('maintenance', 'recent', 1 * 60 * 60 * 1000);
+    const result = await runCleanupAll({ cwd: tmpDir, dryRun: true });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const map = Object.fromEntries(result.value.map((r) => [r.target, r]));
+    expect(map.sessions?.removed).toContain('stale.txt');
+    expect(map.sessions?.kept).toContain('fresh.txt');
+    expect(map.cache?.removed).toContain('old-osv.json');
+    expect(map.maintenance?.removed).not.toContain('recent');
+  });
+
+  it('honors --include to restrict targets', async () => {
+    writeAged('sessions', 'stale.txt', 30 * 60 * 60 * 1000);
+    writeAged('cache', 'stale.json', 10 * 24 * 60 * 60 * 1000);
+    const result = await runCleanupAll({ cwd: tmpDir, dryRun: true, include: ['cache'] });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.map((r) => r.target)).toEqual(['cache']);
+    expect(result.value[0]?.removed).toContain('stale.json');
+  });
+
+  it('honors --exclude to skip targets', async () => {
+    writeAged('sessions', 'stale.txt', 30 * 60 * 60 * 1000);
+    writeAged('cache', 'stale.json', 10 * 24 * 60 * 60 * 1000);
+    const result = await runCleanupAll({ cwd: tmpDir, dryRun: true, exclude: ['sessions'] });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.map((r) => r.target)).not.toContain('sessions');
+  });
+
+  it('respects per-target ttlHours overrides', async () => {
+    writeAged('cache', 'borderline.json', 2 * 60 * 60 * 1000); // 2h old
+    const def = await runCleanupAll({ cwd: tmpDir, dryRun: true, include: ['cache'] });
+    if (!def.ok) throw def.error;
+    expect(def.value[0]?.removed).not.toContain('borderline.json');
+    const override = await runCleanupAll({
+      cwd: tmpDir,
+      dryRun: true,
+      include: ['cache'],
+      ttlHours: { cache: 1 },
+    });
+    if (!override.ok) throw override.error;
+    expect(override.value[0]?.removed).toContain('borderline.json');
+  });
+
+  it('deletes entries when dryRun=false', async () => {
+    writeAged('cache', 'stale.json', 10 * 24 * 60 * 60 * 1000);
+    const result = await runCleanupAll({ cwd: tmpDir, dryRun: false, include: ['cache'] });
+    expect(result.ok).toBe(true);
+    const filePath = path.join(tmpDir, '.harness', 'cache', 'stale.json');
+    expect(fs.existsSync(filePath)).toBe(false);
   });
 });

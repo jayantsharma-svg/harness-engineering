@@ -528,6 +528,29 @@ export const HarnessConfigSchema = z.object({
       connectors: z.record(z.string(), z.record(z.string(), z.unknown())).default({}),
     })
     .optional(),
+  /**
+   * Hermes Phase 2 — Disk-hygiene rules consumed by `harness cleanup-sessions --all`.
+   * Keys correspond to registered target names (sessions, cache, maintenance,
+   * dashboard-state, snapshots, analyzer-output); values override the default
+   * TTL in hours. Unknown keys are ignored (forward-compatible).
+   */
+  cleanup: z
+    .object({
+      ttlHours: z.record(z.string(), z.number().positive()).optional(),
+    })
+    .optional(),
+  /**
+   * Hermes Phase 2 — Pre-launch OSV malware guard configuration.
+   * `enabled: false` disables the guard; `strict: true` reverses the default
+   * fail-open posture on OSV.dev network errors.
+   */
+  osvGuard: z
+    .object({
+      enabled: z.boolean().default(true),
+      strict: z.boolean().default(false),
+      cacheTtlHours: z.number().positive().default(24),
+    })
+    .optional(),
 });
 
 /**

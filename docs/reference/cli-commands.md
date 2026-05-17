@@ -96,12 +96,15 @@ Detect entropy issues (doc drift, dead code, patterns)
 
 ### `harness cleanup-sessions`
 
-Remove stale session directories from .harness/sessions/ (no write in 24h)
+Remove stale entries from .harness/. Default: only .harness/sessions/ (no write in 24h).
 
 **Options:**
 
-- `--dry-run` — List stale sessions without deleting them
+- `--dry-run` — List stale entries without deleting them
 - `--path` — Project root path (default: ".")
+- `--all` — Hermes Phase 2: sweep every registered .harness/ target
+- `--include` — Hermes Phase 2: comma-separated target names (mutually-exclusive with --exclude/--all)
+- `--exclude` — Hermes Phase 2: comma-separated target names to skip
 
 ### `harness create-skill`
 
@@ -706,6 +709,47 @@ Validate harness-linter.yml config
 
 - `-c, --config` — Path to harness-linter.yml (default: "./harness-linter.yml")
 - `--json` — Output as JSON
+
+## Maintenance Commands
+
+Hermes Phase 2 — inspect built-in + custom maintenance tasks and their persisted outputs
+
+### `harness maintenance list`
+
+List all resolved maintenance tasks (built-in + customTasks)
+
+**Options:**
+
+- `--json` — Emit machine-readable JSON
+- `--path` — Project root path (default: ".")
+
+### `harness maintenance show <task-id>`
+
+Show last N persisted runs for a task (from .harness/maintenance/[id]/outputs/)
+
+**Options:**
+
+- `--limit` — Number of runs to show (default: "5")
+- `--json` — Emit machine-readable JSON
+- `--path` — Project root path (default: ".")
+
+## Mcp-guard Commands
+
+Pre-launch OSV malware guard for MCP/npx packages
+
+### `harness mcp-guard cache`
+
+Manage the on-disk OSV advisory cache
+
+### `harness mcp-guard check`
+
+Check every MCP/npx package in .mcp.json against OSV.dev advisories
+
+**Options:**
+
+- `--strict` — Fail closed on network errors (default: fail-open)
+- `--json` — Emit machine-readable JSON
+- `--path` — Project root path (default: ".")
 
 ## Notifications Commands
 

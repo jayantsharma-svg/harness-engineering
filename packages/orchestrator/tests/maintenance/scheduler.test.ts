@@ -89,6 +89,61 @@ describe('MaintenanceScheduler', () => {
 
       expect(scheduler.getResolvedTasks()).toHaveLength(21);
     });
+
+    it('appends Hermes Phase 2 custom tasks after the built-ins', () => {
+      const config: MaintenanceConfig = {
+        enabled: true,
+        customTasks: {
+          'weekly-audit': {
+            type: 'mechanical-ai',
+            description: 'Custom audit',
+            schedule: '0 9 * * 1',
+            branch: 'harness-maint/weekly-audit',
+            checkScript: { path: './bin/audit' },
+            fixSkill: 'my-fix-skill',
+          },
+        },
+      };
+
+      const scheduler = new MaintenanceScheduler({
+        config,
+        leaderElector: createMockLeaderElector() as any,
+        logger: createMockLogger() as any,
+        onTaskDue: vi.fn(),
+      });
+
+      const tasks = scheduler.getResolvedTasks();
+      expect(tasks).toHaveLength(22);
+      const custom = tasks.find((t) => t.id === 'weekly-audit');
+      expect(custom?.isCustom).toBe(true);
+      expect(custom?.fixSkill).toBe('my-fix-skill');
+      expect(custom?.checkScript?.path).toBe('./bin/audit');
+    });
+
+    it('honors enabled: false override for custom tasks', () => {
+      const config: MaintenanceConfig = {
+        enabled: true,
+        customTasks: {
+          'optional-task': {
+            type: 'housekeeping',
+            description: 'Disabled custom',
+            schedule: '0 0 * * *',
+            branch: null,
+            checkCommand: ['echo'],
+          },
+        },
+        tasks: { 'optional-task': { enabled: false } },
+      };
+
+      const scheduler = new MaintenanceScheduler({
+        config,
+        leaderElector: createMockLeaderElector() as any,
+        logger: createMockLogger() as any,
+        onTaskDue: vi.fn(),
+      });
+
+      expect(scheduler.getResolvedTasks().find((t) => t.id === 'optional-task')).toBeUndefined();
+    });
   });
 
   describe('leader election', () => {

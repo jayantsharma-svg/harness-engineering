@@ -56,6 +56,11 @@ import { MaintenanceScheduler } from './maintenance/scheduler';
 import { SingleProcessLeaderElector } from './maintenance/leader-elector';
 import { MaintenanceReporter } from './maintenance/reporter';
 import { TaskRunner } from './maintenance/task-runner';
+import { CheckScriptRunner } from './maintenance/check-script-runner';
+import { TaskOutputStore } from './maintenance/output-store';
+import { ContextResolver, type InlineSkillReader } from './maintenance/context-resolver';
+import { validateCustomTasks } from './maintenance/custom-task-validator';
+import { BUILT_IN_TASKS } from './maintenance/task-registry';
 import type {
   CheckCommandRunner,
   AgentDispatcher,
@@ -645,12 +650,35 @@ export class Orchestrator extends EventEmitter {
       },
     };
 
+    // Hermes Phase 2 — wire output store, check-script runner, and context
+    // resolver so custom tasks gain persistence + chaining. Built-ins
+    // continue through the legacy paths unchanged.
+    const outputStore = new TaskOutputStore({
+      rootDir: path.join(this.projectRoot, '.harness', 'maintenance'),
+      logger: this.logger,
+    });
+    const checkScriptRunner = new CheckScriptRunner(this.projectRoot);
+    const skillReader: InlineSkillReader = {
+      // The orchestrator does not own the skill registry; CLI-side skill
+      // resolution wires this in via direct injection. Default: skill not
+      // resolvable from the orchestrator boundary.
+      read: async () => null,
+    };
+    const contextResolver = new ContextResolver({
+      outputStore,
+      skillReader,
+      logger: this.logger,
+    });
+
     return new TaskRunner({
       config: maintenanceConfig,
       checkRunner,
       agentDispatcher,
       commandExecutor,
       cwd: this.projectRoot,
+      checkScriptRunner,
+      contextResolver,
+      outputStore,
     });
   }
 
@@ -661,6 +689,18 @@ export class Orchestrator extends EventEmitter {
   private async initMaintenance(
     maintenanceConfig: import('@harness-engineering/types').MaintenanceConfig
   ): Promise<void> {
+    // Hermes Phase 2 — Validate user-defined customTasks before boot. The
+    // validator is pure (no I/O); failures abort startup with a structured
+    // error rather than surfacing later as a cryptic runtime crash.
+    const validation = validateCustomTasks(
+      maintenanceConfig.customTasks,
+      BUILT_IN_TASKS as unknown as readonly import('./maintenance/types').TaskDefinition[]
+    );
+    if (!validation.ok) {
+      const messages = validation.error.map((e) => `  - ${e.path}: ${e.message}`).join('\n');
+      throw new Error(`Invalid maintenance.customTasks configuration:\n${messages}`);
+    }
+
     this.maintenanceReporter = new MaintenanceReporter({
       persistDir: path.join(this.projectRoot, '.harness', 'maintenance'),
       logger: this.logger,

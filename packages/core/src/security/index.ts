@@ -8,6 +8,18 @@
 export { SecurityScanner, parseHarnessIgnore } from './scanner';
 
 /**
+ * Hermes Phase 2 — Pre-launch OSV malware guard.
+ */
+export { createOsvClient } from './osv-client';
+export type {
+  OsvClient,
+  OsvClientOptions,
+  OsvAdvisory,
+  OsvCheckResult,
+  OsvPackageRef,
+} from './osv-client';
+
+/**
  * Configuration and resolution for security rules and severity levels.
  */
 export { SecurityConfigSchema, parseSecurityConfig, resolveRuleSeverity } from './config';
