@@ -1,4 +1,9 @@
-import type { BackendDef, RoutingConfig, RoutingUseCase } from '@harness-engineering/types';
+import type {
+  BackendDef,
+  IsolationTier,
+  RoutingConfig,
+  RoutingUseCase,
+} from '@harness-engineering/types';
 
 export interface BackendRouterOptions {
   backends: Record<string, BackendDef>;
@@ -48,6 +53,10 @@ export class BackendRouter {
         const intel = this.routing.intelligence as Record<string, string | undefined> | undefined;
         return intel?.[useCase.layer] ?? this.routing.default;
       }
+      case 'isolation': {
+        const iso = this.routing.isolation as Record<IsolationTier, string | undefined> | undefined;
+        return iso?.[useCase.tier] ?? this.routing.default;
+      }
       case 'maintenance':
       case 'chat':
         return this.routing.default;
@@ -88,6 +97,9 @@ export class BackendRouter {
     check('diagnostic', this.routing.diagnostic);
     check('intelligence.sel', this.routing.intelligence?.sel);
     check('intelligence.pesl', this.routing.intelligence?.pesl);
+    check('isolation.none', this.routing.isolation?.none);
+    check('isolation.container', this.routing.isolation?.container);
+    check('isolation.remote-sandbox', this.routing.isolation?.['remote-sandbox']);
 
     if (missing.length > 0) {
       const detail = missing.map(({ path, name }) => `routing.${path} -> '${name}'`).join('; ');

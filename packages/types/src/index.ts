@@ -143,6 +143,10 @@ export type {
   RoutingConfig,
   RoutingUseCase,
   NamedLocalModelStatus,
+  // --- Hermes Phase 5: Dispatch Hardening ---
+  IsolationTier,
+  SshBackendDef,
+  ServerlessBackendDef,
 } from './orchestrator';
 
 // --- Container & Secrets ---

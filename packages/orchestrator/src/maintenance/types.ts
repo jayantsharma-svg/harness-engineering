@@ -14,6 +14,20 @@
 export type TaskType = 'mechanical-ai' | 'pure-ai' | 'report-only' | 'housekeeping';
 
 /**
+ * Per-task cost ceiling (Hermes Phase 5).
+ *
+ * When set, the orchestrator's `CostCeilingMonitor` tracks cumulative
+ * agent spend for the task and aborts dispatch on exceed (D6 — abort
+ * is advisory at the turn boundary).
+ */
+export interface TaskCostCeiling {
+  /** Hard cap in USD. Cumulative spend > maxUsd fires the abort path. */
+  maxUsd: number;
+  /** Warn threshold expressed as a percentage of `maxUsd` (1–99). */
+  warnAtPct?: number;
+}
+
+/**
  * Definition of a built-in maintenance task.
  */
 export interface TaskDefinition {
@@ -31,6 +45,13 @@ export interface TaskDefinition {
   checkCommand?: string[];
   /** Skill name to dispatch for AI fix (mechanical-ai and pure-ai) */
   fixSkill?: string;
+  /**
+   * Per-task cost ceiling (Hermes Phase 5). When set, cumulative agent
+   * spend across all turns dispatched for this task is tracked; the
+   * orchestrator aborts dispatch on `maxUsd` exceedance with
+   * `RunResult.error === 'cost_ceiling_exceeded'`. Default: unset = no cap.
+   */
+  costCeiling?: TaskCostCeiling;
 }
 
 /**
@@ -55,6 +76,15 @@ export interface RunResult {
   prUpdated: boolean;
   /** Error message if status is 'failure' */
   error?: string;
+  /**
+   * Cumulative agent spend in USD for this run (Hermes Phase 5).
+   *
+   * Always present (defaults to 0). Populated by the
+   * `CostCeilingMonitor` from per-turn `TokenUsage` × `ModelPricing`.
+   * When the run aborted on cost-ceiling exceed, `status === 'failure'`
+   * and `error === 'cost_ceiling_exceeded'`.
+   */
+  costUsd?: number;
 }
 
 /**

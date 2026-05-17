@@ -68,6 +68,70 @@ describe('BackendRouter — resolution', () => {
   });
 });
 
+describe('BackendRouter — isolation tier (Hermes Phase 5)', () => {
+  const remote: BackendDef = {
+    type: 'ssh',
+    host: 'gpu-box.lab',
+    remoteCommand: 'harness-agent',
+    isolation: 'remote-sandbox',
+  };
+  const sandbox: BackendDef = {
+    type: 'serverless',
+    adapter: 'oci',
+    image: 'ghcr.io/example/agent:1',
+    isolation: 'remote-sandbox',
+  };
+
+  it('resolves a remote-sandbox isolation request to the configured backend', () => {
+    const routing: RoutingConfig = {
+      default: 'cloud',
+      isolation: { 'remote-sandbox': 'remote' },
+    };
+    const router = new BackendRouter({ backends: { cloud, remote }, routing });
+    expect(router.resolve({ kind: 'isolation', tier: 'remote-sandbox' })).toBe('remote');
+  });
+
+  it('falls back to default when the isolation tier is unmapped', () => {
+    const routing: RoutingConfig = {
+      default: 'cloud',
+      isolation: { container: 'sandbox' },
+    };
+    const router = new BackendRouter({
+      backends: { cloud, sandbox: { ...sandbox, isolation: 'container' } },
+      routing,
+    });
+    expect(router.resolve({ kind: 'isolation', tier: 'remote-sandbox' })).toBe('cloud');
+  });
+
+  it('falls back to default when the isolation map is absent entirely', () => {
+    const routing: RoutingConfig = { default: 'cloud' };
+    const router = new BackendRouter({ backends: { cloud }, routing });
+    expect(router.resolve({ kind: 'isolation', tier: 'container' })).toBe('cloud');
+  });
+
+  it('throws when routing.isolation references an unknown backend', () => {
+    const routing: RoutingConfig = {
+      default: 'cloud',
+      isolation: { 'remote-sandbox': 'ghost' },
+    };
+    expect(() => new BackendRouter({ backends: { cloud }, routing })).toThrowError(
+      /isolation\.remote-sandbox.*ghost/
+    );
+  });
+
+  it('resolveDefinition returns the BackendDef reference for isolation routes', () => {
+    const routing: RoutingConfig = {
+      default: 'cloud',
+      isolation: { 'remote-sandbox': 'remote' },
+    };
+    const backends = { cloud, remote };
+    const router = new BackendRouter({ backends, routing });
+    expect(router.resolveDefinition({ kind: 'isolation', tier: 'remote-sandbox' })).toBe(
+      backends.remote
+    );
+  });
+});
+
 describe('BackendRouter — construction-time validation', () => {
   it('throws when routing.default names a missing backend', () => {
     const routing: RoutingConfig = { default: 'nope' };
