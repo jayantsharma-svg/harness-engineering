@@ -291,6 +291,24 @@ export interface HooksConfig {
 // --- Backend Definitions (Spec 2: Multi-Backend Routing) ---
 
 /**
+ * Execution-isolation tier a backend (or routing target) provides.
+ *
+ * Added in Hermes Phase 5 as the fourth axis of {@link BackendRouter}
+ * routing (alongside `tier` / `intelligence` / `maintenance|chat`). The
+ * tier is also declarable on every {@link BackendDef} so a config can
+ * advertise the isolation guarantee a backend provides natively.
+ *
+ * - `none`: Runs in the orchestrator host process; no boundary.
+ * - `container`: Runs inside a container on the orchestrator host (via
+ *   the existing {@link import('./container.js').ContainerRuntime}
+ *   decorator path).
+ * - `remote-sandbox`: Runs on a remote host (SSH backend) or on
+ *   ephemeral serverless infrastructure (cold-start per session) —
+ *   strongest isolation tier supported.
+ */
+export type IsolationTier = 'none' | 'container' | 'remote-sandbox';
+
+/**
  * Discriminated union of all backend definitions, keyed by `type`.
  *
  * Used by `agent.backends` (a named map of definitions) and consumed by
@@ -303,11 +321,15 @@ export type BackendDef =
   | OpenAIBackendDef
   | GeminiBackendDef
   | LocalBackendDef
-  | PiBackendDef;
+  | PiBackendDef
+  | SshBackendDef
+  | ServerlessBackendDef;
 
 /** Mock backend (used in tests and dry runs). */
 export interface MockBackendDef {
   type: 'mock';
+  /** Native isolation tier this backend provides. Defaults to `'none'`. */
+  isolation?: IsolationTier;
 }
 
 /** Claude CLI subprocess backend (subscription-based, no token billing). */
@@ -315,6 +337,8 @@ export interface ClaudeBackendDef {
   type: 'claude';
   /** Override for the `claude` CLI binary path. */
   command?: string;
+  /** Native isolation tier this backend provides. Defaults to `'none'`. */
+  isolation?: IsolationTier;
 }
 
 /** Anthropic API backend (token-billed). */
@@ -322,6 +346,8 @@ export interface AnthropicBackendDef {
   type: 'anthropic';
   model: string;
   apiKey?: string;
+  /** Native isolation tier this backend provides. Defaults to `'none'`. */
+  isolation?: IsolationTier;
 }
 
 /** OpenAI API backend (token-billed). */
@@ -329,6 +355,8 @@ export interface OpenAIBackendDef {
   type: 'openai';
   model: string;
   apiKey?: string;
+  /** Native isolation tier this backend provides. Defaults to `'none'`. */
+  isolation?: IsolationTier;
 }
 
 /** Google Gemini API backend (token-billed). */
@@ -336,6 +364,8 @@ export interface GeminiBackendDef {
   type: 'gemini';
   model: string;
   apiKey?: string;
+  /** Native isolation tier this backend provides. Defaults to `'none'`. */
+  isolation?: IsolationTier;
 }
 
 /** OpenAI-compatible local backend (LM Studio, Ollama, vLLM, etc.). */
@@ -349,6 +379,8 @@ export interface LocalBackendDef {
   timeoutMs?: number;
   /** Probe interval in ms for resolver. Default: 30_000. Minimum: 1_000. */
   probeIntervalMs?: number;
+  /** Native isolation tier this backend provides. Defaults to `'none'`. */
+  isolation?: IsolationTier;
 }
 
 /** Pi-coding-agent backend pointing at a local OpenAI-compatible server. */
@@ -361,6 +393,64 @@ export interface PiBackendDef {
   timeoutMs?: number;
   /** Probe interval in ms for resolver. Default: 30_000. Minimum: 1_000. */
   probeIntervalMs?: number;
+  /** Native isolation tier this backend provides. Defaults to `'none'`. */
+  isolation?: IsolationTier;
+}
+
+/**
+ * SSH agent dispatch backend (Hermes Phase 5).
+ *
+ * Spawns the agent process on a remote host over an SSH transport using
+ * the operator's existing `ssh` binary (and therefore the operator's
+ * `~/.ssh/config`). The remote host must already have the agent CLI
+ * installed and any model API keys configured locally — the orchestrator
+ * does not push secrets over SSH.
+ */
+export interface SshBackendDef {
+  type: 'ssh';
+  /** Remote host. Must not contain shell metacharacters. */
+  host: string;
+  /** SSH user, if not embedded in `host`. */
+  user?: string;
+  /** SSH port. Defaults to 22. */
+  port?: number;
+  /** Identity file path passed to `ssh -i`. */
+  identityFile?: string;
+  /** Remote command (the agent CLI invocation) — JSON-lines protocol expected. */
+  remoteCommand: string;
+  /** Additional `-o key=value` SSH options. Each entry is the literal `key=value`. */
+  sshOptions?: string[];
+  /** Path to the `ssh` binary on the orchestrator host. Defaults to `'ssh'`. */
+  sshBinary?: string;
+  /** Native isolation tier. Defaults to `'remote-sandbox'`. */
+  isolation?: IsolationTier;
+}
+
+/**
+ * Serverless agent dispatch backend (Hermes Phase 5).
+ *
+ * Cold-starts a stateless container per session, runs turns inside it,
+ * and tears it down on session stop. The `adapter` discriminant selects
+ * the concrete provider; Phase 5 ships only `'oci'` (OCI-image runner
+ * via `docker` or `podman`). Future adapters (`'modal'`, `'daytona'`,
+ * `'vercel'`) plug in behind the same shape.
+ */
+export interface ServerlessBackendDef {
+  type: 'serverless';
+  /** Concrete adapter. Phase 5 ships only `'oci'`. */
+  adapter: 'oci';
+  /** OCI image reference, including tag (e.g., `ghcr.io/.../agent:0.1.0`). */
+  image: string;
+  /** Optional registry override (passed to `docker pull` when applicable). */
+  registry?: string;
+  /** Image-pull policy. Defaults to `'if-not-present'`. */
+  pullPolicy?: 'always' | 'if-not-present' | 'never';
+  /** Environment variable names from the orchestrator process to forward into the container. */
+  envPassthrough?: string[];
+  /** OCI runtime binary (`'docker'` or `'podman'`). Defaults to `'docker'`. */
+  runtime?: 'docker' | 'podman';
+  /** Native isolation tier. Defaults to `'remote-sandbox'`. */
+  isolation?: IsolationTier;
 }
 
 /**
@@ -380,6 +470,21 @@ export interface RoutingConfig {
     sel?: string;
     pesl?: string;
   };
+  /**
+   * Isolation-tier routing (Hermes Phase 5).
+   *
+   * Maps each isolation tier to a backend name. A task that needs a
+   * particular execution boundary (e.g. `remote-sandbox` for an
+   * untrusted external code execution) issues a
+   * `{ kind: 'isolation', tier }` query; the router returns the
+   * configured name, falling back to {@link RoutingConfig.default}
+   * when the tier is not mapped.
+   */
+  isolation?: {
+    none?: string;
+    container?: string;
+    'remote-sandbox'?: string;
+  };
 }
 
 /**
@@ -394,7 +499,8 @@ export type RoutingUseCase =
   | { kind: 'tier'; tier: ScopeTier }
   | { kind: 'intelligence'; layer: 'sel' | 'pesl' }
   | { kind: 'maintenance' }
-  | { kind: 'chat' };
+  | { kind: 'chat' }
+  | { kind: 'isolation'; tier: IsolationTier };
 
 /**
  * Configuration for the agent runner.

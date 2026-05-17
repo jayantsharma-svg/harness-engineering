@@ -102,6 +102,8 @@ export function buildAnalysisProvider(args: BuildAnalysisProviderArgs): Analysis
       return buildClaudeCliProvider(def, args, layerModel);
     case 'mock':
     case 'gemini':
+    case 'ssh':
+    case 'serverless':
       logger.warn(
         `Intelligence pipeline disabled for layer '${layer}': routed backend '${backendName}' has type '${def.type}' which has no AnalysisProvider implementation.`
       );

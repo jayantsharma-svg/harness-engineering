@@ -7,6 +7,8 @@ import { OpenAIBackend } from './backends/openai.js';
 import { GeminiBackend } from './backends/gemini.js';
 import { LocalBackend } from './backends/local.js';
 import { PiBackend } from './backends/pi.js';
+import { SshBackend } from './backends/ssh.js';
+import { OciServerlessBackend } from './backends/serverless.js';
 
 /**
  * Orchestrator-owned dependencies threaded into backend constructors. Today
@@ -84,6 +86,35 @@ export function createBackend(def: BackendDef, options: CreateBackendOptions = {
         ...(def.apiKey !== undefined ? { apiKey: def.apiKey } : {}),
         ...(def.timeoutMs !== undefined ? { timeoutMs: def.timeoutMs } : {}),
       });
+    }
+    case 'ssh': {
+      return new SshBackend({
+        host: def.host,
+        remoteCommand: def.remoteCommand,
+        ...(def.user !== undefined ? { user: def.user } : {}),
+        ...(def.port !== undefined ? { port: def.port } : {}),
+        ...(def.identityFile !== undefined ? { identityFile: def.identityFile } : {}),
+        ...(def.sshOptions !== undefined ? { sshOptions: def.sshOptions } : {}),
+        ...(def.sshBinary !== undefined ? { sshBinary: def.sshBinary } : {}),
+      });
+    }
+    case 'serverless': {
+      switch (def.adapter) {
+        case 'oci':
+          return new OciServerlessBackend({
+            image: def.image,
+            ...(def.registry !== undefined ? { registry: def.registry } : {}),
+            ...(def.pullPolicy !== undefined ? { pullPolicy: def.pullPolicy } : {}),
+            ...(def.envPassthrough !== undefined ? { envPassthrough: def.envPassthrough } : {}),
+            ...(def.runtime !== undefined ? { runtime: def.runtime } : {}),
+          });
+        default: {
+          const exhaustive: never = def.adapter;
+          throw new Error(
+            `createBackend: unknown serverless adapter ${JSON.stringify(exhaustive)}`
+          );
+        }
+      }
     }
     default: {
       const exhaustive: never = def;
