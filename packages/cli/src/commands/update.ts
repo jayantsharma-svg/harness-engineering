@@ -57,7 +57,11 @@ export async function getLatestVersionAsync(pkg: string): Promise<string> {
     encoding: 'utf-8',
     timeout: 15000,
   });
-  return stdout.trim();
+  const version = stdout.trim();
+  if (!version) {
+    throw new Error(`npm returned empty response for ${pkg} dist-tags.latest`);
+  }
+  return version;
 }
 
 export function getInstalledVersion(pm: PackageManager): string | null {
