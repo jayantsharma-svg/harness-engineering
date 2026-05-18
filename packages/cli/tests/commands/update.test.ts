@@ -551,6 +551,25 @@ describe('update command', () => {
       const version = await getLatestVersionAsync('@harness-engineering/core');
       expect(version).toBe('3.0.0');
     });
+
+    it('rejects when npm returns empty stdout (transient registry hiccup)', async () => {
+      // Regression: transient `npm view <pkg> dist-tags.latest` runs were
+      // producing empty stdout, which the caller rendered as a literal `v`
+      // (e.g. "cli: v2.4.5 → v"). Treat empty output as a hard failure so
+      // the caller can fall back / log instead of printing a garbage banner.
+      mockedExecFile.mockImplementation(((
+        _cmd: unknown,
+        _args: unknown,
+        _opts: unknown,
+        cb?: Function
+      ) => {
+        if (cb) cb(null, { stdout: '   \n', stderr: '' });
+        return {} as ReturnType<typeof execFile>;
+      }) as typeof execFile);
+      await expect(getLatestVersionAsync('@harness-engineering/cli')).rejects.toThrow(
+        /empty response/i
+      );
+    });
   });
 
   describe('runUpdateAction via command parseAsync', () => {
