@@ -1,7 +1,9 @@
 /**
  * Internal types for the maintenance module.
- * Public config types (MaintenanceConfig, TaskOverride) live in @harness-engineering/types.
+ * Public config types (MaintenanceConfig, TaskOverride, CustomTaskDefinition,
+ * CheckScriptDefinition, OutputRetentionConfig) live in @harness-engineering/types.
  */
+import type { CheckScriptDefinition, OutputRetentionConfig } from '@harness-engineering/types';
 
 /**
  * Classification of maintenance task execution strategy.
@@ -12,6 +14,22 @@
  * - housekeeping: Run a mechanical command directly; no AI, no PR.
  */
 export type TaskType = 'mechanical-ai' | 'pure-ai' | 'report-only' | 'housekeeping';
+
+/**
+ * Hermes Phase 2 — Provenance tag identifying the trigger source of a run.
+ *
+ * Set by the entry point, never user-configurable:
+ *   - 'cron'                      — scheduled by MaintenanceScheduler
+ *   - 'cli'                       — `harness maintenance run <id>`
+ *   - { kind: 'api', tokenName }  — Gateway API trigger (Phase 0)
+ *   - { kind: 'chain', upstreamTaskId } — fired by a downstream `contextFrom`
+ *                                          dependency (reserved; not yet wired)
+ */
+export type RunOrigin =
+  | 'cron'
+  | 'cli'
+  | { kind: 'api'; tokenName: string }
+  | { kind: 'chain'; upstreamTaskId: string };
 
 /**
  * Per-task cost ceiling (Hermes Phase 5).
@@ -28,7 +46,13 @@ export interface TaskCostCeiling {
 }
 
 /**
- * Definition of a built-in maintenance task.
+ * Definition of a maintenance task (built-in or Phase 2 custom).
+ *
+ * Custom-task-only fields (`checkScript`, `inlineSkills`, `inlineSkillsBudgetTokens`,
+ * `contextFrom`, `contextFromMaxAgeMinutes`, `outputRetention`, `isCustom`) are
+ * populated by the scheduler when merging `MaintenanceConfig.customTasks` into the
+ * resolved task list. Built-ins leave them unset and the runner falls through to
+ * the legacy execution paths unchanged.
  */
 export interface TaskDefinition {
   /** Unique identifier for this task (e.g., 'arch-violations') */
@@ -52,6 +76,23 @@ export interface TaskDefinition {
    * `RunResult.error === 'cost_ceiling_exceeded'`. Default: unset = no cap.
    */
   costCeiling?: TaskCostCeiling;
+  /**
+   * Hermes Phase 2 — Arbitrary-executable check (replaces `checkCommand`).
+   * Mutually-exclusive with `checkCommand`; validator rejects both.
+   */
+  checkScript?: CheckScriptDefinition;
+  /** Hermes Phase 2 — Skill names whose markdown is inlined into the agent prompt. */
+  inlineSkills?: string[];
+  /** Hermes Phase 2 — Token-budget cap for inlined skills. Default: 8000. */
+  inlineSkillsBudgetTokens?: number;
+  /** Hermes Phase 2 — Upstream task IDs whose latest output feeds prompt context. */
+  contextFrom?: string[];
+  /** Hermes Phase 2 — Max upstream-output age (minutes). Default: 1440. */
+  contextFromMaxAgeMinutes?: number;
+  /** Hermes Phase 2 — Output retention overrides. */
+  outputRetention?: OutputRetentionConfig;
+  /** Hermes Phase 2 — Marks tasks originating from `customTasks` config. */
+  isCustom?: boolean;
 }
 
 /**
@@ -85,6 +126,12 @@ export interface RunResult {
    * and `error === 'cost_ceiling_exceeded'`.
    */
   costUsd?: number;
+  /**
+   * Hermes Phase 2 — Provenance tag set by the entry point.
+   * Older orchestrators may emit this field absent; renderers should fall
+   * back to `'—'` rather than crash.
+   */
+  origin?: RunOrigin;
 }
 
 /**

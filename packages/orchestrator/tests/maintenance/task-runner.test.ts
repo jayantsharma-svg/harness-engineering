@@ -578,4 +578,142 @@ describe('TaskRunner', () => {
       expect(result.error).toContain('spawn ENOENT');
     });
   });
+
+  describe('Hermes Phase 2 — custom tasks', () => {
+    it('routes a mechanical-ai checkScript through CheckScriptRunner and dispatches with prompt context', async () => {
+      const checkScriptRunner = {
+        run: vi.fn().mockResolvedValue({
+          passed: false,
+          findings: 2,
+          output: 'sample stdout',
+          stderr: '',
+          structured: null,
+        }),
+      };
+      const contextResolver = {
+        resolveInlineSkills: vi.fn().mockResolvedValue('## Reference skills\n\nbody'),
+        resolveContextFrom: vi.fn().mockResolvedValue('## Upstream context\n\nprior'),
+      };
+      const agentDispatcher = createMockAgentDispatcher({ producedCommits: false, fixed: 0 });
+
+      const runner = new TaskRunner(
+        createRunnerOptions({
+          checkScriptRunner: checkScriptRunner as never,
+          contextResolver: contextResolver as never,
+          agentDispatcher,
+        })
+      );
+
+      const CUSTOM_TASK: TaskDefinition = {
+        id: 'my-lint',
+        type: 'mechanical-ai',
+        description: 'custom',
+        schedule: '0 3 * * *',
+        branch: 'harness-maint/my-lint',
+        checkScript: { path: './bin/lint' },
+        fixSkill: 'my-fix',
+        inlineSkills: ['skill-a'],
+        contextFrom: ['arch-violations'],
+        isCustom: true,
+      };
+
+      const result = await runner.run(CUSTOM_TASK, 'cli');
+
+      expect(checkScriptRunner.run).toHaveBeenCalled();
+      expect(contextResolver.resolveInlineSkills).toHaveBeenCalledWith(['skill-a'], 8000);
+      expect(contextResolver.resolveContextFrom).toHaveBeenCalledWith(['arch-violations'], {
+        maxAgeMinutes: 1440,
+      });
+      expect(agentDispatcher.dispatch).toHaveBeenCalledWith(
+        'my-fix',
+        'harness-maint/my-lint',
+        'local',
+        '/test/project',
+        expect.objectContaining({ promptContext: expect.stringContaining('Reference skills') })
+      );
+      expect(result.findings).toBe(2);
+      expect(result.origin).toBe('cli');
+    });
+
+    it('persists run outputs through TaskOutputStore', async () => {
+      const writes: Array<[string, unknown]> = [];
+      const outputStore = {
+        write: vi.fn().mockImplementation(async (taskId: string, entry: unknown) => {
+          writes.push([taskId, entry]);
+        }),
+        latest: vi.fn(),
+        list: vi.fn(),
+        get: vi.fn(),
+        dirFor: vi.fn(),
+      };
+      const checkScriptRunner = {
+        run: vi.fn().mockResolvedValue({
+          passed: true,
+          findings: 0,
+          output: 'all clean',
+          stderr: '',
+          structured: null,
+        }),
+      };
+      const runner = new TaskRunner(
+        createRunnerOptions({
+          outputStore: outputStore as never,
+          checkScriptRunner: checkScriptRunner as never,
+        })
+      );
+
+      const TASK: TaskDefinition = {
+        id: 'persisted',
+        type: 'housekeeping',
+        description: 'd',
+        schedule: '0 0 * * *',
+        branch: null,
+        checkScript: { path: './bin/cleanup' },
+        isCustom: true,
+      };
+
+      const result = await runner.run(TASK, 'cron');
+
+      expect(outputStore.write).toHaveBeenCalledTimes(1);
+      expect(result.origin).toBe('cron');
+      expect(writes[0]?.[0]).toBe('persisted');
+      const entry = writes[0]?.[1] as { stdout?: string; origin?: unknown };
+      expect(entry.stdout).toBe('all clean');
+      expect(entry.origin).toBe('cron');
+    });
+
+    it('treats a non-zero-findings + wakeAgent:false envelope as no-issues', async () => {
+      const checkScriptRunner = {
+        run: vi.fn().mockResolvedValue({
+          passed: true,
+          findings: 4,
+          output: 'observed but human-handled',
+          stderr: '',
+          structured: { status: 'findings', findings: 4, wakeAgent: false },
+        }),
+      };
+      const agentDispatcher = createMockAgentDispatcher();
+      const runner = new TaskRunner(
+        createRunnerOptions({
+          checkScriptRunner: checkScriptRunner as never,
+          agentDispatcher,
+        })
+      );
+
+      const TASK: TaskDefinition = {
+        id: 'tracker',
+        type: 'mechanical-ai',
+        description: 'd',
+        schedule: '0 3 * * *',
+        branch: 'harness-maint/tracker',
+        checkScript: { path: './bin/track' },
+        fixSkill: 'fix',
+        isCustom: true,
+      };
+
+      const result = await runner.run(TASK);
+      expect(result.status).toBe('no-issues');
+      expect(agentDispatcher.dispatch).not.toHaveBeenCalled();
+    });
+  });
 });

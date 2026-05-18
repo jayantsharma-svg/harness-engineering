@@ -38,7 +38,9 @@ import { createIntegrationsCommand } from './integrations';
 import { createKnowledgePipelineCommand } from './knowledge-pipeline';
 import { createLearningsCommand } from './learnings';
 import { createLinterCommand } from './linter';
+import { createMaintenanceCommand } from './maintenance';
 import { createMcpCommand } from './mcp';
+import { createMcpGuardCommand } from './mcp-guard';
 import { createMigrateCommand } from './migrate';
 import { createNotificationsCommand } from './notifications';
 import { createOrchestratorCommand } from './orchestrator';
@@ -112,7 +114,9 @@ export const commandCreators: Array<() => Command> = [
   createKnowledgePipelineCommand,
   createLearningsCommand,
   createLinterCommand,
+  createMaintenanceCommand,
   createMcpCommand,
+  createMcpGuardCommand,
   createMigrateCommand,
   createNotificationsCommand,
   createOrchestratorCommand,

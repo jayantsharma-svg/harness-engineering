@@ -68,25 +68,53 @@ export class MaintenanceScheduler {
   }
 
   /**
-   * Merge built-in task definitions with config overrides.
-   * Tasks with `enabled: false` are filtered out.
-   * Schedule overrides replace the default cron expression.
+   * Merge built-in task definitions with config overrides, then append
+   * Hermes Phase 2 `customTasks` (also respecting `tasks.<id>.enabled`
+   * overrides). Tasks with `enabled: false` are filtered out. Schedule
+   * overrides replace the default cron expression.
    */
   private resolveTasks(): TaskDefinition[] {
     const overrides = this.config.tasks ?? {};
+    const customs = this.config.customTasks ?? {};
 
-    return BUILT_IN_TASKS.filter((task) => {
+    const merged: TaskDefinition[] = [];
+
+    for (const task of BUILT_IN_TASKS) {
       const override = overrides[task.id];
-      if (override?.enabled === false) return false;
-      return true;
-    }).map((task) => {
-      const override = overrides[task.id];
-      if (!override) return { ...task };
-      return {
+      if (override?.enabled === false) continue;
+      merged.push({
         ...task,
-        ...(override.schedule !== undefined && { schedule: override.schedule }),
-      };
-    });
+        ...(override?.schedule !== undefined && { schedule: override.schedule }),
+      });
+    }
+
+    for (const [id, def] of Object.entries(customs)) {
+      const override = overrides[id];
+      if (override?.enabled === false) continue;
+      merged.push({
+        id,
+        type: def.type,
+        description: def.description,
+        schedule: override?.schedule ?? def.schedule,
+        branch: def.branch,
+        ...(def.checkCommand !== undefined && { checkCommand: def.checkCommand }),
+        ...(def.checkScript !== undefined && { checkScript: def.checkScript }),
+        ...(def.fixSkill !== undefined && { fixSkill: def.fixSkill }),
+        ...(def.inlineSkills !== undefined && { inlineSkills: def.inlineSkills }),
+        ...(def.inlineSkillsBudgetTokens !== undefined && {
+          inlineSkillsBudgetTokens: def.inlineSkillsBudgetTokens,
+        }),
+        ...(def.contextFrom !== undefined && { contextFrom: def.contextFrom }),
+        ...(def.contextFromMaxAgeMinutes !== undefined && {
+          contextFromMaxAgeMinutes: def.contextFromMaxAgeMinutes,
+        }),
+        ...(def.outputRetention !== undefined && { outputRetention: def.outputRetention }),
+        ...(def.costCeiling !== undefined && { costCeiling: def.costCeiling }),
+        isCustom: true,
+      });
+    }
+
+    return merged;
   }
 
   /** Returns the resolved (merged) task list. Useful for testing and dashboard. */

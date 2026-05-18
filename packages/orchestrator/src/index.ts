@@ -39,6 +39,17 @@ export { createBackend } from './agent/backend-factory';
 export { syncMain } from './maintenance/sync-main';
 export type { SyncMainResult, SyncMainOptions, SyncSkipReason } from './maintenance/sync-main';
 
+// Hermes Phase 2 — public surface for the maintenance CLI subcommand
+// (`harness maintenance list/show`). The CLI consumes these directly so it
+// can read built-in + custom task definitions and the per-task output store
+// without booting a full orchestrator instance.
+export { BUILT_IN_TASKS } from './maintenance/task-registry';
+export { TaskOutputStore } from './maintenance/output-store';
+export type { PersistedOutputEntry } from './maintenance/output-store';
+export { validateCustomTasks } from './maintenance/custom-task-validator';
+export type { CustomTaskValidationError } from './maintenance/custom-task-validator';
+export type { TaskDefinition, TaskType, RunOrigin } from './maintenance/types';
+
 // Hermes Phase 0 / Phase 1: re-export TokenStore so the CLI (`harness gateway token`)
 // and the dashboard tokens router can construct it via the package root without
 // reaching into the `./auth` subpath (decision phase1-d4).

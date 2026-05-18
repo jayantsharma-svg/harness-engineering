@@ -190,7 +190,17 @@ export type {
 } from './solutions';
 
 // --- Maintenance ---
-export type { MaintenanceConfig, TaskOverride, MaintenanceHistoryEntry } from './maintenance';
+export type {
+  MaintenanceConfig,
+  TaskOverride,
+  MaintenanceHistoryEntry,
+  CustomTaskDefinition,
+  CheckScriptDefinition,
+  OutputRetentionConfig,
+  TaskCostCeilingConfig,
+  CleanupConfig,
+  OsvGuardConfig,
+} from './maintenance';
 
 // --- Auth (Hermes Phase 0) ---
 export {

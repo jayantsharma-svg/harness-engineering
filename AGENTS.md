@@ -370,7 +370,7 @@ _Validation & Checks:_ `validate`, `validate-cross-check`, `check-arch`, `check-
 
 _Analysis & Intelligence:_ `predict`, `recommend`, `advise-skills`, `impact-preview`, `traceability`, `adoption`, `usage`, `scan-config`, `taint`, `search`, `insights`
 
-_Maintenance:_ `cleanup`, `cleanup-sessions`, `fix-drift`, `doctor`, `update`, `sync-main`, `sync-analyses`, `publish-analyses`, `snapshot`
+_Maintenance:_ `cleanup`, `cleanup-sessions` (with Hermes Phase 2 `--all` / `--include` / `--exclude`), `fix-drift`, `doctor`, `update`, `sync-main`, `sync-analyses`, `publish-analyses`, `snapshot`, `maintenance` (Hermes Phase 2: `list` / `show`), `mcp-guard` (Hermes Phase 2: pre-launch OSV malware check)
 
 _Content & Generation:_ `blueprint`, `create-skill`, `generate-agent-definitions`, `generate-slash-commands`, `knowledge-pipeline`, `share`
 
@@ -574,6 +574,27 @@ The orchestrator depends on `@harness-engineering/intelligence` for persona-awar
 - **housekeeping (3):** `session-cleanup`, `perf-baselines`, `main-sync` — run a mechanical command directly, no AI, no PR.
 
 The dashboard `Maintenance` page renders a candidate-count badge on `compound-candidates` history rows when `findings > 0`.
+
+#### Custom Maintenance Tasks (Hermes Phase 2)
+
+`MaintenanceConfig.customTasks: Record<string, CustomTaskDefinition>` extends the scheduler beyond the 21 built-ins (see [docs/knowledge/orchestrator/custom-maintenance-jobs.md](docs/knowledge/orchestrator/custom-maintenance-jobs.md) and ADR [0015](docs/knowledge/decisions/0015-hermes-phase-2-custom-maintenance-jobs.md)). Custom tasks honor the same 4-task-type taxonomy and gain five optional fields:
+
+- `checkScript: { path, args?, parseStdoutJson?, timeoutMs? }` — arbitrary executable (mutually-exclusive with `checkCommand`). The runner parses the last non-empty stdout line as a JSON envelope `{status: 'ok'|'findings'|'skip'|'error', findings?, wakeAgent?, message?, outputs?}`; falls back to the heuristic regex on absence.
+- `contextFrom: string[]` — upstream task IDs whose latest persisted output is injected into the agent prompt as `## Upstream context`. Cycles rejected at config-load by `validateCustomTasks`; stale entries (older than `contextFromMaxAgeMinutes`, default 1440) get a `[stale: omitted]` marker.
+- `inlineSkills: string[]` + `inlineSkillsBudgetTokens` (default 8000) — skill markdown bodies inlined under `## Reference skills` with a char-count budget that warns-then-truncates skill-granularly.
+- `outputRetention: { runs?, maxAgeDays? }` — overrides the default 50-run / 30-day retention bounds.
+
+`RunResult.origin: RunOrigin` is a discriminated provenance tag (`'cron' | 'cli' | { kind: 'api', tokenName } | { kind: 'chain', upstreamTaskId }`) set by the entry point and never configurable. `TaskOutputStore` persists one JSON file per run at `.harness/maintenance/<task-id>/outputs/<iso>.json` (one-file-per-run trades inode count for clarity; retention-bounded).
+
+CLI: `harness maintenance list` shows the resolved task list (built-in + custom); `harness maintenance show <task-id> --limit N` reads from the output store. The `harness maintenance run <task-id>` subcommand and the `/api/v1/jobs/maintenance/{taskId}/trigger` API are deferred to a follow-up alongside the Phase 0 Gateway API contracts.
+
+#### Pre-launch OSV Malware Guard (Hermes Phase 2 / A8)
+
+`harness mcp-guard check [--strict] [--json]` reads `.mcp.json`, iterates `mcpServers`, extracts `npx <pkg>[@<version>]` arguments, and queries OSV.dev for `MAL-*` advisories. Exits `2` on any malicious match — suitable as a `pre-mcp-launch` hook from host plugin manifests. Default posture is fail-open (network failures warn-and-continue); `--strict` reverses to fail-closed. The advisory cache lives at `.harness/cache/osv/<ecosystem>-<name>@<version>.json` with a 24h TTL (`harness mcp-guard cache clear` invalidates). The client is exported from `@harness-engineering/core` as `createOsvClient`. See [docs/knowledge/cli/pre-launch-osv-guard.md](docs/knowledge/cli/pre-launch-osv-guard.md).
+
+#### Disk Hygiene (Hermes Phase 2 / A9)
+
+`harness cleanup-sessions` (no flags) continues to sweep only `.harness/sessions/` at the 24h TTL. New flags `--all` / `--include <list>` / `--exclude <list>` extend the sweep across registered targets: `sessions` (24h), `cache` (7d), `maintenance` (30d), `dashboard-state` (14d), `snapshots` (14d), `analyzer-output` (7d). Per-target TTLs are overridable via the new `cleanup.ttlHours: Record<string, number>` config section. Unknown subdirectories of `.harness/` are preserved.
 
 ### Solutions and Pulse Reports
 
