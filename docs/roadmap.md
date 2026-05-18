@@ -1142,7 +1142,7 @@ last_manual_edit: 2026-05-17T19:30:00.000Z
 
 ### Hermes Phase 0.1: Reference Slack Bridge
 
-- **Status:** in-progress
+- **Status:** done
 - **Spec:** docs/changes/hermes-phase-0-gateway-api/proposal.md
 - **Summary:** External test consumer `examples/slack-echo-bridge/` — ~150 LOC Node bridge that subscribes to `maintenance.completed` webhooks, verifies HMAC SHA-256 signatures, posts to Slack. Validates the Phase 0 API contract is usable from an external bridge author's perspective (anti-success #4). Deferred from Phase 0 to ship Phase 0 surface promptly.
 - **Blockers:** —
