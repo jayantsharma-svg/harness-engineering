@@ -7,7 +7,7 @@ const mockPrompt = vi.fn();
 const mockAbort = vi.fn();
 const mockSubscribe = vi.fn();
 
-vi.mock('@mariozechner/pi-coding-agent', () => ({
+vi.mock('@earendil-works/pi-coding-agent', () => ({
   createAgentSession: vi.fn().mockImplementation(async () => ({
     session: {
       prompt: mockPrompt,
@@ -89,7 +89,7 @@ describe('PiBackend', () => {
         permissionMode: 'full',
       });
 
-      const { createAgentSession } = await import('@mariozechner/pi-coding-agent');
+      const { createAgentSession } = await import('@earendil-works/pi-coding-agent');
       expect(createAgentSession).toHaveBeenCalledWith(
         expect.objectContaining({
           cwd: '/tmp/workspace',
@@ -103,7 +103,7 @@ describe('PiBackend', () => {
         permissionMode: 'full',
       });
 
-      const piSdk = await import('@mariozechner/pi-coding-agent');
+      const piSdk = await import('@earendil-works/pi-coding-agent');
       expect(piSdk.SessionManager.inMemory).toHaveBeenCalled();
       expect(piSdk.createAgentSession).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -118,7 +118,7 @@ describe('PiBackend', () => {
 
     it('returns Err when session creation fails', async () => {
       // Override the mock to throw
-      const piSdk = await import('@mariozechner/pi-coding-agent');
+      const piSdk = await import('@earendil-works/pi-coding-agent');
       (piSdk.createAgentSession as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
         new Error('SDK init failed')
       );
@@ -479,7 +479,7 @@ describe('PiBackend', () => {
 
   describe('getModel callback', () => {
     it('returns Err agent_not_found when getModel() returns null without invoking the pi SDK', async () => {
-      const piSdk = await import('@mariozechner/pi-coding-agent');
+      const piSdk = await import('@earendil-works/pi-coding-agent');
       const createSpy = piSdk.createAgentSession as ReturnType<typeof vi.fn>;
       createSpy.mockClear();
 
@@ -503,7 +503,7 @@ describe('PiBackend', () => {
     });
 
     it('passes the resolved model name to createAgentSession when getModel returns a string', async () => {
-      const piSdk = await import('@mariozechner/pi-coding-agent');
+      const piSdk = await import('@earendil-works/pi-coding-agent');
       const createSpy = piSdk.createAgentSession as ReturnType<typeof vi.fn>;
       createSpy.mockClear();
 
@@ -531,7 +531,7 @@ describe('PiBackend', () => {
     });
 
     it('falls back to static config.model when getModel is not provided (backward compat)', async () => {
-      const piSdk = await import('@mariozechner/pi-coding-agent');
+      const piSdk = await import('@earendil-works/pi-coding-agent');
       const createSpy = piSdk.createAgentSession as ReturnType<typeof vi.fn>;
       createSpy.mockClear();
 

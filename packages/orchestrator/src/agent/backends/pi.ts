@@ -213,7 +213,7 @@ export class PiBackend implements AgentBackend {
         resolvedModelName = this.config.model;
       }
 
-      const piSdk = await import('@mariozechner/pi-coding-agent');
+      const piSdk = await import('@earendil-works/pi-coding-agent');
       const model = buildLocalModel({
         model: resolvedModelName,
         endpoint: this.config.endpoint,
@@ -427,7 +427,7 @@ export class PiBackend implements AgentBackend {
 
   async healthCheck(): Promise<Result<void, AgentError>> {
     try {
-      await import('@mariozechner/pi-coding-agent');
+      await import('@earendil-works/pi-coding-agent');
       return Ok(undefined);
     } catch (err) {
       return Err({
