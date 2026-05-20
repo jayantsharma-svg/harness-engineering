@@ -32,6 +32,12 @@ describe('path-utils', () => {
       // uses the same .replace(/\\/g, '/') + indexOf('/src/') pattern.
       expect(normalizePath('C:\\project\\src\\domain\\helper')).toBe('src/domain/helper');
     });
+
+    it('returns original importPath when resolved path has no /src/ and no projectRoot', () => {
+      // Final fallback path: relative import resolves to a location outside
+      // any /src/ boundary, no projectRoot anchor — return import unchanged.
+      expect(resolveImportPath('../sibling', '/lib/pkg/foo.ts')).toBe('../sibling');
+    });
   });
 
   describe('matchesPattern', () => {
