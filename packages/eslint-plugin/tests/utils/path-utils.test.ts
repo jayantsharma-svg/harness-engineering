@@ -140,21 +140,32 @@ describe('path-utils', () => {
   });
 
   describe('resolveImportPath with projectRoot (monorepo)', () => {
-    it('returns project-root-relative path preserving package identity', () => {
-      // packages/types/src/foo.ts importing '../api' resolves to
-      // packages/types/api which the legacy /src/ heuristic would mangle.
-      expect(resolveImportPath('../api', '/abs/repo/packages/types/src/foo.ts', '/abs/repo')).toBe(
-        'packages/types/api'
-      );
-    });
+    // These cases exercise `path.resolve`, which on Windows prepends a drive
+    // letter to Unix-style absolute paths (e.g. '/abs/repo/...' becomes
+    // 'D:/abs/repo/...'). That breaks the synthetic Unix path setup but
+    // cannot happen in real Windows ESLint usage, where both
+    // `context.filename` and the `getConfigRoot` result share a drive
+    // prefix. The integration test exercises real cross-platform paths.
+    const skipOnWindows = process.platform === 'win32';
 
-    it('resolves intra-package imports under projectRoot', () => {
+    it.skipIf(skipOnWindows)(
+      'returns project-root-relative path preserving package identity',
+      () => {
+        // packages/types/src/foo.ts importing '../api' resolves to
+        // packages/types/api which the legacy /src/ heuristic would mangle.
+        expect(
+          resolveImportPath('../api', '/abs/repo/packages/types/src/foo.ts', '/abs/repo')
+        ).toBe('packages/types/api');
+      }
+    );
+
+    it.skipIf(skipOnWindows)('resolves intra-package imports under projectRoot', () => {
       expect(
         resolveImportPath('./helper', '/abs/repo/packages/types/src/foo.ts', '/abs/repo')
       ).toBe('packages/types/src/helper');
     });
 
-    it('handles trailing-slash projectRoot', () => {
+    it.skipIf(skipOnWindows)('handles trailing-slash projectRoot', () => {
       expect(
         resolveImportPath('./helper', '/abs/repo/packages/types/src/foo.ts', '/abs/repo/')
       ).toBe('packages/types/src/helper');
