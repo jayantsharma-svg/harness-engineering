@@ -73,8 +73,16 @@ a6a66704 exec(design-pipeline): complete Phase 0 schema spikes for #2 and #6
 
 5. ~~**Pre-existing ADR duplicate numbers (0003-0007 range).**~~ ✓ DOCUMENTED — ADR 0022 filed with renumbering plan (second-of-pair → 0023-0027). Execution is a separate follow-up PR (file moves + reference updates).
 
-**New remaining decision** (surfaced by amendments work):
-6. **`packages/audit/` and `packages/design-craft/` as new packages, or co-locate under `packages/cli/src/`?** The path corrections leave this open. Decided in Phase 1 first task of each sub-project. The choice affects build scripts, tsconfig refs, and whether the audit/craft code is consumable by non-CLI surfaces (e.g., the dashboard package).
+~~**New remaining decision**~~ ✓ RESOLVED:
+6. ~~**`packages/audit/` and `packages/design-craft/` as new packages, or co-locate under `packages/cli/src/`?**~~ **Decided: co-locate under `packages/cli/src/audit/component-anatomy/` and `packages/cli/src/design-craft/`.** Rationale: only consumer is the CLI's MCP tool surface; precedent set by packages/cli/src/skill/ (148 KB substantial subsystem hosted inside CLI without packaging); new-package overhead (tsconfig, build pipeline, release config, dep wiring) not justified for a CLI-MCP-driven concern; extraction to a separate package later is straightforward if multi-consumer use emerges. Both spec File-layout sections updated to reflect this as the primary path (no "alternative" escape-hatch language remaining).
+
+**All amendments resolved. No remaining architectural decisions before Phase 1 implementation work begins.**
+
+Two narrow Phase-1-first-task spike items remain (per A4 + A5 in AMENDMENTS):
+- Lock `BenchmarkScore.overall` aggregation rule (equal-weight mean + min for confidence per spike recommendation)
+- Decide where to encode the Tabs trigger/panel pairing invariant (runner responsibility per spike recommendation)
+
+Neither is a blocker for starting Phase 1; both are sub-task-level decisions that surface during the first work, not architectural gates.
 
 ## What's NOT done (deliberately)
 

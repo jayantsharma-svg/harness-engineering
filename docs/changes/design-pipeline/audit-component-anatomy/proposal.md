@@ -78,10 +78,16 @@ agents/skills/claude-code/audit-component-anatomy/
 # MCP tool
 packages/cli/src/mcp/tools/audit-anatomy.ts     # mcp__harness__audit_anatomy entry
 
-# Audit implementation modules (NEW package or new dir under packages/cli/src/)
-# Preferred home: packages/audit/ (new package) — keeps audit code isolated
-# Alternative: packages/cli/src/audit/component-anatomy/ if a new package is too heavy
-packages/audit/src/component-anatomy/           # (or packages/cli/src/audit/component-anatomy/)
+# Audit implementation modules
+# Decided 2026-05-23: co-locate under packages/cli/src/ rather than spinning out
+# a new package. Rationale: the only consumer is the CLI's MCP tool surface
+# (mcp__harness__audit_anatomy + harness validate hook); the precedent set by
+# packages/cli/src/skill/ (148 KB substantial subsystem) shows CLI hosts
+# single-concern internal modules without packaging them. New-package
+# overhead (tsconfig, build pipeline, release config, dep wiring) isn't
+# justified for a CLI-MCP-driven concern. Extraction to packages/audit/ later
+# is straightforward if multi-consumer use emerges.
+packages/cli/src/audit/component-anatomy/
   index.ts                                       # entry point consumed by MCP tool
   parsers/
     ast.ts                                       # TypeScript Compiler API wrapper
@@ -114,8 +120,8 @@ agents/skills/shared/design-knowledge/anatomy-conventions/
 packages/graph/src/constraints/DesignConstraintAdapter.ts
   # add ANAT-* code namespace + VIOLATES_CRAFT edge handling
 
-# Tests live alongside source per package convention
-packages/audit/tests/                            # (or packages/cli/tests/audit/...)
+# Tests live alongside source per CLI package convention
+packages/cli/tests/audit/component-anatomy/
   fixtures/
   parsers/
   resolvers/
@@ -124,7 +130,7 @@ packages/audit/tests/                            # (or packages/cli/tests/audit/
   integrations/
 ```
 
-The exact home for the audit implementation (`packages/audit/` new package vs `packages/cli/src/audit/`) is the only remaining architectural decision — to be made in Phase 1's first task. Everything else is now path-grounded.
+All paths now grounded — no remaining architectural placeholders.
 
 ### Data structures
 

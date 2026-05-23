@@ -83,10 +83,14 @@ agents/skills/claude-code/harness-design-craft/
 # MCP tool
 packages/cli/src/mcp/tools/design-craft.ts      # mcp__harness__design_craft entry
 
-# Craft implementation modules (NEW package or new dir under packages/cli/src/)
-# Preferred home: packages/design-craft/ (new package) — keeps LLM-judgment code isolated
-# Alternative: packages/cli/src/design-craft/ if a new package is too heavy
-packages/design-craft/src/
+# Craft implementation modules
+# Decided 2026-05-23: co-locate under packages/cli/src/ rather than spinning out
+# a new package. Same rationale as #2 audit (see that spec): only consumer is
+# the CLI's MCP tool surface; precedent set by packages/cli/src/skill/;
+# new-package overhead not justified. Extraction to packages/design-craft/ later
+# is straightforward if the catalog ships standalone or dashboard consumes it
+# directly (currently the dashboard consumes via the MCP tool, not the impl).
+packages/cli/src/design-craft/
   index.ts                                       # entry point consumed by MCP tool
   phases/
     critique.ts                                  # CRITIQUE phase impl
@@ -126,8 +130,8 @@ agents/skills/shared/design-knowledge/
 packages/graph/src/constraints/DesignConstraintAdapter.ts
   # add CRAFT-* code namespace + VIOLATES_CRAFT edge handling + CRAFT_SCORE node type
 
-# Tests live alongside source per package convention
-packages/design-craft/tests/
+# Tests live alongside source per CLI package convention
+packages/cli/tests/design-craft/
   fixtures/
     rubrics/
     patterns/
@@ -139,7 +143,7 @@ packages/design-craft/tests/
   resolvers/
 ```
 
-The exact home for the craft implementation (`packages/design-craft/` new package vs `packages/cli/src/design-craft/`) is the only remaining architectural decision — to be made in Phase 1's first task.
+All paths now grounded — no remaining architectural placeholders.
 
 ### Data structures
 
