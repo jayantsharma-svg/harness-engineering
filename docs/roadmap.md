@@ -3,8 +3,8 @@ project: harness-engineering
 version: 1
 created: 2026-03-21
 updated: 2026-05-17
-last_synced: 2026-05-23T01:07:35.489Z
-last_manual_edit: 2026-05-23T14:48:11.958Z
+last_synced: 2026-05-23T20:39:30.138Z
+last_manual_edit: 2026-05-23T20:41:16.228Z
 ---
 
 # Roadmap
@@ -1952,21 +1952,21 @@ last_manual_edit: 2026-05-23T14:48:11.958Z
 
 ### design-pipeline sub-project #2: audit-component-anatomy
 
-- **Status:** planned
+- **Status:** in-progress
 - **Spec:** docs/changes/design-pipeline/audit-component-anatomy/proposal.md
 - **Summary:** Audit skill detecting missing required anatomy parts (label, helper text, error state, loading state, empty state). Rules sourced from design-component-anatomy reference content. Lowest-ambiguity sub-project. Needs documented overlap-resolution with harness-accessibility (no double-counting label-missing findings).
 - **Blockers:** —
-- **Plan:** —
+- **Plan:** docs/changes/design-pipeline/audit-component-anatomy/plans/2026-05-23-audit-component-anatomy-plan.md
 - **Assignee:** @chadjw
 - **Priority:** —
 - **External-ID:** github:Intense-Visions/harness-engineering#355
 
 ### design-pipeline sub-project #3: audit-brand-compliance
 
-- **Status:** blocked
+- **Status:** planned
 - **Spec:** —
 - **Summary:** Audit skill for semantic token misuse, brand voice violations in copy, and asset misuse. Highest-ambiguity sub-project. Blocked on brand-guidelines source-of-truth decision (sub-project #0): extend DESIGN.md schema with structured brand rules, or add a brand-guidelines authoring skill. Overlaps with #1 — raw token bypass goes to #1, semantic misuse to this.
-- **Blockers:** design-pipeline sub-project #0: brand-guidelines source-of-truth
+- **Blockers:** —
 - **Plan:** —
 - **Assignee:** —
 - **Priority:** —
@@ -1985,8 +1985,8 @@ last_manual_edit: 2026-05-23T14:48:11.958Z
 
 ### design-pipeline sub-project #0: brand-guidelines source-of-truth
 
-- **Status:** planned
-- **Spec:** —
+- **Status:** done
+- **Spec:** docs/knowledge/decisions/0028-brand-guidelines-source-of-truth.md
 - **Summary:** ADR-style decision artifact (hours, not days). Choose: (a) extend DESIGN.md schema with a structured brand-rules block — and claim the DTCG `$extensions.harness.brand` namespace as the de-facto open schema, or (b) new brand-guidelines authoring skill. Strategic urgency: Frontify shipped Brand-Intelligence-as-MCP (vendor-locked); DTCG `$extensions` vendor prefix is first-come-first-served. Output: one-page ADR + schema sketch if path (a). Unblocks sub-project #3 (audit-brand-compliance). Load REFERENCES.md tier-1 entries #1, #5, #11, #12, #41 before starting.
 - **Blockers:** —
 - **Plan:** —
@@ -1996,11 +1996,11 @@ last_manual_edit: 2026-05-23T14:48:11.958Z
 
 ### design-pipeline sub-project #6: design-craft-elevator
 
-- **Status:** planned
+- **Status:** in-progress
 - **Spec:** docs/changes/design-pipeline/design-craft-elevator/proposal.md
 - **Summary:** CEILING-RAISING counterpart to sub-projects #1-#4 (which are floor-raising / consistency-engine work). LLM-judgment-based craft elevator that produces stunning, professional-tier output — not just consistent output. Three distinct capability classes, each requiring different infrastructure than the rule-based audits: (a) aesthetic critique — LLM passes with curated rubrics that flag muddy hierarchy, nested cards, low-contrast accents, generic spinners where skeletons belong; pattern-mirrors REFERENCES.md tier-1 #2 (impeccable.style /impeccable polish commands) and #4 (alchaincyf/huashu-design 5-dimension critique with radar output). (b) Polish pattern library — vocabulary of high-craft moves to APPLY (not enforce): spring physics with named constants, stagger timing, easing curves per gesture, skeleton-matches-content-shape, progressive corner rounding; pattern-mirrors REFERENCES.md tier-1 #3 (emilkowalski/skill emil-design-eng SKILL.md). (c) Exemplar-driven targets — curated reference corpus of "this is the bar" anchors per component type (Linear empty list, Stripe loading state, Raycast command palette, Vercel error page); enables visual/LLM-evaluated proximity-to-exemplar scoring. Fundamentally different infrastructure from #1-#4: LLM passes (not AST/tree-sitter queries), pattern application (not constraint enforcement), exemplar corpus (not rule catalog). Composes into #5 orchestrator alongside the floor-raising audits. See docs/changes/design-pipeline/REFERENCES.md tier-1 entries #2, #3, #4 for direct prior art.
 - **Blockers:** —
-- **Plan:** —
+- **Plan:** docs/changes/design-pipeline/design-craft-elevator/plans/2026-05-23-design-craft-elevator-plan.md
 - **Assignee:** —
 - **Priority:** —
 - **External-ID:** github:Intense-Visions/harness-engineering#371
@@ -2068,12 +2068,13 @@ last_manual_edit: 2026-05-23T14:48:11.958Z
 - **Updated-At:** 2026-04-24T11:23:48.933Z
 
 ## Assignment History
-| Feature | Assignee | Action | Date |
-|---------|----------|--------|------|
-| Performance Engineering Knowledge Skills | @chadjw | assigned | 2026-04-09 |
-| Phase 2: Code Signal Extractors | @chadjw | assigned | 2026-04-23 |
-| Phase 3: Connector Enhancement | @chadjw | assigned | 2026-04-22 |
-| Phase 4: Knowledge Pipeline & Diagrams | @chadjw | assigned | 2026-04-23 |
-| Hermes Phase 0.1: Reference Slack Bridge | @cwarner | assigned | 2026-05-15 |
-| design-pipeline sub-project #2: audit-component-anatomy | @chadjw | assigned | 2026-05-23 |
-| design-pipeline sub-project #0: brand-guidelines source-of-truth | @chadjw | assigned | 2026-05-23 |
+
+| Feature                                                          | Assignee | Action   | Date       |
+| ---------------------------------------------------------------- | -------- | -------- | ---------- |
+| Performance Engineering Knowledge Skills                         | @chadjw  | assigned | 2026-04-09 |
+| Phase 2: Code Signal Extractors                                  | @chadjw  | assigned | 2026-04-23 |
+| Phase 3: Connector Enhancement                                   | @chadjw  | assigned | 2026-04-22 |
+| Phase 4: Knowledge Pipeline & Diagrams                           | @chadjw  | assigned | 2026-04-23 |
+| Hermes Phase 0.1: Reference Slack Bridge                         | @cwarner | assigned | 2026-05-15 |
+| design-pipeline sub-project #2: audit-component-anatomy          | @chadjw  | assigned | 2026-05-23 |
+| design-pipeline sub-project #0: brand-guidelines source-of-truth | @chadjw  | assigned | 2026-05-23 |
