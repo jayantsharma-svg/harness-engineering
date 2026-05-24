@@ -88,12 +88,16 @@ export class OrchestratorBackendFactory {
    * through dispatch eliminates that gap.
    */
   resolveName(useCase: RoutingUseCase): string {
-    return this.router.resolve(useCase);
+    return this.router.resolve(useCase).backendName;
   }
 
   forUseCase(useCase: RoutingUseCase): AgentBackend {
+    // Spec B Phase 1: two resolve() calls (one inside resolveDefinition,
+    // one explicit) yield identical RoutingDecisions because the router
+    // is deterministic and stateless. Phase 4 (decision-bus emission)
+    // will refactor to a single resolve() + threaded decision.
     const def = this.router.resolveDefinition(useCase);
-    const name = this.router.resolve(useCase);
+    const name = this.router.resolve(useCase).backendName;
     let backend: AgentBackend;
     const createOpts = this.opts.cacheMetrics ? { cacheMetrics: this.opts.cacheMetrics } : {};
 
