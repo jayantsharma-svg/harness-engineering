@@ -6,6 +6,7 @@ import {
   Err,
   BackendDef,
   RoutingConfig,
+  type RoutingValue,
 } from '@harness-engineering/types';
 import { BackendDefSchema, RoutingConfigSchema } from './schema.js';
 
@@ -25,13 +26,20 @@ function crossFieldRoutingIssues(
 ): Array<{ path: string[]; message: string }> {
   const issues: Array<{ path: string[]; message: string }> = [];
   const names = new Set(Object.keys(backends));
-  const checkRef = (path: string[], name: string | undefined): void => {
-    if (name !== undefined && !names.has(name)) {
+  // Spec B Phase 0: every routing target is now RoutingValue
+  // (scalar OR non-empty chain). Walk each entry in the chain and report
+  // the offending index in the issue path (e.g. routing.skills.foo.1).
+  const checkRef = (path: string[], value: RoutingValue | undefined): void => {
+    if (value === undefined) return;
+    const entries = Array.isArray(value) ? value : [value as string];
+    entries.forEach((name, idx) => {
+      if (names.has(name)) return;
+      const pathWithIdx = Array.isArray(value) ? [...path, String(idx)] : path;
       issues.push({
-        path,
-        message: `routing.${path.join('.')} references unknown backend '${name}'. Defined: [${[...names].join(', ')}].`,
+        path: pathWithIdx,
+        message: `routing.${pathWithIdx.join('.')} references unknown backend '${name}'. Defined: [${[...names].join(', ')}].`,
       });
-    }
+    });
   };
   checkRef(['default'], routing.default);
   checkRef(['quick-fix'], routing['quick-fix']);
@@ -40,6 +48,17 @@ function crossFieldRoutingIssues(
   checkRef(['diagnostic'], routing.diagnostic);
   checkRef(['intelligence', 'sel'], routing.intelligence?.sel);
   checkRef(['intelligence', 'pesl'], routing.intelligence?.pesl);
+  // --- Spec B Phase 0: validate skills + modes chain entries ---
+  if (routing.skills) {
+    for (const [skill, value] of Object.entries(routing.skills)) {
+      checkRef(['skills', skill], value);
+    }
+  }
+  if (routing.modes) {
+    for (const [mode, value] of Object.entries(routing.modes)) {
+      checkRef(['modes', mode], value);
+    }
+  }
   return issues;
 }
 
