@@ -166,7 +166,7 @@ Detect and auto-fix dead code including dead exports, commented-out code, and or
 
 Detect design-system drift — hardcoded values where tokens exist and raw HTML primitives where registered components exist. Reports only; never modifies source. Floor-layer rule-based verifier composed by harness check-design.
 
-- **Triggers:** manual, on_pr_open, on_new_feature
+- **Triggers:** manual, on_pr, on_new_feature
 - **Platforms:** claude-code
 - **Type:** rigid
 - **Cognitive mode:** constructive-architect
