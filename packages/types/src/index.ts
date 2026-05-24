@@ -127,7 +127,7 @@ export type {
   WorkflowDefinition,
   ScopeTier,
   ConcernSignal,
-  RoutingDecision,
+  IssueRoutingDecision,
   EscalationConfig,
   IntelligenceConfig,
   LocalModelStatus,

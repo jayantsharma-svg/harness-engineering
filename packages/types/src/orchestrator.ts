@@ -715,9 +715,13 @@ export interface ConcernSignal {
 }
 
 /**
- * Result of the routeIssue() pure function.
+ * Result of the `routeIssue()` pure function in `packages/orchestrator/src/core/model-router.ts`.
+ *
+ * Renamed from `RoutingDecision` to `IssueRoutingDecision` in Spec B Phase 0 to
+ * free the `RoutingDecision` name for the resolver-walk record produced by
+ * `BackendRouter.resolve()` (see {@link RoutingDecision} below).
  */
-export type RoutingDecision =
+export type IssueRoutingDecision =
   | { action: 'dispatch-local' }
   | { action: 'dispatch-primary' }
   | { action: 'needs-human'; reasons: string[] };

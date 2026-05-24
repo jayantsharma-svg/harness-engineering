@@ -2,7 +2,7 @@ import type {
   Issue,
   ScopeTier,
   ConcernSignal,
-  RoutingDecision,
+  IssueRoutingDecision,
   EscalationConfig,
 } from '@harness-engineering/types';
 
@@ -74,7 +74,7 @@ export function routeIssue(
   scopeTier: ScopeTier,
   concernSignals: ConcernSignal[],
   config: EscalationConfig
-): RoutingDecision {
+): IssueRoutingDecision {
   // Rule 1: Always human
   if (config.alwaysHuman.includes(scopeTier)) {
     return {
