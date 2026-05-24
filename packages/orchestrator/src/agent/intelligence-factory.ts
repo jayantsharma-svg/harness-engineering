@@ -125,8 +125,14 @@ function resolveRoutedBackend(
   const routing = config.agent.routing;
   const backends = config.agent.backends;
   if (!routing || !backends) return null;
-  const layerName = routing.intelligence?.[layer];
-  const name = layerName ?? routing.default;
+  // Spec B Phase 0: routing fields are now RoutingValue (scalar OR chain).
+  // Phase 1 will walk the chain; Phase 0 normalizes to the first element to
+  // preserve byte-identical behavior for scalar inputs.
+  const layerValue = routing.intelligence?.[layer];
+  const layerName =
+    layerValue !== undefined ? (Array.isArray(layerValue) ? layerValue[0] : layerValue) : undefined;
+  const defaultName = Array.isArray(routing.default) ? routing.default[0] : routing.default;
+  const name = layerName ?? defaultName;
   const def = backends[name];
   if (!def) {
     logger.warn(

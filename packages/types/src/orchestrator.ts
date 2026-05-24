@@ -458,33 +458,114 @@ export interface ServerlessBackendDef {
  *
  * Required: `default`. Optional: per-tier overrides and intelligence-layer
  * overrides. Unknown keys are validation errors (`.strict()`).
+ *
+ * Spec B Phase 0: scalar fields widened from `string` to {@link RoutingValue}
+ * (`string | readonly [string, ...string[]]`) so each routing target can
+ * be either a single backend name (pre-Spec-B, byte-identical behavior)
+ * or an ordered fallback chain. Phase 1 wires `BackendRouter.resolve()`
+ * to walk the chain; Phase 0 ships the type only.
  */
 export interface RoutingConfig {
-  /** Backend name used when no specific rule matches. Required. */
-  default: string;
-  'quick-fix'?: string;
-  'guided-change'?: string;
-  'full-exploration'?: string;
-  diagnostic?: string;
+  /** Backend name (or fallback chain) used when no specific rule matches. Required. */
+  default: RoutingValue;
+  'quick-fix'?: RoutingValue;
+  'guided-change'?: RoutingValue;
+  'full-exploration'?: RoutingValue;
+  diagnostic?: RoutingValue;
   intelligence?: {
-    sel?: string;
-    pesl?: string;
+    sel?: RoutingValue;
+    pesl?: RoutingValue;
   };
   /**
    * Isolation-tier routing (Hermes Phase 5).
    *
-   * Maps each isolation tier to a backend name. A task that needs a
-   * particular execution boundary (e.g. `remote-sandbox` for an
-   * untrusted external code execution) issues a
+   * Maps each isolation tier to a backend name (or fallback chain). A
+   * task that needs a particular execution boundary (e.g.
+   * `remote-sandbox` for an untrusted external code execution) issues a
    * `{ kind: 'isolation', tier }` query; the router returns the
-   * configured name, falling back to {@link RoutingConfig.default}
-   * when the tier is not mapped.
+   * configured name, falling back to {@link RoutingConfig.default} when
+   * the tier is not mapped.
    */
   isolation?: {
-    none?: string;
-    container?: string;
-    'remote-sandbox'?: string;
+    none?: RoutingValue;
+    container?: RoutingValue;
+    'remote-sandbox'?: RoutingValue;
   };
+  /**
+   * Per-skill routing (Spec B D1/D3). Keys are skill names from the
+   * local skill catalog; values are backend names or fallback chains.
+   * Phase 0 ships the type; Phase 1 wires `BackendRouter.resolve()` to
+   * consult this map for `{ kind: 'skill', skillName }` use cases.
+   */
+  skills?: Record<string, RoutingValue>;
+  /**
+   * Per-cognitive-mode routing (Spec B D1/D3). Keys are cognitive-mode
+   * identifiers (typically values from `STANDARD_COGNITIVE_MODES`);
+   * values are backend names or fallback chains. Phase 0 ships the type;
+   * Phase 1 wires `BackendRouter.resolve()` to consult this map after
+   * `skills` and before `tier`.
+   */
+  modes?: Record<string, RoutingValue>;
+}
+
+// --- Spec B: Granular Task→Backend Routing (Phase 0 — types-only) ---
+
+/**
+ * A routing target: either a single backend name (scalar) or an ordered
+ * fallback chain (non-empty tuple). Scalar form is byte-compatible with
+ * pre-Spec-B configs; the array form is consumed by `BackendRouter.resolve()`
+ * which tries each entry in order until an existing backend is found
+ * (full chain walk lands in Phase 1).
+ *
+ * @example scalar form
+ *   routing.default: 'claude-opus'
+ *
+ * @example fallback chain
+ *   routing.skills.harness-debugging: ['local-fast', 'claude-sonnet']
+ */
+export type RoutingValue = string | readonly [string, ...string[]];
+
+/**
+ * One step in the ordered walk performed by `BackendRouter.resolve()` to
+ * pick a backend for a {@link RoutingUseCase}. Phase 0 ships the type;
+ * Phase 1 wires the resolver to emit `ResolutionStep[]`.
+ */
+export type ResolutionSource = 'invocation' | 'skill' | 'mode' | 'tier' | 'default';
+
+/**
+ * Single candidate considered during routing resolution.
+ *
+ * - `chosen`   — first candidate whose backend exists in `agent.backends`; ends the walk.
+ * - `unknown-backend` — candidate references a backend not in `agent.backends`; walk continues.
+ * - `considered` — reserved for future use (e.g., health-aware skip in a later spec).
+ */
+export interface ResolutionStep {
+  source: ResolutionSource;
+  candidate: string;
+  outcome: 'chosen' | 'unknown-backend' | 'considered';
+}
+
+/**
+ * Record of a single `BackendRouter.resolve()` invocation: the use case,
+ * the ordered candidates considered, the chosen backend, and timing.
+ *
+ * NOTE: this is the Spec B `RoutingDecision`. The pre-Spec-B type of the
+ * same name (the `routeIssue()` action result) has been renamed to
+ * {@link IssueRoutingDecision}.
+ */
+export interface RoutingDecision {
+  /** ISO-8601 timestamp the resolver ran. */
+  timestamp: string;
+  /** The use case that was resolved. */
+  useCase: RoutingUseCase;
+  /** Ordered candidates considered during the walk. */
+  resolutionPath: ResolutionStep[];
+  /** The selected backend's name (key in `agent.backends`). */
+  backendName: string;
+  /** The selected backend's `type` discriminant, copied for telemetry convenience. */
+  backendType: BackendDef['type'];
+  /** Wall-clock duration of the resolve() call in milliseconds. */
+  durationMs: number;
 }
 
 /**
@@ -494,13 +575,20 @@ export interface RoutingConfig {
  * `BackendRouter.resolveDefinition(useCase)`. Extensible — new use-case
  * kinds (e.g., `agentic-tool`) can be added without breaking existing
  * callers, since unknown kinds are not constructible.
+ *
+ * Spec B Phase 0 adds `skill` and `mode` variants — consumed by Phase 1's
+ * resolver rewrite. Until then, `BackendRouter.resolve()` falls these
+ * through to `routing.default`.
  */
 export type RoutingUseCase =
   | { kind: 'tier'; tier: ScopeTier }
   | { kind: 'intelligence'; layer: 'sel' | 'pesl' }
   | { kind: 'maintenance' }
   | { kind: 'chat' }
-  | { kind: 'isolation'; tier: IsolationTier };
+  | { kind: 'isolation'; tier: IsolationTier }
+  // --- Spec B Phase 0 (consumed by resolver in Phase 1) ---
+  | { kind: 'skill'; skillName: string; cognitiveMode?: string }
+  | { kind: 'mode'; cognitiveMode: string };
 
 /**
  * Configuration for the agent runner.

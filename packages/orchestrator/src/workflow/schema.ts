@@ -79,24 +79,49 @@ export const BackendDefSchema = z.discriminatedUnion('type', [
 ]);
 
 /**
+ * Spec B Phase 0: a routing target is either a backend name (scalar
+ * string) or a non-empty ordered fallback chain (string tuple). The
+ * scalar form is byte-compatible with pre-Spec-B configs.
+ */
+export const RoutingValueSchema = z.union([
+  z.string().min(1),
+  z
+    .array(z.string().min(1))
+    .nonempty('fallback chain must contain at least one backend name')
+    .readonly(),
+]);
+
+/**
  * Zod schema for `RoutingConfig`. `.strict()` rejects unknown keys at
  * every level (per Spec 2 D7: typos in routing keys are validation
  * errors, not silent default-fallthroughs).
+ *
+ * Spec B Phase 0: all scalar routing fields accept `RoutingValueSchema`
+ * (scalar or non-empty chain). New optional `skills` and `modes` maps
+ * accept the same. The `isolation` block is not in this Zod schema yet
+ * (only in the TS interface); widening it is Phase 2 (config-validator
+ * updates) per Spec B.
+ *
+ * TODO(spec-b-phase-2): widen the isolation block here once it lands in
+ * RoutingConfigSchema (currently absent from this declaration).
  */
 export const RoutingConfigSchema = z
   .object({
-    default: z.string().min(1),
-    'quick-fix': z.string().optional(),
-    'guided-change': z.string().optional(),
-    'full-exploration': z.string().optional(),
-    diagnostic: z.string().optional(),
+    default: RoutingValueSchema,
+    'quick-fix': RoutingValueSchema.optional(),
+    'guided-change': RoutingValueSchema.optional(),
+    'full-exploration': RoutingValueSchema.optional(),
+    diagnostic: RoutingValueSchema.optional(),
     intelligence: z
       .object({
-        sel: z.string().optional(),
-        pesl: z.string().optional(),
+        sel: RoutingValueSchema.optional(),
+        pesl: RoutingValueSchema.optional(),
       })
       .strict()
       .optional(),
+    // --- Spec B Phase 0: new optional maps (resolver wired in Phase 1) ---
+    skills: z.record(z.string().min(1), RoutingValueSchema).optional(),
+    modes: z.record(z.string().min(1), RoutingValueSchema).optional(),
   })
   .strict();
 
@@ -116,14 +141,23 @@ export function validateBackendsAndRouting(
 ): void {
   if (!backends || !routing) return;
   const names = new Set(Object.keys(backends));
-  const checkRef = (path: (string | number)[], name: string | undefined): void => {
-    if (name !== undefined && !names.has(name)) {
+  const checkRef = (
+    path: (string | number)[],
+    value: import('@harness-engineering/types').RoutingValue | undefined
+  ): void => {
+    if (value === undefined) return;
+    const entries = Array.isArray(value) ? value : [value as string];
+    entries.forEach((name, idx) => {
+      if (names.has(name)) return;
+      // For chain entries, append the index so the error pinpoints the
+      // offending entry (e.g. routing.skills.foo.1).
+      const pathWithIdx = Array.isArray(value) ? [...path, idx] : path;
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ['routing', ...path],
-        message: `routing.${path.join('.')} references unknown backend '${name}'. Defined: [${[...names].join(', ')}].`,
+        path: ['routing', ...pathWithIdx],
+        message: `routing.${pathWithIdx.join('.')} references unknown backend '${name}'. Defined: [${[...names].join(', ')}].`,
       });
-    }
+    });
   };
   checkRef(['default'], routing.default);
   checkRef(['quick-fix'], routing['quick-fix']);
@@ -132,4 +166,15 @@ export function validateBackendsAndRouting(
   checkRef(['diagnostic'], routing.diagnostic);
   checkRef(['intelligence', 'sel'], routing.intelligence?.sel);
   checkRef(['intelligence', 'pesl'], routing.intelligence?.pesl);
+  // --- Spec B Phase 0: validate skills + modes chain entries ---
+  if (routing.skills) {
+    for (const [skill, value] of Object.entries(routing.skills)) {
+      checkRef(['skills', skill], value);
+    }
+  }
+  if (routing.modes) {
+    for (const [mode, value] of Object.entries(routing.modes)) {
+      checkRef(['modes', mode], value);
+    }
+  }
 }

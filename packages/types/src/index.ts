@@ -147,6 +147,11 @@ export type {
   IsolationTier,
   SshBackendDef,
   ServerlessBackendDef,
+  // --- Spec B Phase 0: Granular Task→Backend Routing (types-only) ---
+  RoutingValue,
+  RoutingDecision,
+  ResolutionStep,
+  ResolutionSource,
 } from './orchestrator';
 
 // --- Container & Secrets ---

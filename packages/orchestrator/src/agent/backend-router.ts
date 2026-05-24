@@ -3,6 +3,7 @@ import type {
   IsolationTier,
   RoutingConfig,
   RoutingUseCase,
+  RoutingValue,
 } from '@harness-engineering/types';
 
 export interface BackendRouterOptions {
@@ -14,7 +15,7 @@ export interface BackendRouterOptions {
  * BackendRouter
  *
  * Owns the lookup from a `RoutingUseCase` (a discriminated query — tier,
- * intelligence layer, maintenance, chat) to a named backend.
+ * intelligence layer, maintenance, chat, isolation) to a named backend.
  * Construction-time validation guarantees every name referenced by
  * `routing` is present in `backends` so runtime lookups are total and
  * never throw on unknown-name references (D6/D7).
@@ -24,6 +25,18 @@ export interface BackendRouterOptions {
  * spec's "every use case inherits default unless explicitly routed"
  * semantics. The `maintenance` and `chat` kinds always resolve to
  * `routing.default` (SC19, SC20).
+ *
+ * Spec B Phase 0 note: `RoutingConfig` fields are typed as
+ * {@link RoutingValue} (`string | readonly [string, ...string[]]`).
+ * This class normalizes via {@link BackendRouter.toScalar} (first
+ * element of the chain) to preserve byte-identical behavior for scalar
+ * inputs. The full chain walk (try entries in order, skip unknown
+ * backends) lands in Phase 1 of Spec B.
+ *
+ * Spec B Phase 0 also adds the `kind: 'skill'` and `kind: 'mode'` use
+ * case variants. Until Phase 1's resolver rewrite, these variants fall
+ * through to `routing.default` (no behavior change — pre-Spec-B configs
+ * never construct these variants).
  */
 export class BackendRouter {
   private readonly backends: Record<string, BackendDef>;
@@ -41,25 +54,38 @@ export class BackendRouter {
    * - `tier`: per-tier override, falling back to `routing.default`.
    * - `intelligence`: per-layer override under `routing.intelligence`,
    *   falling back to `routing.default`.
+   * - `isolation`: per-tier override under `routing.isolation`,
+   *   falling back to `routing.default`.
    * - `maintenance` / `chat`: always `routing.default`.
+   * - `skill` / `mode` (Spec B Phase 0): always `routing.default` until
+   *   Phase 1 wires the resolver chain.
    */
   resolve(useCase: RoutingUseCase): string {
     switch (useCase.kind) {
       case 'tier': {
-        const named = (this.routing as unknown as Record<string, string | undefined>)[useCase.tier];
-        return named ?? this.routing.default;
+        const tierMap = this.routing as unknown as Record<string, RoutingValue | undefined>;
+        const named = tierMap[useCase.tier];
+        return named !== undefined ? this.toScalar(named) : this.toScalar(this.routing.default);
       }
       case 'intelligence': {
-        const intel = this.routing.intelligence as Record<string, string | undefined> | undefined;
-        return intel?.[useCase.layer] ?? this.routing.default;
+        const intel = this.routing.intelligence as
+          | Record<string, RoutingValue | undefined>
+          | undefined;
+        const named = intel?.[useCase.layer];
+        return named !== undefined ? this.toScalar(named) : this.toScalar(this.routing.default);
       }
       case 'isolation': {
-        const iso = this.routing.isolation as Record<IsolationTier, string | undefined> | undefined;
-        return iso?.[useCase.tier] ?? this.routing.default;
+        const iso = this.routing.isolation as
+          | Record<IsolationTier, RoutingValue | undefined>
+          | undefined;
+        const named = iso?.[useCase.tier];
+        return named !== undefined ? this.toScalar(named) : this.toScalar(this.routing.default);
       }
       case 'maintenance':
       case 'chat':
-        return this.routing.default;
+      case 'skill':
+      case 'mode':
+        return this.toScalar(this.routing.default);
     }
   }
 
@@ -82,12 +108,26 @@ export class BackendRouter {
     return def;
   }
 
+  /**
+   * Spec B Phase 0 normalization: collapse a {@link RoutingValue} to the
+   * first backend name. Scalar inputs are returned unchanged (byte-identical
+   * to pre-Spec-B behavior). Array-form inputs return the first element;
+   * Phase 1 replaces this with the proper chain walk.
+   */
+  private toScalar(value: RoutingValue): string {
+    return Array.isArray(value) ? value[0] : (value as string);
+  }
+
   private validateReferences(): void {
     const known = new Set(Object.keys(this.backends));
     const missing: Array<{ path: string; name: string }> = [];
 
-    const check = (path: string, name: string | undefined) => {
-      if (name !== undefined && !known.has(name)) missing.push({ path, name });
+    const check = (path: string, value: RoutingValue | undefined) => {
+      if (value === undefined) return;
+      const names = Array.isArray(value) ? value : [value as string];
+      for (const name of names) {
+        if (!known.has(name)) missing.push({ path, name });
+      }
     };
 
     check('default', this.routing.default);

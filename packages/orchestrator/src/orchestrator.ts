@@ -1370,8 +1370,18 @@ export class Orchestrator extends EventEmitter {
         // otherwise fall back to legacy `agent.backend` (still a string
         // when this branch is reachable: migration only throws on
         // legacy configs that have `agent.backend` set).
-        routedBackendName =
-          this.config.agent.routing?.default ?? this.config.agent.backend ?? 'unknown';
+        //
+        // Spec B Phase 0: routing.default is RoutingValue (scalar OR chain).
+        // Normalize to first element for byte-identical scalar behavior;
+        // Phase 1 replaces this with the proper chain walk.
+        const routingDefault = this.config.agent.routing?.default;
+        const routingDefaultScalar =
+          routingDefault === undefined
+            ? undefined
+            : Array.isArray(routingDefault)
+              ? routingDefault[0]
+              : routingDefault;
+        routedBackendName = routingDefaultScalar ?? this.config.agent.backend ?? 'unknown';
       }
 
       // 6. Start agent session (in background)
