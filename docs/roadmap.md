@@ -4,7 +4,7 @@ version: 1
 created: 2026-03-21
 updated: 2026-05-17
 last_synced: 2026-05-23T20:39:30.138Z
-last_manual_edit: 2026-05-23T20:41:16.228Z
+last_manual_edit: 2026-05-24T12:39:13.039Z
 ---
 
 # Roadmap
@@ -1127,6 +1127,17 @@ last_manual_edit: 2026-05-23T20:41:16.228Z
 - **Priority:** —
 - **External-ID:** github:Intense-Visions/harness-engineering#309
 
+### Local Model Lifecycle Manager (LMLM)
+
+- **Status:** planned
+- **Spec:** docs/changes/local-model-lifecycle-manager/proposal.md
+- **Summary:** Hardware-aware local model recommender, pool-bounded autonomy with proposal loop, Ollama-first install, dashboard + CLI surfaces. Approved by Chad 2026-05-24.
+- **Blockers:** —
+- **Plan:** —
+- **Assignee:** —
+- **Priority:** —
+- **External-ID:** github:Intense-Visions/harness-engineering#386
+
 ## Hermes Adoption
 
 ### Hermes Phase 0: Gateway API + Telemetry
@@ -2004,6 +2015,127 @@ last_manual_edit: 2026-05-23T20:41:16.228Z
 - **Assignee:** —
 - **Priority:** —
 - **External-ID:** github:Intense-Visions/harness-engineering#371
+
+### harness:craft-pipeline orchestrator
+
+- **Status:** blocked
+- **Spec:** —
+- **Summary:** Initiative parent. Cross-domain LLM-judgment ceiling pipeline that composes domain-specific craft skills the same way harness:docs-pipeline composes documentation skills and harness:design-pipeline composes design skills. Each sub-project is a domain-specific ceiling-raiser to a rule-based floor counterpart. Pattern established by design-craft-elevator (design-pipeline sub-project #6, the prototype) and codified in ADRs 0018 (LLM-judgment skill pattern), 0019 (3-axis output model), 0020 (living-catalog H pattern), 0021 (detect-and-offer B' pattern). Sub-projects: #1 naming-craft (cross-cutting), #2 docs-craft, #3 test-craft, #4 code-craft, #5 copy-craft (errors + log lines + commit messages), #6 spec-craft, #7 api-craft, #8 cli-ergonomics, #9 knowledge-craft, #10 security-craft (judgment-based threat modeling). design-craft-elevator (design-pipeline #6) is a peer member by composition (kept in design-pipeline initiative for cohesion with the rest of the design family). Each sub-project ships its own catalog (rubrics + patterns + exemplars) and shares the LLM provider, finding schema, and growth infrastructure from ADRs 0018-0021. Orchestrator phases mirror docs-pipeline / design-pipeline: FRESHEN catalog freshness → JUDGE (run each craft skill) → SUGGEST (POLISH-equivalent across all skills) → BENCHMARK (against per-domain exemplars) → REPORT.
+- **Blockers:** craft-pipeline sub-project #1: naming-craft, craft-pipeline sub-project #2: docs-craft, craft-pipeline sub-project #3: test-craft, craft-pipeline sub-project #4: code-craft, craft-pipeline sub-project #5: copy-craft, craft-pipeline sub-project #6: spec-craft, craft-pipeline sub-project #7: api-craft, craft-pipeline sub-project #8: cli-ergonomics, craft-pipeline sub-project #9: knowledge-craft, craft-pipeline sub-project #10: security-craft
+- **Plan:** —
+- **Assignee:** —
+- **Priority:** —
+- **External-ID:** github:Intense-Visions/harness-engineering#374
+
+### craft-pipeline sub-project #1: naming-craft
+
+- **Status:** planned
+- **Spec:** —
+- **Summary:** LLM-judgment skill that critiques identifier names across the codebase (variables, functions, types, modules, files, branches, commit subjects). NO rule-based floor counterpart exists — naming is universally judgment-bound; no published tool tries this. Ceiling questions: does this name carry weight? is it concrete or vague? does it match the codebase's naming gravity? are there better candidates? does this name predict the thing's behavior? Cross-cutting skill that embeds via PR-review-time invocation; the other craft skills (docs-craft, test-craft, code-craft) can call into it for their domain-specific naming dimensions. Follows ADRs 0018-0021. Likely smallest scope of the craft family (~1 week build); naming heuristics are well-codified (Robert C. Martin, Phil Karlton, Beck) so the catalog of rubrics is bounded.
+- **Blockers:** —
+- **Plan:** —
+- **Assignee:** —
+- **Priority:** —
+- **External-ID:** github:Intense-Visions/harness-engineering#375
+
+### craft-pipeline sub-project #2: docs-craft
+
+- **Status:** planned
+- **Spec:** —
+- **Summary:** LLM-judgment skill for documentation quality — the ceiling counterpart to harness-detect-doc-drift / harness-check-docs / harness-docs-pipeline (which enforce existence, link freshness, coverage). Ceiling questions: does this doc teach? does the order match the reader's mental model? are examples earning their place? is prose alive or bureaucratic? does the API doc predict the response shape? would a stranger walk away with the same understanding? Direct structural twin of design-craft-elevator — same B' progressive upgrade to a docs intent skill if no doc style guide exists, same 3-axis findings, same growth catalog. Exemplars include Stripe Docs, Vercel Academy, MDN, Linear docs, Tailwind docs. Follows ADRs 0018-0021. ~3-4 week build (catalog-heavy).
+- **Blockers:** —
+- **Plan:** —
+- **Assignee:** —
+- **Priority:** —
+- **External-ID:** github:Intense-Visions/harness-engineering#376
+
+### craft-pipeline sub-project #3: test-craft
+
+- **Status:** planned
+- **Spec:** —
+- **Summary:** LLM-judgment skill for test quality — the ceiling counterpart to harness-tdd (procedural), coverage thresholds, and test-pattern scaffolding skills (which enforce structure). Ceiling questions: does this test add signal? does the test name describe the contract or just narrate the code? is the assertion meaningful or just present? what would deleting this test lose? does the test ARRANGE-ACT-ASSERT cleanly or interleave? are fixtures earning their setup cost? Tests are often the worst-written code in a codebase precisely because the rule-based floor is so easy to clear. Follows ADRs 0018-0021. Exemplars from well-tested OSS: React Testing Library docs, vitest's own tests, well-cited "good test" examples from Kent Beck / Martin Fowler.
+- **Blockers:** —
+- **Plan:** —
+- **Assignee:** —
+- **Priority:** —
+- **External-ID:** github:Intense-Visions/harness-engineering#377
+
+### craft-pipeline sub-project #4: code-craft
+
+- **Status:** planned
+- **Spec:** —
+- **Summary:** LLM-judgment skill for code quality / readability — the ceiling counterpart to harness-entropy-cleaner (dead code, drift), harness-architecture-enforcer (boundaries, deps), complexity thresholds (cyclomatic, cognitive). Ceiling questions: is this code as simple as it could be? does this function tell a story? is this abstraction earned or premature? are these conditionals load-bearing or accidental? is there an obvious-in-retrospect simplification? does the code reveal intent? Possibly the largest-scope craft skill — touches every PR. Follows ADRs 0018-0021. Has overlap with #1 naming-craft (defers naming-specific findings) and #2 docs-craft (defers doc-comment findings). Exemplars: well-cited "good code" from notable codebases (Linear's, Stripe's open work, Vercel's, Anthropic's SDK code).
+- **Blockers:** —
+- **Plan:** —
+- **Assignee:** —
+- **Priority:** —
+- **External-ID:** github:Intense-Visions/harness-engineering#379
+
+### craft-pipeline sub-project #5: copy-craft
+
+- **Status:** planned
+- **Spec:** —
+- **Summary:** LLM-judgment skill for ALL prose-in-code: error messages, log lines, CLI output strings, commit message subjects, PR descriptions, code comments. Primary domain is error messages (universally bad in most codebases). NO rule-based floor exists (closest adjacency is harness-accessibility checking aria-label presence, but that's structural not quality). Ceiling questions for errors: does this tell WHAT/WHY/HOW-TO-FIX? would the user know what to do next? is the wording calm and specific or panicky/vague? For log lines: does this carry signal or noise? does it survive grep? Commit messages: would a stranger understand this in 6 months? does the subject describe the change or the work? Follows ADRs 0018-0021. Composes with design-craft-elevator (which owns UI copy in components) and #2 docs-craft (which owns prose docs).
+- **Blockers:** —
+- **Plan:** —
+- **Assignee:** —
+- **Priority:** —
+- **External-ID:** github:Intense-Visions/harness-engineering#380
+
+### craft-pipeline sub-project #6: spec-craft
+
+- **Status:** planned
+- **Spec:** —
+- **Summary:** LLM-judgment skill for spec quality — the ceiling counterpart to harness-soundness-review (which checks structural completeness: required sections present, success criteria observable, integration points populated). Ceiling questions: is this spec sharp or vague? does it cut at the joints? would two readers walk away with the same understanding? what's the load-bearing decision vs. ambient context? are the rationalizations honest? is each non-goal actually a non-goal or smuggled assumption? would a stranger picking up this spec in 6 months still be able to act? Highest-leverage craft skill because spec quality compounds across the entire planning → implementation → review lifecycle below it. Follows ADRs 0018-0021. Composes with harness-brainstorming (where specs are authored) and harness-soundness-review (rule-based floor).
+- **Blockers:** —
+- **Plan:** —
+- **Assignee:** —
+- **Priority:** —
+- **External-ID:** github:Intense-Visions/harness-engineering#381
+
+### craft-pipeline sub-project #7: api-craft
+
+- **Status:** planned
+- **Spec:** —
+- **Summary:** LLM-judgment skill for API quality — the ceiling counterpart to harness-api-openapi-design and harness-api-webhook-design (knowledge skills, rule-based about format / OpenAPI compliance). Ceiling questions: is this endpoint at the right abstraction? is this HTTP verb honest? does the resource name belong in the URL or should it be a query param? would a stranger predict this response shape from the request? does this error code tell the consumer what to do? is this idempotency-honest? does the API shape match the domain or leak implementation details? Follows ADRs 0018-0021. Exemplars: Stripe API, Linear GraphQL API, GitHub REST v3, Resend API, Anthropic SDK.
+- **Blockers:** —
+- **Plan:** —
+- **Assignee:** —
+- **Priority:** —
+- **External-ID:** github:Intense-Visions/harness-engineering#382
+
+### craft-pipeline sub-project #8: cli-ergonomics
+
+- **Status:** planned
+- **Spec:** —
+- **Summary:** LLM-judgment skill for CLI quality — for projects that ship CLIs (including harness itself). NO rule-based floor counterpart. Ceiling questions: does this CLI discover itself? are flag names consistent across subcommands? is help text earning its space or just listing flags? does the output respect the user's terminal (width, color, structure)? does the error path teach what to do next? would a power-user pipe this output to grep/awk and get useful results? would a beginner not piping anywhere understand what happened? Follows ADRs 0018-0021. Exemplars: gh, fly, rg, eza, fd, bun, Linear CLI, the Stripe CLI, mise.
+- **Blockers:** —
+- **Plan:** —
+- **Assignee:** —
+- **Priority:** —
+- **External-ID:** github:Intense-Visions/harness-engineering#383
+
+### craft-pipeline sub-project #9: knowledge-craft
+
+- **Status:** planned
+- **Spec:** —
+- **Summary:** LLM-judgment skill for knowledge-entry quality — the ceiling counterpart to harness-knowledge-pipeline (procedural ingestion + reconciliation) and harness-detect-doc-drift (structural). Ceiling questions: does this docs/knowledge/ entry state a load-bearing fact or paraphrase the code? would deleting it lose anything specific or just redundant? does it earn its place in the graph as a business_fact / business_rule / business_concept? is the entry stating a TRUTH about the domain that a code reader couldn't derive from reading the code itself? Does it carry forward decisions that would otherwise erode? Follows ADRs 0018-0021. Composes with harness-knowledge-pipeline.
+- **Blockers:** —
+- **Plan:** —
+- **Assignee:** —
+- **Priority:** —
+- **External-ID:** github:Intense-Visions/harness-engineering#384
+
+### craft-pipeline sub-project #10: security-craft
+
+- **Status:** planned
+- **Spec:** —
+- **Summary:** LLM-judgment skill for security posture — the ceiling counterpart to harness-security-scan (CVE / OWASP rule-based) and harness-security-reviewer (procedural review). Threat-modeling-as-skill rather than pattern-checking. Ceiling questions: is this trust boundary respected or accidentally bridged? where's the implicit privilege escalation? does this code defend in depth or just at the gate? is principle of least authority honored in shape? what's the assumed adversary and does the code respect it? where does data flow cross a trust boundary unannounced? Hardest-to-land-well of the craft family — judgment-based security risks both false positives (overcaution paralyzes shipping) and false negatives (missed real issues). Defer until the craft pattern has 2-3 proven instances first. Follows ADRs 0018-0021.
+- **Blockers:** —
+- **Plan:** —
+- **Assignee:** —
+- **Priority:** —
+- **External-ID:** github:Intense-Visions/harness-engineering#385
 
 ## v4.0 Business Knowledge System
 
