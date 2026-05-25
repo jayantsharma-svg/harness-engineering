@@ -36,8 +36,11 @@ import { migrateAgentConfig } from './agent/config-migration';
 import { OrchestratorBackendFactory } from './agent/orchestrator-backend-factory';
 import { buildIntelligencePipeline } from './agent/intelligence-factory';
 import { toArray } from './agent/backend-router';
-import { detectScopeTier, artifactPresenceFromIssue } from './core/model-router';
+// Spec B Phase 3: detectScopeTier / artifactPresenceFromIssue moved to
+// `./agent/use-case-builder` (the new caller). The dispatch site no
+// longer references them directly.
 import { discoverSkillCatalog, type SkillCatalogEntry } from './workflow/skill-catalog';
+import { buildRoutingUseCase } from './agent/use-case-builder';
 import { OrchestratorServer } from './server/http';
 import { WebhookStore } from './gateway/webhooks/store';
 import { WebhookDelivery } from './gateway/webhooks/delivery';
@@ -80,28 +83,11 @@ import { StreamRecorder } from './core/stream-recorder';
  * @fires Orchestrator#state_change Emitted when the internal state machine transitions
  * @fires Orchestrator#agent_event Emitted when an agent produces an output or thought
  */
-function useCaseForBackendParam(
-  issue: Issue,
-  backendParam: 'local' | 'primary' | undefined
-): import('@harness-engineering/types').RoutingUseCase {
-  // Spec 2 SC30 / Task 12: translate the legacy
-  // `dispatchIssue(..., backend?)` parameter into a `RoutingUseCase` for
-  // the BackendRouter.
-  //   - 'local' → quick-fix tier (typical local-backend assignment in
-  //     legacy single-runner configs).
-  //   - undefined / 'primary' → the issue's own scope tier, computed
-  //     identically to the state machine's escalation gate
-  //     (core/state-machine.ts), so escalation and routing always see
-  //     the same tier (SC43: escalation governs *whether*, routing
-  //     governs *where*).
-  // Module-level so SC30 mechanical greps at the dispatch site stay
-  // clean. Eliminating the legacy `backend?` parameter is autopilot
-  // Phase 4+.
-  if (backendParam === 'local') return { kind: 'tier', tier: 'quick-fix' };
-  const tier = detectScopeTier(issue, artifactPresenceFromIssue(issue));
-  return { kind: 'tier', tier };
-}
-
+// Spec B Phase 3: the Phase-2-era `useCaseForBackendParam` has been
+// replaced by `buildRoutingUseCase` (./agent/use-case-builder), which
+// also consults the skill catalog so per-skill / per-mode routing
+// fires at dispatch (F1/F2). The legacy local→quick-fix mapping is
+// preserved inside the new helper.
 export class Orchestrator extends EventEmitter {
   private state: OrchestratorState;
   private config: WorkflowConfig;
@@ -1394,7 +1380,7 @@ export class Orchestrator extends EventEmitter {
       //    surface as `undefined` in dashboard telemetry + stream
       //    metadata. The router's `resolveName` is total: post-migration
       //    every `routing` slot maps to a known backend in `backends`.
-      const useCase = useCaseForBackendParam(issue, backend);
+      const useCase = buildRoutingUseCase(issue, backend, this.skillCatalog);
       let routedBackendName: string;
       if (this.overrideBackend !== null) {
         routedBackendName = this.overrideBackend.name;
