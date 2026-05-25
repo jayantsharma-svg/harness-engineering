@@ -10,6 +10,7 @@ import { createAuditProtectedCommand } from './audit-protected';
 import { createBackfillSkillProvenanceCommand } from './backfill-skill-provenance';
 import { createBlueprintCommand } from './blueprint';
 import { createAlignDesignSystemCommand } from './align-design-system';
+import { createNamingCraftCommand } from './naming-craft';
 import { createCheckArchCommand } from './check-arch';
 import { createCheckDepsCommand } from './check-deps';
 import { createCheckDesignCommand } from './check-design';
@@ -90,6 +91,7 @@ export const commandCreators: Array<() => Command> = [
   createBackfillSkillProvenanceCommand,
   createBlueprintCommand,
   createAlignDesignSystemCommand,
+  createNamingCraftCommand,
   createCheckArchCommand,
   createCheckDepsCommand,
   createCheckDesignCommand,
