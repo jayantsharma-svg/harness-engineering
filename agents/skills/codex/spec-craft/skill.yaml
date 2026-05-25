@@ -1,0 +1,55 @@
+name: spec-craft
+version: "0.1.0"
+description: LLM-judgment critique of spec quality (proposals + ADRs) against a curated rubric catalog. Per-section critique with rubric-to-section mapping. Second craft-pipeline ceiling skill; highest-leverage because spec quality compounds across the lifecycle below it. Triggered the shared craft infrastructure extraction.
+stability: draft
+cognitive_mode: constructive-architect
+triggers:
+  - manual
+  - on_pr
+  - on_new_feature
+platforms:
+  - claude-code
+tools:
+  - Bash
+  - Read
+  - Glob
+  - Grep
+cli:
+  command: harness spec-craft
+  args:
+    - name: path
+      description: Project root path
+      required: false
+    - name: files
+      description: Optional spec file/glob scope
+      required: false
+    - name: kinds
+      description: Restrict to proposal / adr
+      required: false
+    - name: sections
+      description: Restrict to canonical section names
+      required: false
+mcp:
+  tool: spec_craft
+  input:
+    path: string
+type: rigid
+tier: 2
+phases:
+  - name: discover
+    description: Glob docs/changes/*/proposal.md + docs/knowledge/decisions/*.md
+    required: true
+  - name: parse
+    description: Markdown H2 section splitter (frontmatter-aware)
+    required: true
+  - name: critique
+    description: LLM-rubric loop per (file, section, rubric) where rubric applies
+    required: true
+  - name: report
+    description: Aggregate findings + cost telemetry + doc/section counts
+    required: true
+state:
+  persistent: false
+depends_on:
+  - harness-soundness-review
+  - harness-design-craft

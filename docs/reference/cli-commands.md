@@ -448,6 +448,18 @@ Extract and publish a constraints bundle from constraints.yaml
 
 - `-o, --output` — Output directory for the bundle (default: ".")
 
+### `harness spec-craft`
+
+LLM-judgment critique of spec quality (proposals + ADRs). Second craft-pipeline ceiling skill; 7 seed rubrics from the spec-quality canon. Per-section critique.
+
+**Options:**
+
+- `-f, --files` — Optional spec file/glob scope
+- `-k, --kinds` — Restrict to proposal / adr (default: both)
+- `-s, --sections` — Restrict to specific canonical section names
+- `--max-files` — Cap doc count (default: 50)
+- `--max-sections-per-file` — Cap per-doc section critique (default: 10)
+
 ### `harness sync-analyses`
 
 Pull published intelligence analyses from the external issue tracker into the local .harness/analyses/ directory

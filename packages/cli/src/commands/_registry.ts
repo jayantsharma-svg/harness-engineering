@@ -12,6 +12,7 @@ import { createBlueprintCommand } from './blueprint';
 import { createAlignDesignSystemCommand } from './align-design-system';
 import { createDesignPipelineCommand } from './design-pipeline';
 import { createNamingCraftCommand } from './naming-craft';
+import { createSpecCraftCommand } from './spec-craft';
 import { createCheckArchCommand } from './check-arch';
 import { createCheckDepsCommand } from './check-deps';
 import { createCheckDesignCommand } from './check-design';
@@ -94,6 +95,7 @@ export const commandCreators: Array<() => Command> = [
   createAlignDesignSystemCommand,
   createDesignPipelineCommand,
   createNamingCraftCommand,
+  createSpecCraftCommand,
   createCheckArchCommand,
   createCheckDepsCommand,
   createCheckDesignCommand,
