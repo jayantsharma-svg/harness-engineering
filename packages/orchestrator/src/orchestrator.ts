@@ -1381,11 +1381,27 @@ export class Orchestrator extends EventEmitter {
       //    metadata. The router's `resolveName` is total: post-migration
       //    every `routing` slot maps to a known backend in `backends`.
       const useCase = buildRoutingUseCase(issue, backend, this.skillCatalog);
+
+      // Spec B Phase 3 (D7 / F4): one-shot invocation override via env
+      // hint. `harness skill run <name> --backend <name>` emits a
+      // preamble that exports HARNESS_BACKEND_OVERRIDE; this branch
+      // picks it up at the single dispatch about to follow, then the
+      // orchestrator continues routing normally for subsequent
+      // dispatches.
+      const invocationOverride = process.env.HARNESS_BACKEND_OVERRIDE;
+      const routerOpts = invocationOverride ? { invocationOverride } : undefined;
+      if (invocationOverride) {
+        this.logger.info(
+          `Spec B Phase 3: HARNESS_BACKEND_OVERRIDE='${invocationOverride}' taking effect for ${issue.identifier}`,
+          { issueId: issue.id }
+        );
+      }
+
       let routedBackendName: string;
       if (this.overrideBackend !== null) {
         routedBackendName = this.overrideBackend.name;
       } else if (this.backendFactory !== null) {
-        routedBackendName = this.backendFactory.resolveName(useCase);
+        routedBackendName = this.backendFactory.resolveName(useCase, routerOpts);
       } else {
         // Legacy-fallback path: factory absent because migration threw.
         // Pre-Spec-B configs that have `agent.backend` set without
@@ -1453,7 +1469,7 @@ export class Orchestrator extends EventEmitter {
       if (this.overrideBackend !== null) {
         agentBackend = this.overrideBackend;
       } else if (this.backendFactory !== null) {
-        agentBackend = this.backendFactory.forUseCase(useCase);
+        agentBackend = this.backendFactory.forUseCase(useCase, routerOpts);
       } else {
         // Legacy fallback: migration failed, no override supplied. Fail
         // dispatch the same way the deleted `createBackend()` legacy
