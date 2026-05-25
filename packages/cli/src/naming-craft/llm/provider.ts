@@ -13,4 +13,4 @@ export {
   type LlmCallCost,
   MockLlmProvider,
   getProvider,
-} from '../../design-craft/llm/provider.js';
+} from '../../shared/craft/llm/provider.js';

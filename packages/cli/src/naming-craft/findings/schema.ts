@@ -8,7 +8,7 @@
  *   (Outputs → NamingFinding).
  */
 
-import type { Tier, Impact, Confidence } from '../../design-craft/findings/schema.js';
+import type { Tier, Impact, Confidence } from '../../shared/craft/findings/axes.js';
 
 export type { Tier, Impact, Confidence };
 

@@ -180,6 +180,8 @@ import { auditBrandDefinition, handleAuditBrand } from './tools/audit-brand.js';
 import { designPipelineDefinition, handleDesignPipeline } from './tools/design-pipeline.js';
 // craft-pipeline #1: naming-craft LLM-judgment skill (variables / functions / types / files).
 import { namingCraftDefinition, handleNamingCraft } from './tools/naming-craft.js';
+// craft-pipeline #6: spec-craft LLM-judgment skill (proposals + ADRs, per-section critique).
+import { specCraftDefinition, handleSpecCraft } from './tools/spec-craft.js';
 
 // Re-exported from ./tool-types so tool files can import the type without
 // pulling in server.ts (which would create a cycle). See ./tool-types.ts.
@@ -268,6 +270,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
   auditBrandDefinition,
   designPipelineDefinition,
   namingCraftDefinition,
+  specCraftDefinition,
 ].map((def) => ({ ...def, trustedOutput: true }));
 const TOOL_HANDLERS: Record<string, ToolHandler> = {
   validate_project: handleValidateProject as ToolHandler,
@@ -345,6 +348,7 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
   audit_brand: handleAuditBrand as unknown as ToolHandler,
   run_design_pipeline: handleDesignPipeline as unknown as ToolHandler,
   naming_craft: handleNamingCraft as unknown as ToolHandler,
+  spec_craft: handleSpecCraft as unknown as ToolHandler,
 };
 
 const RESOURCE_DEFINITIONS = [

@@ -541,6 +541,19 @@ Spawn an agent subprocess to perform code review. Returns structured feedback wi
 - `diff` (string, required) — Git diff string to review
 - `context` (string, optional) — Optional additional context for the reviewer
 
+### `spec_craft`
+
+LLM-judgment critique of spec quality (proposals + ADRs). Second craft-pipeline ceiling skill; 7 seed rubrics from the spec-quality canon. Per-section critique with rubric-to-section mapping. Emits 3-axis findings (tier x impact x confidence per ADR 0019).
+
+**Parameters:**
+
+- `path` (string, required) — Project root path
+- `files` (array, optional) — Optional spec file/glob scope
+- `kinds` (array, optional) — Restrict to specific spec kinds (default: both)
+- `sections` (array, optional) — Restrict to canonical section names (e.g., decisions, scope)
+- `maxFiles` (number, optional) — Cap doc count (default: 50)
+- `maxSectionsPerFile` (number, optional) — Cap per-doc section critique (default: 10)
+
 ### `subscribe_webhook`
 
 Subscribe to outbound webhook fan-out via POST /api/v1/webhooks. Returns the secret once. Requires subscribe-webhook scope.

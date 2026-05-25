@@ -5,4 +5,4 @@
  * `packages/cli/src/shared/craft/derived.ts` (v2).
  */
 
-export { derivePriority } from '../../design-craft/findings/derived.js';
+export { derivePriority } from '../../shared/craft/findings/derived.js';
