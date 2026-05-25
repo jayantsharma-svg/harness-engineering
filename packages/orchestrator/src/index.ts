@@ -12,6 +12,7 @@ export * from './types/index';
 export * from './core/index';
 export * from './workflow/loader';
 export * from './workflow/config';
+export * from './workflow/skill-catalog';
 export * from './tracker/adapters/roadmap';
 export * from './tracker/extensions/linear';
 export * from './workspace/manager';
