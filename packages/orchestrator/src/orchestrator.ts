@@ -37,6 +37,7 @@ import { OrchestratorBackendFactory } from './agent/orchestrator-backend-factory
 import { buildIntelligencePipeline } from './agent/intelligence-factory';
 import { toArray } from './agent/backend-router';
 import { detectScopeTier, artifactPresenceFromIssue } from './core/model-router';
+import { discoverSkillCatalog, type SkillCatalogEntry } from './workflow/skill-catalog';
 import { OrchestratorServer } from './server/http';
 import { WebhookStore } from './gateway/webhooks/store';
 import { WebhookDelivery } from './gateway/webhooks/delivery';
@@ -147,6 +148,15 @@ export class Orchestrator extends EventEmitter {
    * so this map is the single source of truth post-migration.
    */
   private localResolvers = new Map<string, LocalModelResolver>();
+  /**
+   * Spec B Phase 3: skill catalog (name + cognitiveMode) read once at
+   * construction from `projectRoot/agents/skills/`. Consulted by
+   * `buildRoutingUseCase` at dispatch start to construct
+   * `{ kind: 'skill', skillName, cognitiveMode }` RoutingUseCases.
+   * Empty when the orchestrator runs outside a harness project root
+   * (then dispatch falls through to per-tier, preserving F11/N2).
+   */
+  private readonly skillCatalog: readonly SkillCatalogEntry[];
   /**
    * Per-resolver `onStatusChange` unsubscribe callbacks. Spec 2 Phase 5
    * (SC39): each local/pi resolver gets its own listener emitting a
@@ -281,6 +291,21 @@ export class Orchestrator extends EventEmitter {
     // Phase 4 / S2 / D-P4-E: tracker dispatch is on `tracker.kind`, not
     // on `roadmap.mode`. The Phase 3 constructor-time read of
     // `harness.config.json` is no longer needed.
+
+    // Spec B Phase 3: snapshot the skill catalog at construction. Reads
+    // from `<projectRoot>/agents/skills/<host>/<skill>/skill.yaml`.
+    // `projectRoot` is derived from `workspace.root` identically to the
+    // `projectRoot` getter below; computing it inline here keeps the
+    // constructor flow self-contained (the getter relies on a fully-
+    // built `this.config`, which is true by this point).
+    const skillCatalogRoot = path.resolve(this.config.workspace.root, '..', '..');
+    this.skillCatalog = discoverSkillCatalog(skillCatalogRoot);
+    if (this.skillCatalog.length === 0) {
+      this.logger.warn(
+        'Spec B Phase 3: skill catalog discovery returned 0 entries; per-skill / per-mode routing will fall through to per-tier. ' +
+          `Looked under ${path.join(skillCatalogRoot, 'agents/skills')}.`
+      );
+    }
 
     // Initialize adapters based on config or overrides
     this.tracker = overrides?.tracker || this.createTracker();
