@@ -30,7 +30,7 @@ describe('discoverSpecs', () => {
     const specs = discoverSpecs(tmpDir);
     expect(specs).toHaveLength(1);
     expect(specs[0].kind).toBe('proposal');
-    expect(specs[0].file).toContain('feature-x/proposal.md');
+    expect(specs[0].file).toBe(path.join(tmpDir, 'docs', 'changes', 'feature-x', 'proposal.md'));
   });
 
   it('discovers nested docs/changes/<topic>/<sub>/proposal.md (one level)', () => {
