@@ -7,7 +7,7 @@
  *   (Technical Design → Git / GitHub extractors).
  */
 
-import { execSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import type { ExtractedCopyItem } from '../findings/schema.js';
 
 const GH_TIMEOUT_MS = 10_000;
@@ -40,24 +40,28 @@ export function extractPRDescriptions(
     return { items: [], skipReason: 'gh not authenticated' };
   }
 
-  let raw: string;
-  try {
-    raw = execSync(`gh pr list --state=all --limit=${limit} --json number,title,body`, {
+  // Use spawnSync with arg array (no shell) for cross-platform consistency;
+  // see commits.ts for the Windows-quoting motivation.
+  const result = spawnSync(
+    'gh',
+    ['pr', 'list', '--state=all', `--limit=${limit}`, '--json', 'number,title,body'],
+    {
       cwd: projectRoot,
       encoding: 'utf-8',
       timeout: GH_TIMEOUT_MS,
       stdio: ['ignore', 'pipe', 'ignore'],
-    });
-  } catch (err) {
-    return {
-      items: [],
-      skipReason: `gh pr list failed: ${err instanceof Error ? err.message : String(err)}`,
-    };
+      shell: false,
+    }
+  );
+
+  if (result.error !== undefined || result.status !== 0) {
+    const errMsg = result.error?.message ?? `exit code ${result.status}`;
+    return { items: [], skipReason: `gh pr list failed: ${errMsg}` };
   }
 
   let prs: PRRecord[];
   try {
-    prs = JSON.parse(raw) as PRRecord[];
+    prs = JSON.parse(result.stdout) as PRRecord[];
   } catch {
     return { items: [], skipReason: 'gh pr list output not parseable as JSON' };
   }
@@ -77,26 +81,20 @@ export function extractPRDescriptions(
 }
 
 function hasGhBinary(): boolean {
-  try {
-    execSync('gh --version', {
-      timeout: GH_TIMEOUT_MS,
-      stdio: ['ignore', 'pipe', 'ignore'],
-    });
-    return true;
-  } catch {
-    return false;
-  }
+  const result = spawnSync('gh', ['--version'], {
+    timeout: GH_TIMEOUT_MS,
+    stdio: ['ignore', 'pipe', 'ignore'],
+    shell: false,
+  });
+  return result.error === undefined && result.status === 0;
 }
 
 function isGhAuthed(projectRoot: string): boolean {
-  try {
-    execSync('gh auth status', {
-      cwd: projectRoot,
-      timeout: GH_TIMEOUT_MS,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    return true;
-  } catch {
-    return false;
-  }
+  const result = spawnSync('gh', ['auth', 'status'], {
+    cwd: projectRoot,
+    timeout: GH_TIMEOUT_MS,
+    stdio: ['ignore', 'pipe', 'pipe'],
+    shell: false,
+  });
+  return result.error === undefined && result.status === 0;
 }

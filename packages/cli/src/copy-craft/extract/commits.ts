@@ -7,7 +7,7 @@
  *   (Technical Design → Git / GitHub extractors).
  */
 
-import { execSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { ExtractedCopyItem } from '../findings/schema.js';
@@ -32,26 +32,29 @@ export function extractCommits(input: ExtractCommitsInput): ExtractCommitsResult
     return { items: [], skipReason: 'not a git repo' };
   }
 
-  let raw: string;
-  try {
-    raw = execSync(
-      `git log --pretty=format:'%H%x09%s' --since="${escapeShell(since)}" -n ${limit}`,
-      {
-        cwd: projectRoot,
-        encoding: 'utf-8',
-        timeout: GIT_TIMEOUT_MS,
-        stdio: ['ignore', 'pipe', 'ignore'],
-      }
-    );
-  } catch (err) {
-    return {
-      items: [],
-      skipReason: `git log failed: ${err instanceof Error ? err.message : String(err)}`,
-    };
+  // Use spawnSync with arg array (not execSync with a command string) so we
+  // bypass shell quoting differences between POSIX and Windows cmd. On
+  // Windows, single quotes around the --pretty=format argument were being
+  // preserved verbatim, suffixing every commit subject with a trailing `'`.
+  const result = spawnSync(
+    'git',
+    ['log', `--pretty=format:%H%x09%s`, `--since=${since}`, '-n', String(limit)],
+    {
+      cwd: projectRoot,
+      encoding: 'utf-8',
+      timeout: GIT_TIMEOUT_MS,
+      stdio: ['ignore', 'pipe', 'ignore'],
+      shell: false,
+    }
+  );
+
+  if (result.error !== undefined || result.status !== 0) {
+    const errMsg = result.error?.message ?? `exit code ${result.status}`;
+    return { items: [], skipReason: `git log failed: ${errMsg}` };
   }
 
   const items: ExtractedCopyItem[] = [];
-  for (const line of raw.split('\n')) {
+  for (const line of result.stdout.split('\n')) {
     if (line.trim().length === 0) continue;
     const [hash, subject] = line.split('\t', 2);
     if (hash === undefined || subject === undefined) continue;
@@ -75,10 +78,4 @@ function isGitRepo(projectRoot: string): boolean {
     dir = parent;
   }
   return false;
-}
-
-function escapeShell(s: string): string {
-  // Escape double quotes for the -- argument; we wrap in double quotes
-  // already in the command string above.
-  return s.replace(/"/g, '\\"');
 }
