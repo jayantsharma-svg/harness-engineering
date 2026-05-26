@@ -8,10 +8,17 @@ import type {
   RoutingUseCase,
   RoutingValue,
 } from '@harness-engineering/types';
+import type { RoutingDecisionBus } from '../routing/decision-bus.js';
 
 export interface BackendRouterOptions {
   backends: Record<string, BackendDef>;
   routing: RoutingConfig;
+  /**
+   * Spec B Phase 4 (D8): when present, every resolve() emits its
+   * decision onto the bus. The bus owns the structured log line + ring
+   * buffer; the router stays a pure resolution function.
+   */
+  decisionBus?: RoutingDecisionBus;
 }
 
 /**
@@ -62,10 +69,12 @@ export function toArray(value: RoutingValue): readonly [string, ...string[]] {
 export class BackendRouter {
   private readonly backends: Record<string, BackendDef>;
   private readonly routing: RoutingConfig;
+  private readonly decisionBus: RoutingDecisionBus | undefined;
 
   constructor(opts: BackendRouterOptions) {
     this.backends = opts.backends;
     this.routing = opts.routing;
+    this.decisionBus = opts.decisionBus;
     this.validateReferences();
   }
 
@@ -115,17 +124,26 @@ export class BackendRouter {
       };
     };
 
+    // Spec B Phase 4 (D8): emit on every successful return path.
+    // The bus owns the structured log line + ring buffer; the router
+    // stays a pure resolution function. Exhaustion (the throw at the
+    // end of resolve) does NOT emit — it is an error path.
+    const emitAndReturn = (decision: RoutingDecision): RoutingDecision => {
+      this.decisionBus?.emit(decision);
+      return decision;
+    };
+
     // 1. Invocation override (D7).
     const fromInvocation = tryChain(
       'invocation',
       opts?.invocationOverride !== undefined ? opts.invocationOverride : undefined
     );
-    if (fromInvocation) return decide(fromInvocation);
+    if (fromInvocation) return emitAndReturn(decide(fromInvocation));
 
     // 2. Per-skill (D1).
     if (useCase.kind === 'skill') {
       const fromSkill = tryChain('skill', this.routing.skills?.[useCase.skillName]);
-      if (fromSkill) return decide(fromSkill);
+      if (fromSkill) return emitAndReturn(decide(fromSkill));
     }
 
     // 3. Per-mode (D1) — fires for kind: 'mode' AND kind: 'skill' with a cognitiveMode.
@@ -137,19 +155,19 @@ export class BackendRouter {
           : undefined;
     if (mode !== undefined) {
       const fromMode = tryChain('mode', this.routing.modes?.[mode]);
-      if (fromMode) return decide(fromMode);
+      if (fromMode) return emitAndReturn(decide(fromMode));
     }
 
     // 4. Existing per-tier / intelligence / isolation / maintenance / chat.
     const fromExisting = this.resolveExistingUseCase(useCase);
     if (fromExisting !== undefined) {
       const chained = tryChain('tier', fromExisting);
-      if (chained) return decide(chained);
+      if (chained) return emitAndReturn(decide(chained));
     }
 
     // 5. Default fallback (required field).
     const fromDefault = tryChain('default', this.routing.default);
-    if (fromDefault) return decide(fromDefault);
+    if (fromDefault) return emitAndReturn(decide(fromDefault));
 
     const knownList = Object.keys(this.backends).join(', ') || '(none)';
     throw new Error(

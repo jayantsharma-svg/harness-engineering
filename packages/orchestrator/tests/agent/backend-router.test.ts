@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import type { BackendDef, RoutingConfig, RoutingUseCase } from '@harness-engineering/types';
 import { BackendRouter } from '../../src/agent/backend-router.js';
+import { RoutingDecisionBus } from '../../src/routing/decision-bus.js';
 
 const cloud: BackendDef = { type: 'claude', command: 'claude' };
 const local: BackendDef = {
@@ -187,5 +188,29 @@ describe('BackendRouter + createBackend integration', () => {
     expect(createBackend(cloudDef)).toBeInstanceOf(ClaudeBackend);
     expect(createBackend(localDef)).toBeInstanceOf(PiBackend);
     expect(createBackend(intelDef)).toBeInstanceOf(PiBackend);
+  });
+});
+
+describe('BackendRouter — decision bus emission (Spec B Phase 4)', () => {
+  it('emits exactly one decision per resolve() when a bus is provided', () => {
+    const bus = new RoutingDecisionBus({ capacity: 5 });
+    const emitSpy = vi.spyOn(bus, 'emit');
+    const router = new BackendRouter({
+      backends: { cloud, local },
+      routing: { default: 'cloud', 'quick-fix': 'local' },
+      decisionBus: bus,
+    });
+    router.resolve({ kind: 'tier', tier: 'quick-fix' });
+    router.resolve({ kind: 'tier', tier: 'guided-change' });
+    expect(emitSpy).toHaveBeenCalledTimes(2);
+    expect(bus.recent()).toHaveLength(2);
+  });
+
+  it('does not throw when no bus is provided (legacy ctor shape)', () => {
+    const router = new BackendRouter({
+      backends: { cloud, local },
+      routing: { default: 'cloud' },
+    });
+    expect(() => router.resolve({ kind: 'tier', tier: 'quick-fix' })).not.toThrow();
   });
 });
