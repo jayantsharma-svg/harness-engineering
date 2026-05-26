@@ -78,3 +78,59 @@ describe('handleV1RoutingRoute — GET /api/v1/routing/config', () => {
     expect(chunks.join('')).toContain('BackendRouter not available');
   });
 });
+
+describe('handleV1RoutingRoute — GET /api/v1/routing/decisions', () => {
+  it('returns 200 with decisions[] filtered by skill+limit, newest-first', () => {
+    const backends: Record<string, BackendDef> = {
+      'claude-opus': { type: 'anthropic', model: 'x' },
+    };
+    const routing: RoutingConfig = {
+      default: 'claude-opus',
+      skills: { 'harness-debugging': 'claude-opus' },
+    };
+    const router = new BackendRouter({ backends, routing });
+    const bus = new RoutingDecisionBus();
+    // Seed: 3 skill decisions for harness-debugging, 2 tier decisions.
+    for (let i = 0; i < 3; i++) {
+      bus.emit({
+        timestamp: `2026-05-26T00:00:0${i}.000Z`,
+        useCase: { kind: 'skill', skillName: 'harness-debugging' },
+        resolutionPath: [],
+        backendName: 'claude-opus',
+        backendType: 'anthropic',
+        durationMs: 0,
+      });
+    }
+    for (let i = 0; i < 2; i++) {
+      bus.emit({
+        timestamp: `2026-05-26T00:01:0${i}.000Z`,
+        useCase: { kind: 'tier', tier: 'quick-fix' },
+        resolutionPath: [],
+        backendName: 'claude-opus',
+        backendType: 'anthropic',
+        durationMs: 0,
+      });
+    }
+    const req = makeReq('GET', '/api/v1/routing/decisions?skill=harness-debugging&limit=2');
+    const { res, chunks, statusCode } = makeRes();
+    handleV1RoutingRoute(req, res, { router, bus, routing, backends });
+    expect(statusCode()).toBe(200);
+    const body = JSON.parse(chunks.join(''));
+    expect(body.decisions.length).toBe(2);
+    // newest-first: latest two seeded skill decisions are 00:00:02 then 00:00:01.
+    expect(body.decisions[0].timestamp).toBe('2026-05-26T00:00:02.000Z');
+    expect(body.decisions[1].timestamp).toBe('2026-05-26T00:00:01.000Z');
+  });
+
+  it('returns 503 when bus is null', () => {
+    const req = makeReq('GET', '/api/v1/routing/decisions');
+    const { res, statusCode } = makeRes();
+    handleV1RoutingRoute(req, res, {
+      router: null,
+      bus: null,
+      routing: null,
+      backends: null,
+    });
+    expect(statusCode()).toBe(503);
+  });
+});
