@@ -966,6 +966,7 @@ Run a skill (outputs SKILL.md content with context preamble)
 - `--complexity` — Rigor level: fast, standard, thorough (default: "standard")
 - `--phase` — Start at a specific phase (for re-entry)
 - `--party` — Enable multi-perspective evaluation
+- `--backend` — Spec B: one-shot routing override forwarded to the orchestrator as HARNESS_BACKEND_OVERRIDE
 
 ### `harness skill search <query>`
 
