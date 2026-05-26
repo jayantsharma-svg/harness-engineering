@@ -521,6 +521,17 @@ Composite report combining health, entropy, decay, attention, and impact (Hermes
 - `path` (string, required) — Path to project root
 - `skip` (array, optional) — Top-level keys to skip.
 
+### `knowledge_craft`
+
+LLM-judgment critique of knowledge-entry quality (docs/knowledge/, excluding decisions/ — that is spec-craft territory). Fifth non-design craft-pipeline ceiling skill; 7 seed rubrics (load-bearing-fact, earns-graph-place, carries-forward-decision, …). Per-file critique. References graph taxonomy (business_fact / business_rule / business_concept / business_decision) inside rubrics without reading the graph. Emits 3-axis findings (tier x impact x confidence per ADR 0019).
+
+**Parameters:**
+
+- `path` (string, required) — Project root path
+- `files` (array, optional) — Optional file scope (overrides docs/knowledge/ discovery)
+- `excludeDirs` (array, optional) — Extra subdir names to skip under docs/knowledge/ (decisions is always excluded)
+- `maxFiles` (number, optional) — Cap entry count (default: 50)
+
 ### `naming_craft`
 
 LLM-judgment critique of identifier names (variables, functions, types, files). First craft-pipeline ceiling skill; uses a curated rubric catalog seeded from Martin / Beck / Karlton. Emits 3-axis findings (tier x impact x confidence per ADR 0019).

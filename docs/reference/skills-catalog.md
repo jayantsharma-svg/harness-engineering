@@ -2,7 +2,7 @@
 
 # Skills Catalog
 
-751 skills across 3 tiers. Tier 1 and 2 skills are registered as slash commands. Tier 3 skills are discoverable via the `search_skills` MCP tool. See the [Features Overview](../guides/features-overview.md) for narrative documentation.
+752 skills across 3 tiers. Tier 1 and 2 skills are registered as slash commands. Tier 3 skills are discoverable via the `search_skills` MCP tool. See the [Features Overview](../guides/features-overview.md) for narrative documentation.
 
 ## Tier 1 — Workflow (14 skills)
 
@@ -141,7 +141,7 @@ Scaffold or migrate a test-suite project (API, E2E/UI, or shared library) with t
 - **Cognitive mode:** constructive-architect
 - **Depends on:** initialize-harness-project
 
-## Tier 2 — Maintenance (34 skills)
+## Tier 2 — Maintenance (35 skills)
 
 ### align-design-system
 
@@ -435,6 +435,16 @@ Binary pass/fail quick gate — runs test, lint, typecheck commands and returns 
 - **Platforms:** claude-code, gemini-cli, cursor, codex
 - **Type:** rigid
 - **Cognitive mode:** meticulous-verifier
+
+### knowledge-craft
+
+LLM-judgment critique of knowledge-entry quality (docs/knowledge/, excluding decisions/ which is spec-craft territory). Per-file critique against 7 seed rubrics that ask whether the entry states a load-bearing fact, earns a place in the graph taxonomy, carries forward a decision that would otherwise erode. Fifth non-design craft-pipeline ceiling skill.
+
+- **Triggers:** manual, on_pr, on_new_feature
+- **Platforms:** claude-code
+- **Type:** rigid
+- **Cognitive mode:** constructive-architect
+- **Depends on:** harness-soundness-review, spec-craft
 
 ### naming-craft
 

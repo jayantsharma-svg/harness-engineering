@@ -312,6 +312,16 @@ Install a constraints bundle into the local harness config
 - `--dry-run` — Show what would change without writing files
 - `-c, --config` — Path to harness.config.json
 
+### `harness knowledge-craft`
+
+LLM-judgment critique of knowledge-entry quality (docs/knowledge/, excluding decisions/). Fifth non-design craft-pipeline ceiling skill; 7 seed rubrics (load-bearing-fact, earns-graph-place, carries-forward-decision, …). Per-file critique.
+
+**Options:**
+
+- `-f, --files` — Optional file scope (overrides discovery)
+- `--exclude-dirs` — Additional subdir names to skip (decisions is always excluded)
+- `--max-files` — Cap entry count (default: 50)
+
 ### `harness knowledge-pipeline`
 
 Run knowledge extraction, drift detection, and gap analysis
