@@ -8,6 +8,7 @@ import type {
 } from '@harness-engineering/types';
 import type { CacheMetricsRecorder } from '@harness-engineering/core';
 import { BackendRouter } from './backend-router.js';
+import type { RoutingDecisionBus } from '../routing/decision-bus.js';
 import { createBackend } from './backend-factory.js';
 import { ContainerBackend } from './backends/container.js';
 import { DockerRuntime } from './runtime/docker.js';
@@ -49,6 +50,11 @@ export interface OrchestratorBackendFactoryOptions {
    * `/api/v1/telemetry/cache/stats` endpoint sees the full rolling window.
    */
   cacheMetrics?: CacheMetricsRecorder;
+  /**
+   * Spec B Phase 4 (D8): forwarded to the underlying BackendRouter so
+   * every resolve() during forUseCase / resolveName emits.
+   */
+  decisionBus?: RoutingDecisionBus;
 }
 
 /**
@@ -67,7 +73,11 @@ export class OrchestratorBackendFactory {
 
   constructor(opts: OrchestratorBackendFactoryOptions) {
     this.opts = opts;
-    this.router = new BackendRouter({ backends: opts.backends, routing: opts.routing });
+    this.router = new BackendRouter({
+      backends: opts.backends,
+      routing: opts.routing,
+      ...(opts.decisionBus !== undefined ? { decisionBus: opts.decisionBus } : {}),
+    });
   }
 
   /**
@@ -102,15 +112,13 @@ export class OrchestratorBackendFactory {
   }
 
   forUseCase(useCase: RoutingUseCase, opts?: { invocationOverride?: string }): AgentBackend {
-    // Spec B Phase 1: two resolve() calls (one inside resolveDefinition,
-    // one explicit) yield identical RoutingDecisions because the router
-    // is deterministic and stateless. Phase 4 (decision-bus emission)
-    // will refactor to a single resolve() + threaded decision.
-    //
-    // Spec B Phase 3: both resolve()-flavored calls receive the
-    // same `opts` so an invocationOverride is honored end-to-end.
-    const def = this.router.resolveDefinition(useCase, opts);
-    const name = this.router.resolve(useCase, opts).backendName;
+    // Spec B Phase 4 (closes P1-IMP-2): single resolve() per dispatch.
+    // Pre-Phase-4 this method called resolveDefinition() and resolve()
+    // separately, producing two RoutingDecisions. With Phase 4's
+    // decision-bus emission that doubled the routing-decision log
+    // volume per dispatch. resolveDecisionAndDef() collapses both.
+    const { def, decision } = this.router.resolveDecisionAndDef(useCase, opts);
+    const name = decision.backendName;
     let backend: AgentBackend;
     const createOpts = this.opts.cacheMetrics ? { cacheMetrics: this.opts.cacheMetrics } : {};
 

@@ -1,8 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import type { BackendDef, RoutingConfig } from '@harness-engineering/types';
 import { OrchestratorBackendFactory } from '../../src/agent/orchestrator-backend-factory.js';
 import { ClaudeBackend } from '../../src/agent/backends/claude.js';
 import { PiBackend } from '../../src/agent/backends/pi.js';
+import { RoutingDecisionBus } from '../../src/routing/decision-bus.js';
 
 const cloud: BackendDef = { type: 'claude', command: 'claude' };
 const local: BackendDef = {
@@ -128,6 +129,23 @@ describe('OrchestratorBackendFactory', () => {
       expect(
         factory.forUseCase({ kind: 'tier', tier: 'quick-fix' }, { invocationOverride: 'local' })
       ).toBeInstanceOf(PiBackend);
+    });
+  });
+
+  describe('single-resolve invariant (Spec B Phase 4)', () => {
+    it('forUseCase calls router.resolve exactly once', () => {
+      const bus = new RoutingDecisionBus({ capacity: 5 });
+      const factory = new OrchestratorBackendFactory({
+        backends: { cloud: { type: 'claude', command: 'claude' } },
+        routing: { default: 'cloud' },
+        sandboxPolicy: 'none',
+        decisionBus: bus,
+      });
+      const router = factory.getRouter();
+      const resolveSpy = vi.spyOn(router, 'resolve');
+      factory.forUseCase({ kind: 'tier', tier: 'quick-fix' });
+      expect(resolveSpy).toHaveBeenCalledTimes(1);
+      expect(bus.recent()).toHaveLength(1);
     });
   });
 });
