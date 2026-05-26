@@ -1,4 +1,5 @@
 import { sanitizePath } from '../utils/sanitize-path.js';
+import { bigIntSafeReplacer } from '../utils/result-adapter.js';
 
 type CheckName = 'validate' | 'deps' | 'docs' | 'entropy' | 'security' | 'perf' | 'lint';
 
@@ -389,7 +390,7 @@ export async function handleAssessProject(input: {
       content: [
         {
           type: 'text' as const,
-          text: JSON.stringify({ healthy, checks: summaryChecks, assessedIn }),
+          text: JSON.stringify({ healthy, checks: summaryChecks, assessedIn }, bigIntSafeReplacer),
         },
       ],
     };
@@ -400,7 +401,7 @@ export async function handleAssessProject(input: {
     content: [
       {
         type: 'text' as const,
-        text: JSON.stringify({ healthy, checks: allChecks, assessedIn }),
+        text: JSON.stringify({ healthy, checks: allChecks, assessedIn }, bigIntSafeReplacer),
       },
     ],
   };

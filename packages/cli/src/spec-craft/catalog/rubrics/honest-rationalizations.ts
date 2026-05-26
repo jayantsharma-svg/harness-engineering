@@ -1,4 +1,4 @@
-import type { SpecRubric } from './index.js';
+import type { SpecRubric } from './types.js';
 
 export const honestRationalizationsRubric: SpecRubric = {
   id: 'SPEC-R005',

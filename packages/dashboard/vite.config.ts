@@ -72,6 +72,35 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, 'dist/client'),
     emptyOutDir: true,
+    // Syntax-highlighter bundles Prism + every language grammar, so it
+    // inherently exceeds the default 500 kB warn. Bumped to 700 kB so
+    // legitimate growth elsewhere still triggers the warning.
+    chunkSizeWarningLimit: 700,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined;
+          if (
+            id.includes('react-syntax-highlighter') ||
+            id.includes('refractor') ||
+            id.includes('prismjs')
+          ) {
+            return 'syntax-highlighter';
+          }
+          if (id.includes('framer-motion')) return 'framer-motion';
+          if (id.includes('react-virtuoso')) return 'virtuoso';
+          if (id.includes('react-router')) return 'react-router';
+          if (
+            id.includes('node_modules/react/') ||
+            id.includes('node_modules/react-dom/') ||
+            id.includes('node_modules/scheduler/')
+          ) {
+            return 'react';
+          }
+          return 'vendor';
+        },
+      },
+    },
   },
   resolve: {
     alias: {

@@ -1,4 +1,4 @@
-import type { CopyRubric } from './index.js';
+import type { CopyRubric } from './types.js';
 
 export const describesChangeNotWorkRubric: CopyRubric = {
   id: 'COPY-R006',

@@ -7,25 +7,10 @@
  *   (Technical Design → Rubric → surface mapping).
  */
 
-import type { CopySurface } from '../../findings/schema.js';
+export { rubricApplies } from './types.js';
+export type { CopyRubric } from './types.js';
 
-export interface CopyRubric {
-  id: string;
-  title: string;
-  description: string;
-  source: string;
-  /** Surfaces this rubric applies to. */
-  appliesToSurfaces: CopySurface[];
-  /** ADR 0020 — catalog growth metadata (reserved). */
-  contribution: { addedAt: string; addedBy: string };
-  signal: { invocations: number; suppressedAt: string[] };
-  version: number;
-}
-
-export function rubricApplies(rubric: CopyRubric, surface: CopySurface): boolean {
-  return rubric.appliesToSurfaces.includes(surface);
-}
-
+import type { CopyRubric } from './types.js';
 import { whatWhyHowToFixRubric } from './what-why-how-to-fix.js';
 import { calmNotPanickyRubric } from './calm-not-panicky.js';
 import { specificNotGenericRubric } from './specific-not-generic.js';

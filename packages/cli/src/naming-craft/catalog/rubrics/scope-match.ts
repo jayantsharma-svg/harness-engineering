@@ -1,4 +1,4 @@
-import type { NamingRubric } from './index.js';
+import type { NamingRubric } from './types.js';
 
 export const scopeMatchRubric: NamingRubric = {
   id: 'NAME-R005',
