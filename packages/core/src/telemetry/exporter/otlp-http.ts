@@ -66,20 +66,20 @@ function toUnixNanoString(ns: bigint): string {
  * String values → stringValue. Booleans → boolValue. Integers (safe
  * range) → intValue (stringified). Non-integer numbers → doubleValue.
  */
+function encodeAttributeValue(value: unknown): Record<string, unknown> | null {
+  if (typeof value === 'string') return { stringValue: value };
+  if (typeof value === 'boolean') return { boolValue: value };
+  if (typeof value === 'number') {
+    return Number.isInteger(value) ? { intValue: String(value) } : { doubleValue: value };
+  }
+  return null;
+}
+
 function attributesToOTLP(attrs: TraceSpan['attributes']): unknown[] {
   const out: unknown[] = [];
   for (const [key, value] of Object.entries(attrs)) {
-    if (typeof value === 'string') {
-      out.push({ key, value: { stringValue: value } });
-    } else if (typeof value === 'boolean') {
-      out.push({ key, value: { boolValue: value } });
-    } else if (typeof value === 'number') {
-      if (Number.isInteger(value)) {
-        out.push({ key, value: { intValue: String(value) } });
-      } else {
-        out.push({ key, value: { doubleValue: value } });
-      }
-    }
+    const encoded = encodeAttributeValue(value);
+    if (encoded) out.push({ key, value: encoded });
   }
   return out;
 }
