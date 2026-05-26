@@ -85,6 +85,7 @@ function parseFencedJson(raw: string): Record<string, unknown> | null {
   const body = match !== null ? match[1]! : raw;
   if (body.trim() === 'null') return null;
   try {
+    // harness-ignore SEC-DES-001: parses LLM model output; typeof check on next line gates shape, downstream callers re-validate fields
     const parsed = JSON.parse(body);
     if (parsed === null) return null;
     if (typeof parsed !== 'object') return null;

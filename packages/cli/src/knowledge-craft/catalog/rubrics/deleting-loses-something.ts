@@ -1,4 +1,4 @@
-import type { KnowledgeRubric } from './index.js';
+import type { KnowledgeRubric } from './types.js';
 
 export const deletingLosesSomethingRubric: KnowledgeRubric = {
   id: 'KNOW-R005',

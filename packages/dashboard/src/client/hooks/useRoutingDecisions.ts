@@ -89,6 +89,7 @@ export function useRoutingDecisions(): UseRoutingDecisionsResult {
       ws.onmessage = (event: MessageEvent<string>) => {
         if (!mounted.current) return;
         try {
+          // harness-ignore SEC-DES-001: client-side WebSocket consumer; trust boundary is the server, shape gated by typeof+`type` check on next line
           const raw: unknown = JSON.parse(event.data);
           if (typeof raw !== 'object' || raw === null || !('type' in raw)) return;
           const msg = raw as WebSocketMessage;

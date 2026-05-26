@@ -3,6 +3,25 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'node:path';
 
+const CHUNK_GROUPS: ReadonlyArray<{ name: string; patterns: ReadonlyArray<string> }> = [
+  { name: 'syntax-highlighter', patterns: ['react-syntax-highlighter', 'refractor', 'prismjs'] },
+  { name: 'framer-motion', patterns: ['framer-motion'] },
+  { name: 'virtuoso', patterns: ['react-virtuoso'] },
+  { name: 'react-router', patterns: ['react-router'] },
+  {
+    name: 'react',
+    patterns: ['node_modules/react/', 'node_modules/react-dom/', 'node_modules/scheduler/'],
+  },
+];
+
+function buildManualChunks() {
+  return (id: string): string | undefined => {
+    if (!id.includes('node_modules')) return undefined;
+    const hit = CHUNK_GROUPS.find((g) => g.patterns.some((p) => id.includes(p)));
+    return hit ? hit.name : 'vendor';
+  };
+}
+
 export default defineConfig({
   root: path.resolve(__dirname, 'src/client'),
   plugins: [react(), tailwindcss()],
@@ -72,6 +91,15 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, 'dist/client'),
     emptyOutDir: true,
+    // Syntax-highlighter bundles Prism + every language grammar, so it
+    // inherently exceeds the default 500 kB warn. Bumped to 700 kB so
+    // legitimate growth elsewhere still triggers the warning.
+    chunkSizeWarningLimit: 700,
+    rollupOptions: {
+      output: {
+        manualChunks: buildManualChunks(),
+      },
+    },
   },
   resolve: {
     alias: {

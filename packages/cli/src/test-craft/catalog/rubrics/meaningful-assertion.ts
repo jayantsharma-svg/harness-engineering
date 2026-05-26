@@ -1,4 +1,4 @@
-import type { TestRubric } from './index.js';
+import type { TestRubric } from './types.js';
 
 export const meaningfulAssertionRubric: TestRubric = {
   id: 'TEST-R002',

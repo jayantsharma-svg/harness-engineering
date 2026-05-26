@@ -1,4 +1,4 @@
-import type { SecurityRubric } from './index.js';
+import type { SecurityRubric } from './types.js';
 
 export const assumedAdversaryRealisticRubric: SecurityRubric = {
   id: 'SEC-R004',

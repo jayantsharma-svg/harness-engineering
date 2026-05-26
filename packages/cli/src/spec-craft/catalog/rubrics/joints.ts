@@ -1,4 +1,4 @@
-import type { SpecRubric } from './index.js';
+import type { SpecRubric } from './types.js';
 
 export const jointsRubric: SpecRubric = {
   id: 'SPEC-R002',

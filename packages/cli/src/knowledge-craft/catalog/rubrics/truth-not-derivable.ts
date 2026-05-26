@@ -1,4 +1,4 @@
-import type { KnowledgeRubric } from './index.js';
+import type { KnowledgeRubric } from './types.js';
 
 export const truthNotDerivableRubric: KnowledgeRubric = {
   id: 'KNOW-R002',

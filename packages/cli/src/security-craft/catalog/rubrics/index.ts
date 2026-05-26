@@ -10,20 +10,10 @@
  *   (Scope → 8 seed rubrics + Rubric-to-signal mapping).
  */
 
-import type { SignalKind } from '../../findings/schema.js';
+export { rubricApplies } from './types.js';
+export type { SecurityRubric } from './types.js';
 
-export interface SecurityRubric {
-  id: string;
-  title: string;
-  description: string;
-  source: string;
-  /** Signal kinds this rubric is critique-relevant for. */
-  appliesToSignals: ReadonlyArray<SignalKind>;
-  contribution: { addedAt: string; addedBy: string };
-  signal: { invocations: number; suppressedAt: string[] };
-  version: number;
-}
-
+import type { SecurityRubric } from './types.js';
 import { trustBoundaryRespectedRubric } from './trust-boundary-respected.js';
 import { leastAuthorityHonoredRubric } from './least-authority-honored.js';
 import { defenseInDepthRubric } from './defense-in-depth.js';
@@ -46,11 +36,3 @@ export const SEED_RUBRICS: ReadonlyArray<SecurityRubric> = [
   secretHandlingShapeRubric,
   authzBeforeActionRubric,
 ];
-
-/**
- * Returns true if the rubric should be invoked for the given signal kind.
- * Pre-filtering avoids LLM calls that would return null anyway.
- */
-export function rubricApplies(rubric: SecurityRubric, signal: SignalKind): boolean {
-  return rubric.appliesToSignals.includes(signal);
-}

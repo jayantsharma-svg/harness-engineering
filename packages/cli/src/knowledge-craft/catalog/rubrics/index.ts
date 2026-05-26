@@ -5,16 +5,9 @@
  *   (Scope → 7 seed rubrics).
  */
 
-export interface KnowledgeRubric {
-  id: string;
-  title: string;
-  description: string;
-  source: string;
-  contribution: { addedAt: string; addedBy: string };
-  signal: { invocations: number; suppressedAt: string[] };
-  version: number;
-}
+export type { KnowledgeRubric } from './types.js';
 
+import type { KnowledgeRubric } from './types.js';
 import { loadBearingFactRubric } from './load-bearing-fact.js';
 import { truthNotDerivableRubric } from './truth-not-derivable.js';
 import { earnsGraphPlaceRubric } from './earns-graph-place.js';

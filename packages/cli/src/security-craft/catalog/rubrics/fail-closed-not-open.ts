@@ -1,4 +1,4 @@
-import type { SecurityRubric } from './index.js';
+import type { SecurityRubric } from './types.js';
 
 export const failClosedNotOpenRubric: SecurityRubric = {
   id: 'SEC-R006',

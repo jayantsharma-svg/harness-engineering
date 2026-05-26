@@ -22851,6 +22851,137 @@
         "7807b7887a723f88",
         "3b77a6c5abd245a8"
       ]
+    },
+    {
+      "capturedAt": "2026-05-26T20:42:06.301Z",
+      "commitHash": "2632484bd3dabe8a6b6f7f883e5d32a90fb1b2f5",
+      "securityScore": 74,
+      "totalFindings": 26,
+      "bySeverity": {
+        "error": 0,
+        "warning": 26,
+        "info": 0
+      },
+      "byCategory": {
+        "deserialization": {
+          "findingCount": 23,
+          "errorCount": 0,
+          "warningCount": 23,
+          "infoCount": 0
+        },
+        "path-traversal": {
+          "findingCount": 3,
+          "errorCount": 0,
+          "warningCount": 3,
+          "infoCount": 0
+        }
+      },
+      "supplyChain": {
+        "critical": 0,
+        "high": 0,
+        "moderate": 0,
+        "low": 0,
+        "info": 0,
+        "total": 0
+      },
+      "suppressionCount": 0,
+      "findingIds": [
+        "c215c611cd48392c",
+        "7dc050e1898aac85",
+        "d105b04f640dfeab",
+        "dff00c8326714ff9",
+        "70c53ff454c3c7d9",
+        "62f5bd670137601a",
+        "a28f3936f561ebeb",
+        "6dde4d866b3a3edc",
+        "f48ff7c4fd33d504",
+        "86c26e8d696e5beb",
+        "9d5f6135305e92de",
+        "38fe6be103e0c955",
+        "d30bed7ccdc1fe6f",
+        "c4212a5500286c51",
+        "b7c71c01a2847efb",
+        "db73539d16d377f8",
+        "c5abc4f495ece7e5",
+        "e66ff96d15a5d527",
+        "91487f7b9b4f538d",
+        "63f2384fbc4ea391",
+        "53b3cf3e586f168a",
+        "5122c3f1c62c942b",
+        "25c84682194c9569",
+        "5b67f6312b27966d",
+        "7807b7887a723f88",
+        "3b77a6c5abd245a8"
+      ]
+    },
+    {
+      "capturedAt": "2026-05-26T21:33:11.568Z",
+      "commitHash": "faa93135095f967a47dc55090fef2d16041ca0c1",
+      "securityScore": 73,
+      "totalFindings": 27,
+      "bySeverity": {
+        "error": 0,
+        "warning": 27,
+        "info": 0
+      },
+      "byCategory": {
+        "deserialization": {
+          "findingCount": 23,
+          "errorCount": 0,
+          "warningCount": 23,
+          "infoCount": 0
+        },
+        "path-traversal": {
+          "findingCount": 3,
+          "errorCount": 0,
+          "warningCount": 3,
+          "infoCount": 0
+        },
+        "injection": {
+          "findingCount": 1,
+          "errorCount": 0,
+          "warningCount": 1,
+          "infoCount": 0
+        }
+      },
+      "supplyChain": {
+        "critical": 0,
+        "high": 0,
+        "moderate": 0,
+        "low": 0,
+        "info": 0,
+        "total": 0
+      },
+      "suppressionCount": 0,
+      "findingIds": [
+        "c215c611cd48392c",
+        "7dc050e1898aac85",
+        "d105b04f640dfeab",
+        "dff00c8326714ff9",
+        "70c53ff454c3c7d9",
+        "62f5bd670137601a",
+        "a28f3936f561ebeb",
+        "6dde4d866b3a3edc",
+        "f48ff7c4fd33d504",
+        "86c26e8d696e5beb",
+        "9d5f6135305e92de",
+        "38fe6be103e0c955",
+        "d30bed7ccdc1fe6f",
+        "c4212a5500286c51",
+        "b7c71c01a2847efb",
+        "db73539d16d377f8",
+        "c5abc4f495ece7e5",
+        "e66ff96d15a5d527",
+        "041c9134b3985fc8",
+        "91487f7b9b4f538d",
+        "63f2384fbc4ea391",
+        "53b3cf3e586f168a",
+        "5122c3f1c62c942b",
+        "25c84682194c9569",
+        "5b67f6312b27966d",
+        "7807b7887a723f88",
+        "3b77a6c5abd245a8"
+      ]
     }
   ],
   "findingLifecycles": [
@@ -23907,6 +24038,17 @@
       "file": "packages/cli/src/copy-craft/phases/critique.ts",
       "firstSeenAt": "2026-05-26T19:30:47.694Z",
       "firstSeenCommit": "dcca2ceab2443ab232d9a9d9f6f0b9e1a9847b9f",
+      "resolvedAt": null,
+      "resolvedCommit": null
+    },
+    {
+      "findingId": "041c9134b3985fc8",
+      "ruleId": "SEC-INJ-001",
+      "category": "injection",
+      "severity": "warning",
+      "file": "packages/core/src/security/scanner.ts",
+      "firstSeenAt": "2026-05-26T21:33:11.577Z",
+      "firstSeenCommit": "faa93135095f967a47dc55090fef2d16041ca0c1",
       "resolvedAt": null,
       "resolvedCommit": null
     }

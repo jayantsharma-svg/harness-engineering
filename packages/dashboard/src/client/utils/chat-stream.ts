@@ -48,6 +48,7 @@ export async function streamChat(
           return;
         }
         try {
+          // harness-ignore SEC-DES-001: client-side SSE consumer; trust boundary is the server, shape gated by typeof+`type` check on next line
           const raw: unknown = JSON.parse(payload);
           if (typeof raw !== 'object' || raw === null || !('type' in raw)) continue;
           const event = raw as ChatSSEEvent;

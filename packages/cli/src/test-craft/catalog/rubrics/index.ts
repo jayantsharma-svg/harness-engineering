@@ -6,17 +6,9 @@
  *   (Scope → 8 seed rubrics).
  */
 
-export interface TestRubric {
-  id: string;
-  title: string;
-  description: string;
-  source: string;
-  /** ADR 0020 — catalog growth metadata (reserved). */
-  contribution: { addedAt: string; addedBy: string };
-  signal: { invocations: number; suppressedAt: string[] };
-  version: number;
-}
+export type { TestRubric } from './types.js';
 
+import type { TestRubric } from './types.js';
 import { contractNotNarrativeNameRubric } from './contract-not-narrative-name.js';
 import { meaningfulAssertionRubric } from './meaningful-assertion.js';
 import { arrangeActAssertRubric } from './arrange-act-assert.js';

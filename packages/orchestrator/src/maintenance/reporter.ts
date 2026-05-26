@@ -58,6 +58,7 @@ export class MaintenanceReporter {
       await fs.promises.mkdir(this.persistDir, { recursive: true });
       const filePath = path.join(this.persistDir, 'history.json');
       const data = await fs.promises.readFile(filePath, 'utf-8');
+      // harness-ignore SEC-DES-001: history.json is self-written by this process; validated by RunResultSchema
       const parsed = z.array(RunResultSchema).safeParse(JSON.parse(data));
       if (parsed.success) {
         this.history = (parsed.data as RunResult[]).slice(0, MAX_HISTORY);

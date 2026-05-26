@@ -1,4 +1,4 @@
-import type { CopyRubric } from './index.js';
+import type { CopyRubric } from './types.js';
 
 export const whatWhyHowToFixRubric: CopyRubric = {
   id: 'COPY-R001',
