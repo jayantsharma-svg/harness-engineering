@@ -19,40 +19,12 @@
 // remain present on the discriminated finding type so downstream phases can
 // populate them when implemented in later vertical slices.
 
-/**
- * The "tier" axis of the 3-axis craft model (ADR 0019).
- *
- * - `foundational`: prerequisite craft — without it the design fails its
- *   basic job (hierarchy unreadable, contrast too low, motion masks state).
- * - `polish`: above-floor craft that makes a competent design feel
- *   considered (spring physics over cubic-bezier, content-matched skeletons,
- *   tabular numerals in tables).
- * - `aspirational`: ceiling-raising craft that distinguishes excellent work
- *   from merely good (signature micro-interactions, restraint that signals
- *   confidence, exemplar-level execution).
- */
-export type Tier = 'foundational' | 'polish' | 'aspirational';
-
-/**
- * The "impact" axis of the 3-axis craft model (ADR 0019).
- *
- * How much the finding moves the perceived quality of the target if
- * addressed. NOT a frequency or severity measure — those collapse craft to
- * error/warn/info, which the spec explicitly rejects.
- */
-export type Impact = 'small' | 'medium' | 'large';
-
-/**
- * The "confidence" axis of the 3-axis craft model (ADR 0019).
- *
- * Honesty about the LLM's certainty in the judgment. Essential for LLM-
- * judgment outputs: a low-confidence finding should be visually distinct in
- * downstream reporting and may be filtered at higher autoCapture
- * strictnesses. Code-only (fast) mode typically caps confidence at `medium`
- * for motion/visual rubrics; deep mode (rendered + vision-LLM) can reach
- * `high`.
- */
-export type Confidence = 'high' | 'medium' | 'low';
+// Tier / Impact / Confidence axes (ADR 0019) live in shared/craft.
+// design-craft re-exports them for backward compatibility — every
+// historical import path keeps working. The interfaces below ALSO
+// reference these types directly, so we both import and re-export.
+import type { Tier, Impact, Confidence } from '../../shared/craft/findings/axes.js';
+export type { Tier, Impact, Confidence };
 
 /**
  * Which phase emitted the finding.

@@ -65,7 +65,23 @@ describe('MCP Server Integration', () => {
     expect(names).toContain('detect_drift');
     // design-pipeline #1 (align half)
     expect(names).toContain('align_design_system');
-    expect(tools).toHaveLength(72);
+    // design-pipeline #3 — audit-brand-compliance
+    expect(names).toContain('audit_brand');
+    // design-pipeline #5 — orchestrator
+    expect(names).toContain('run_design_pipeline');
+    // craft-pipeline #1 — naming-craft
+    expect(names).toContain('naming_craft');
+    // craft-pipeline #6 — spec-craft
+    expect(names).toContain('spec_craft');
+    // craft-pipeline #5 — copy-craft
+    expect(names).toContain('copy_craft');
+    // craft-pipeline #3 — test-craft
+    expect(names).toContain('test_craft');
+    // craft-pipeline #9 — knowledge-craft
+    expect(names).toContain('knowledge_craft');
+    // craft-pipeline #10 — security-craft
+    expect(names).toContain('security_craft');
+    expect(tools).toHaveLength(80);
   });
 
   it('all tool definitions have inputSchema', () => {

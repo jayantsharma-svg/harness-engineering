@@ -174,6 +174,22 @@ import {
   alignDesignSystemDefinition,
   handleAlignDesignSystem,
 } from './tools/align-design-system.js';
+// design-pipeline #3: brand-semantics audit (BRAND-T* token misuse + BRAND-V001 forbidden phrases).
+import { auditBrandDefinition, handleAuditBrand } from './tools/audit-brand.js';
+// design-pipeline #5: orchestrator composing all design verifiers (FRESHEN/DETECT/FIX/AUDIT/FILL/REPORT).
+import { designPipelineDefinition, handleDesignPipeline } from './tools/design-pipeline.js';
+// craft-pipeline #1: naming-craft LLM-judgment skill (variables / functions / types / files).
+import { namingCraftDefinition, handleNamingCraft } from './tools/naming-craft.js';
+// craft-pipeline #6: spec-craft LLM-judgment skill (proposals + ADRs, per-section critique).
+import { specCraftDefinition, handleSpecCraft } from './tools/spec-craft.js';
+// craft-pipeline #5: copy-craft LLM-judgment skill (errors, logs, CLI output, commits, PRs, comments).
+import { copyCraftDefinition, handleCopyCraft } from './tools/copy-craft.js';
+// craft-pipeline #3: test-craft LLM-judgment skill (vitest/jest/mocha/playwright, per-test critique).
+import { testCraftDefinition, handleTestCraft } from './tools/test-craft.js';
+// craft-pipeline #9: knowledge-craft LLM-judgment skill (docs/knowledge/ entries, per-file critique).
+import { knowledgeCraftDefinition, handleKnowledgeCraft } from './tools/knowledge-craft.js';
+// craft-pipeline #10: security-craft LLM-judgment skill (AST-driven signal detection, conservative confidence).
+import { securityCraftDefinition, handleSecurityCraft } from './tools/security-craft.js';
 
 // Re-exported from ./tool-types so tool files can import the type without
 // pulling in server.ts (which would create a cycle). See ./tool-types.ts.
@@ -259,6 +275,14 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
   designCraftToolDefinition,
   detectDriftDefinition,
   alignDesignSystemDefinition,
+  auditBrandDefinition,
+  designPipelineDefinition,
+  namingCraftDefinition,
+  specCraftDefinition,
+  copyCraftDefinition,
+  testCraftDefinition,
+  knowledgeCraftDefinition,
+  securityCraftDefinition,
 ].map((def) => ({ ...def, trustedOutput: true }));
 const TOOL_HANDLERS: Record<string, ToolHandler> = {
   validate_project: handleValidateProject as ToolHandler,
@@ -333,6 +357,14 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
   design_craft: handleDesignCraft as unknown as ToolHandler,
   detect_drift: handleDetectDrift as unknown as ToolHandler,
   align_design_system: handleAlignDesignSystem as unknown as ToolHandler,
+  audit_brand: handleAuditBrand as unknown as ToolHandler,
+  run_design_pipeline: handleDesignPipeline as unknown as ToolHandler,
+  naming_craft: handleNamingCraft as unknown as ToolHandler,
+  spec_craft: handleSpecCraft as unknown as ToolHandler,
+  copy_craft: handleCopyCraft as unknown as ToolHandler,
+  test_craft: handleTestCraft as unknown as ToolHandler,
+  knowledge_craft: handleKnowledgeCraft as unknown as ToolHandler,
+  security_craft: handleSecurityCraft as unknown as ToolHandler,
 };
 
 const RESOURCE_DEFINITIONS = [

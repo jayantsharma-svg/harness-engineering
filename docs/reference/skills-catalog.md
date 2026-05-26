@@ -2,7 +2,7 @@
 
 # Skills Catalog
 
-745 skills across 3 tiers. Tier 1 and 2 skills are registered as slash commands. Tier 3 skills are discoverable via the `search_skills` MCP tool. See the [Features Overview](../guides/features-overview.md) for narrative documentation.
+753 skills across 3 tiers. Tier 1 and 2 skills are registered as slash commands. Tier 3 skills are discoverable via the `search_skills` MCP tool. See the [Features Overview](../guides/features-overview.md) for narrative documentation.
 
 ## Tier 1 — Workflow (14 skills)
 
@@ -141,7 +141,7 @@ Scaffold or migrate a test-suite project (API, E2E/UI, or shared library) with t
 - **Cognitive mode:** constructive-architect
 - **Depends on:** initialize-harness-project
 
-## Tier 2 — Maintenance (28 skills)
+## Tier 2 — Maintenance (36 skills)
 
 ### align-design-system
 
@@ -152,6 +152,16 @@ Apply codemods for safe DRIFT-T001/T002/T003 token-bypass findings; emit precise
 - **Type:** rigid
 - **Cognitive mode:** constructive-architect
 - **Depends on:** detect-design-drift
+
+### audit-brand-compliance
+
+Rule-based brand-semantics audit. Detects token misuse (BRAND-T001 via $extensions.harness.brand.forbidden_contexts) and voice violations (BRAND-V001 via DESIGN.md voice.forbidden_phrases). 4th composed verifier in harness check-design. Triggers extraction of the formal verifier interface.
+
+- **Triggers:** manual, on_pr, on_new_feature
+- **Platforms:** claude-code
+- **Type:** rigid
+- **Cognitive mode:** constructive-architect
+- **Depends on:** detect-design-drift, harness-design
 
 ### audit-component-anatomy
 
@@ -171,6 +181,16 @@ Detect and auto-fix dead code including dead exports, commented-out code, and or
 - **Platforms:** claude-code, gemini-cli, cursor, codex
 - **Type:** flexible
 - **Cognitive mode:** diagnostic-investigator
+
+### copy-craft
+
+LLM-judgment critique of prose-in-code across six surfaces (error messages, log lines, CLI output, commit subjects, PR descriptions, code comments). Third craft-pipeline ceiling skill; primary domain is error messages (universally bad). Graceful degradation when git/gh prerequisites are absent.
+
+- **Triggers:** manual, on_pr, on_new_feature
+- **Platforms:** claude-code
+- **Type:** rigid
+- **Cognitive mode:** constructive-architect
+- **Depends on:** harness-design-craft, naming-craft
 
 ### detect-design-drift
 
@@ -255,6 +275,16 @@ LLM-judgment-based design ceiling-raiser. CRITIQUE finds what's mediocre, POLISH
 - **Type:** flexible
 - **Cognitive mode:** constructive-architect
 - **Depends on:** harness-design, harness-design-system
+
+### harness-design-pipeline
+
+Orchestrator composing detect-design-drift, align-design-system, audit-component-anatomy, audit-brand-compliance, and design-craft-elevator into a sequential pipeline with convergence-based remediation. Mirrors harness-docs-pipeline. Consumes the formal verifier interface generically.
+
+- **Triggers:** manual, on_pr, on_new_feature
+- **Platforms:** claude-code
+- **Type:** rigid
+- **Cognitive mode:** constructive-architect
+- **Depends on:** detect-design-drift, align-design-system, audit-component-anatomy, audit-brand-compliance, harness-design-craft
 
 ### harness-docs-pipeline
 
@@ -405,6 +435,56 @@ Binary pass/fail quick gate — runs test, lint, typecheck commands and returns 
 - **Platforms:** claude-code, gemini-cli, cursor, codex
 - **Type:** rigid
 - **Cognitive mode:** meticulous-verifier
+
+### knowledge-craft
+
+LLM-judgment critique of knowledge-entry quality (docs/knowledge/, excluding decisions/ which is spec-craft territory). Per-file critique against 7 seed rubrics that ask whether the entry states a load-bearing fact, earns a place in the graph taxonomy, carries forward a decision that would otherwise erode. Fifth non-design craft-pipeline ceiling skill.
+
+- **Triggers:** manual, on_pr, on_new_feature
+- **Platforms:** claude-code
+- **Type:** rigid
+- **Cognitive mode:** constructive-architect
+- **Depends on:** harness-soundness-review, spec-craft
+
+### naming-craft
+
+LLM-judgment skill that critiques identifier names (variables, functions, types, files) against a curated rubric catalog seeded from Martin / Beck / Karlton. First craft-pipeline ceiling skill; cross-cutting (other craft skills call into it for domain-specific naming).
+
+- **Triggers:** manual, on_pr, on_new_feature
+- **Platforms:** claude-code
+- **Type:** rigid
+- **Cognitive mode:** constructive-architect
+- **Depends on:** harness-design-craft
+
+### security-craft
+
+LLM-judgment critique of security posture (TS/JS source). Threat-modeling-as-skill — critiques whether trust boundaries are respected, where implicit privilege escalation lurks, whether the code defends in depth, whether least authority is honored. AST-driven signal detection fires only on files with security-relevant constructs; conservative confidence defaults manage the FP risk inherent in judgment-based security. Sixth non-design craft-pipeline ceiling skill (the final sub-project,
+
+- **Triggers:** manual, on_pr, on_new_feature
+- **Platforms:** claude-code
+- **Type:** rigid
+- **Cognitive mode:** constructive-architect
+- **Depends on:** harness-security-scan, harness-security-review
+
+### spec-craft
+
+LLM-judgment critique of spec quality (proposals + ADRs) against a curated rubric catalog. Per-section critique with rubric-to-section mapping. Second craft-pipeline ceiling skill; highest-leverage because spec quality compounds across the lifecycle below it. Triggered the shared craft infrastructure extraction.
+
+- **Triggers:** manual, on_pr, on_new_feature
+- **Platforms:** claude-code
+- **Type:** rigid
+- **Cognitive mode:** constructive-architect
+- **Depends on:** harness-soundness-review, harness-design-craft
+
+### test-craft
+
+LLM-judgment critique of test quality across vitest / jest / mocha / playwright. Fourth craft-pipeline ceiling skill. Per-test critique with best-effort source pairing for contract-vs-implementation rubrics. Tests are often the worst-written code in a codebase precisely because the rule-based floor is so easy to clear.
+
+- **Triggers:** manual, on_pr, on_new_feature
+- **Platforms:** claude-code
+- **Type:** rigid
+- **Cognitive mode:** constructive-architect
+- **Depends on:** harness-tdd, harness-design-craft
 
 ## Tier 3 — Domain (703 skills)
 

@@ -400,6 +400,18 @@ Audit components for anatomy completeness. Emits ANAT-D* findings for component 
 - `designStrictness` (string, optional) — Overrides design.strictness from harness.config.json.
 - `catalog` (array, optional) — Optional subset of catalog entries to run.
 
+### `audit_brand`
+
+Audit brand-semantics violations: tokens used in forbidden contexts per their $extensions.harness.brand metadata (BRAND-T\*), and UI copy containing voice.forbidden_phrases from DESIGN.md ## Brand Rules (BRAND-V001). 4th verifier composed by harness check-design.
+
+**Parameters:**
+
+- `path` (string, required) — Project root path
+- `mode` (string, optional) — Both modes equivalent in v1 (no slow patterns yet).
+- `files` (array, optional) — Optional explicit file list to scope the scan.
+- `designStrictness` (string, optional) — Overrides design.strictness from harness.config.json.
+- `rules` (object, optional) — Per-rule enable flags.
+
 ### `compact`
 
 Compact content, resolve intents into aggregated packed responses, or re-compress prior tool output. Returns a packed envelope with source attribution and reduction metadata.
@@ -425,6 +437,20 @@ Simulate cascading failure propagation from a source node using probability-weig
 - `probabilityFloor` (number, optional) — Minimum cumulative probability to continue traversal (default 0.05)
 - `maxDepth` (number, optional) — Maximum BFS depth (default 10)
 - `mode` (string, optional) — Response density: compact returns summary + top 10 highest-risk nodes, detailed returns full layered cascade chain. Default: compact
+
+### `copy_craft`
+
+LLM-judgment critique of prose-in-code across six surfaces: error messages, log lines, CLI output strings, commit subjects, PR descriptions, code comments. Third craft-pipeline ceiling skill; 8 seed rubrics. Graceful degradation when git/gh prereqs absent.
+
+**Parameters:**
+
+- `path` (string, required) — Project root path
+- `files` (array, optional) — Optional source file/glob scope
+- `surfaces` (array, optional) — Restrict to specific surfaces (default: all 6)
+- `maxFiles` (number, optional) — Cap source file count (default: 100)
+- `maxItemsPerFile` (number, optional) — Cap per-file items (default: 20)
+- `commitsSince` (string, optional) — Commit window for git log (default: '1 month ago')
+- `prLimit` (number, optional) — PR count cap (default: 20)
 
 ### `design_craft`
 
@@ -495,6 +521,29 @@ Composite report combining health, entropy, decay, attention, and impact (Hermes
 - `path` (string, required) — Path to project root
 - `skip` (array, optional) — Top-level keys to skip.
 
+### `knowledge_craft`
+
+LLM-judgment critique of knowledge-entry quality (docs/knowledge/, excluding decisions/ — that is spec-craft territory). Fifth non-design craft-pipeline ceiling skill; 7 seed rubrics (load-bearing-fact, earns-graph-place, carries-forward-decision, …). Per-file critique. References graph taxonomy (business_fact / business_rule / business_concept / business_decision) inside rubrics without reading the graph. Emits 3-axis findings (tier x impact x confidence per ADR 0019).
+
+**Parameters:**
+
+- `path` (string, required) — Project root path
+- `files` (array, optional) — Optional file scope (overrides docs/knowledge/ discovery)
+- `excludeDirs` (array, optional) — Extra subdir names to skip under docs/knowledge/ (decisions is always excluded)
+- `maxFiles` (number, optional) — Cap entry count (default: 50)
+
+### `naming_craft`
+
+LLM-judgment critique of identifier names (variables, functions, types, files). First craft-pipeline ceiling skill; uses a curated rubric catalog seeded from Martin / Beck / Karlton. Emits 3-axis findings (tier x impact x confidence per ADR 0019).
+
+**Parameters:**
+
+- `path` (string, required) — Project root path
+- `files` (array, optional) — Optional file/glob scope
+- `kinds` (array, optional) — Restrict to specific identifier kinds (default: all)
+- `maxFiles` (number, optional) — Cap file count (default: 100)
+- `maxIdentifiersPerFile` (number, optional) — Cap per-file identifier sampling (default: 15)
+
 ### `recommend_skills`
 
 Recommend skills based on codebase health. Returns sequenced workflow with urgency markers.
@@ -517,6 +566,31 @@ Spawn an agent subprocess to perform code review. Returns structured feedback wi
 - `diff` (string, required) — Git diff string to review
 - `context` (string, optional) — Optional additional context for the reviewer
 
+### `security_craft`
+
+LLM-judgment critique of security posture (TS/JS source). Sixth non-design craft-pipeline ceiling skill; the final sub-project (#10 of 10). 8 seed rubrics: trust-boundary-respected, least-authority-honored, defense-in-depth, assumed-adversary-realistic, data-flow-annotated, fail-closed-not-open, secret-handling-shape, authz-before-action. AST-driven signal detection (only files with security-relevant constructs are critiqued — http handlers, middleware, auth APIs, child_process/eval, fs writes, raw queries, network egress, secret handling). Conservative confidence defaults manage the FP risk inherent in judgment-based security. Emits 3-axis findings (tier x impact x confidence per ADR 0019).
+
+**Parameters:**
+
+- `path` (string, required) — Project root path
+- `files` (array, optional) — Optional file scope (overrides discovery)
+- `packages` (array, optional) — Restrict to specific packages under packages/
+- `maxFiles` (number, optional) — Cap source-file count (default: 100)
+- `maxSignalsPerFile` (number, optional) — Cap per-file signal critique (default: 10)
+
+### `spec_craft`
+
+LLM-judgment critique of spec quality (proposals + ADRs). Second craft-pipeline ceiling skill; 7 seed rubrics from the spec-quality canon. Per-section critique with rubric-to-section mapping. Emits 3-axis findings (tier x impact x confidence per ADR 0019).
+
+**Parameters:**
+
+- `path` (string, required) — Project root path
+- `files` (array, optional) — Optional spec file/glob scope
+- `kinds` (array, optional) — Restrict to specific spec kinds (default: both)
+- `sections` (array, optional) — Restrict to canonical section names (e.g., decisions, scope)
+- `maxFiles` (number, optional) — Cap doc count (default: 50)
+- `maxSectionsPerFile` (number, optional) — Cap per-doc section critique (default: 10)
+
 ### `subscribe_webhook`
 
 Subscribe to outbound webhook fan-out via POST /api/v1/webhooks. Returns the secret once. Requires subscribe-webhook scope.
@@ -535,6 +609,19 @@ Generate or regenerate the LLM `llm-summary.md` for an archived session (Hermes 
 - `path` (string, required) — Path to project root
 - `sessionId` (string, required) — Archived session id (basename of the directory inside .harness/archive/sessions/)
 - `force` (boolean, optional) — If true, overwrite an existing llm-summary.md. Default: false (no-op when present).
+
+### `test_craft`
+
+LLM-judgment critique of test quality across vitest/jest/mocha/playwright. Fourth craft-pipeline ceiling skill; 8 seed rubrics. Per-test critique with optional source pairing for contract-vs-implementation rubrics.
+
+**Parameters:**
+
+- `path` (string, required) — Project root path
+- `files` (array, optional) — Optional test file/glob scope
+- `frameworks` (array, optional) — Restrict to specific frameworks (default: all four)
+- `maxFiles` (number, optional) — Cap test file count (default: 100)
+- `maxTestsPerFile` (number, optional) — Cap per-file test critique (default: 20)
+- `sourcePair` (boolean, optional) — Resolve source file under test for richer prompt context (default: true)
 
 ### `trigger_maintenance_job`
 
@@ -742,6 +829,21 @@ Run the unified 7-phase code review pipeline: gate, mechanical checks, context s
 - `repo` (string, optional) — Repository in owner/repo format (required for --comment)
 - `offset` (number, optional) — Number of findings to skip (pagination). Default: 0. Findings are sorted by severity desc (critical > important > suggestion).
 - `limit` (number, optional) — Max findings to return (pagination). Default: 20.
+
+### `run_design_pipeline`
+
+Run the design-pipeline orchestrator: FRESHEN -> DETECT -> FIX -> AUDIT -> FILL -> REPORT. Composes detect-design-drift, align-design-system, audit-component-anatomy, audit-brand-compliance, and design-craft-elevator into a phased pipeline with convergence-based remediation.
+
+**Parameters:**
+
+- `path` (string, required) — Project root path
+- `fix` (boolean, optional) — Enable convergence-based remediation
+- `noFreshen` (boolean, optional) — Skip FRESHEN phase
+- `noFill` (boolean, optional) — Skip FILL phase
+- `ci` (boolean, optional) — Non-interactive: safe fixes only, no prompts
+- `mode` (string, optional) — Verifier mode passed to each composed verifier
+- `files` (array, optional) — Optional file/glob scope
+- `designStrictness` (string, optional) — Override design.strictness
 
 ### `run_persona`
 

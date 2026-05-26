@@ -134,6 +134,19 @@ Remove stale entries from .harness/. Default: only .harness/sessions/ (no write 
 - `--include` — Hermes Phase 2: comma-separated target names (mutually-exclusive with --exclude/--all)
 - `--exclude` — Hermes Phase 2: comma-separated target names to skip
 
+### `harness copy-craft`
+
+LLM-judgment critique of prose-in-code across six surfaces: error messages, log lines, CLI output, commit subjects, PR descriptions, code comments. Third craft-pipeline ceiling skill. Graceful degradation when git/gh prereqs absent.
+
+**Options:**
+
+- `-f, --files` — Optional source file/glob scope
+- `-s, --surfaces` — Restrict to: error / log / cli-output / commit / pr-description / comment
+- `--max-files` — Cap source file count (default: 100)
+- `--max-items-per-file` — Cap per-file item sampling (default: 20)
+- `--commits-since` — Commit window (default: '1 month ago')
+- `--pr-limit` — PR count cap (default: 20)
+
 ### `harness create-skill`
 
 Scaffold a new skill with skill.yaml and SKILL.md
@@ -159,6 +172,20 @@ Start the Harness local web dashboard
 - `--orchestrator-url` — Orchestrator URL (default: http://localhost:8080)
 - `--no-open` — Do not automatically open browser
 - `--cwd` — Project directory (defaults to cwd)
+
+### `harness design-pipeline`
+
+Run the design-pipeline orchestrator: FRESHEN → DETECT → FIX → AUDIT → FILL → REPORT. Composes detect-design-drift, align-design-system, audit-component-anatomy, audit-brand-compliance, and design-craft-elevator into a single sequential pipeline with convergence-based remediation.
+
+**Options:**
+
+- `--fix` — Enable convergence-based remediation (default: detect + report only)
+- `--no-freshen` — Skip the FRESHEN phase
+- `--no-fill` — Skip the FILL phase (input bootstrap + craft polish)
+- `--ci` — Non-interactive: safe fixes only, no prompts
+- `-f, --files` — Optional file/glob scope passed to each verifier
+- `-m, --mode` — Verifier mode: fast | full (default: "fast")
+- `--design-strictness` — Override design.strictness: strict | standard | permissive
 
 ### `harness doctor`
 
@@ -285,6 +312,16 @@ Install a constraints bundle into the local harness config
 - `--dry-run` — Show what would change without writing files
 - `-c, --config` — Path to harness.config.json
 
+### `harness knowledge-craft`
+
+LLM-judgment critique of knowledge-entry quality (docs/knowledge/, excluding decisions/). Fifth non-design craft-pipeline ceiling skill; 7 seed rubrics (load-bearing-fact, earns-graph-place, carries-forward-decision, …). Per-file critique.
+
+**Options:**
+
+- `-f, --files` — Optional file scope (overrides discovery)
+- `--exclude-dirs` — Additional subdir names to skip (decisions is always excluded)
+- `--max-files` — Cap entry count (default: 50)
+
 ### `harness knowledge-pipeline`
 
 Run knowledge extraction, drift detection, and gap analysis
@@ -321,6 +358,17 @@ Migrate legacy harness artifact locations to current layout
 - `--skip-references` — Do not update path references in docs/sessions after moves
 - `--orphan-strategy` — How to handle orphan plans (ask|skip|bucket) (default: "ask")
 - `--orphan-topic` — Stub topic name when --orphan-strategy=bucket
+
+### `harness naming-craft`
+
+LLM-judgment critique of identifier names (variables, functions, types, files). First craft-pipeline ceiling skill; uses curated rubric catalog from Martin/Beck/Karlton.
+
+**Options:**
+
+- `-f, --files` — Optional file/glob scope
+- `-k, --kinds` — Restrict to variable / function / type / file (default: all)
+- `--max-files` — Cap file count (default: 100)
+- `--max-identifiers-per-file` — Cap per-file identifier sampling (default: 15)
 
 ### `harness predict`
 
@@ -397,6 +445,17 @@ Full-text search over archived + live session content (Hermes Phase 1).
 - `--reindex` — Drop and rebuild the index from .harness/archive/sessions before searching
 - `--file-kinds` — Comma-separated subset of {summary,learnings,failures,sections,llm_summary}
 
+### `harness security-craft`
+
+LLM-judgment critique of security posture (TS/JS source). Sixth non-design craft-pipeline ceiling skill (the final sub-project). AST-driven signal detection fires only on files with security-relevant constructs; conservative confidence defaults manage the FP risk inherent in judgment-based security.
+
+**Options:**
+
+- `-f, --files` — Optional file scope (overrides discovery)
+- `-p, --packages` — Restrict to specific packages under packages/
+- `--max-files` — Cap source-file count (default: 100)
+- `--max-signals-per-file` — Cap per-file signal critique (default: 10)
+
 ### `harness setup`
 
 Configure harness environment: slash commands, MCP, and more
@@ -423,6 +482,18 @@ Extract and publish a constraints bundle from constraints.yaml
 
 - `-o, --output` — Output directory for the bundle (default: ".")
 
+### `harness spec-craft`
+
+LLM-judgment critique of spec quality (proposals + ADRs). Second craft-pipeline ceiling skill; 7 seed rubrics from the spec-quality canon. Per-section critique.
+
+**Options:**
+
+- `-f, --files` — Optional spec file/glob scope
+- `-k, --kinds` — Restrict to proposal / adr (default: both)
+- `-s, --sections` — Restrict to specific canonical section names
+- `--max-files` — Cap doc count (default: 50)
+- `--max-sections-per-file` — Cap per-doc section critique (default: 10)
+
 ### `harness sync-analyses`
 
 Pull published intelligence analyses from the external issue tracker into the local .harness/analyses/ directory
@@ -439,6 +510,18 @@ Fast-forward the local default branch from origin (no-op on conflict)
 
 - `--json` — Emit a SyncMainResult JSON object
 - `--path` — Project root path (default: ".")
+
+### `harness test-craft`
+
+LLM-judgment critique of test quality across vitest/jest/mocha/playwright. Fourth craft-pipeline ceiling skill. Per-test critique with best-effort source pairing.
+
+**Options:**
+
+- `-f, --files` — Optional test file/glob scope
+- `--frameworks` — Restrict to: vitest / jest / mocha / playwright
+- `--max-files` — Cap test file count (default: 100)
+- `--max-tests-per-file` — Cap per-file test critique (default: 20)
+- `--no-source-pair` — Skip source-pairing resolution
 
 ### `harness traceability`
 

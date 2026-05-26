@@ -132,6 +132,22 @@ export const ALL_MCP_TOOLS: string[] = [
   'detect_drift',
   // design-pipeline #1 (align half) — apply codemods + emit suggestions
   'align_design_system',
+  // design-pipeline #3 — brand-semantics audit (BRAND-T* + BRAND-V001)
+  'audit_brand',
+  // design-pipeline #5 — orchestrator composing all design verifiers
+  'run_design_pipeline',
+  // craft-pipeline #1 — naming-craft LLM-judgment ceiling skill
+  'naming_craft',
+  // craft-pipeline #6 — spec-craft LLM-judgment ceiling skill
+  'spec_craft',
+  // craft-pipeline #5 — copy-craft LLM-judgment ceiling skill (6 surfaces)
+  'copy_craft',
+  // craft-pipeline #3 — test-craft LLM-judgment ceiling skill (vitest/jest/mocha/playwright)
+  'test_craft',
+  // craft-pipeline #9 — knowledge-craft LLM-judgment ceiling skill (docs/knowledge/ entries)
+  'knowledge_craft',
+  // craft-pipeline #10 — security-craft LLM-judgment ceiling skill (AST-driven, conservative-confidence)
+  'security_craft',
 ];
 
 /**
