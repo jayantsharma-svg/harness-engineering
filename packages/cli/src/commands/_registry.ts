@@ -6,15 +6,10 @@ import { createAddCommand } from './add';
 import { createAdoptionCommand } from './adoption';
 import { createAdviseSkillsCommand } from './advise-skills';
 import { createAgentCommand } from './agent';
+import { createAlignDesignSystemCommand } from './align-design-system';
 import { createAuditProtectedCommand } from './audit-protected';
 import { createBackfillSkillProvenanceCommand } from './backfill-skill-provenance';
 import { createBlueprintCommand } from './blueprint';
-import { createAlignDesignSystemCommand } from './align-design-system';
-import { createDesignPipelineCommand } from './design-pipeline';
-import { createNamingCraftCommand } from './naming-craft';
-import { createSpecCraftCommand } from './spec-craft';
-import { createCopyCraftCommand } from './copy-craft';
-import { createTestCraftCommand } from './test-craft';
 import { createCheckArchCommand } from './check-arch';
 import { createCheckDepsCommand } from './check-deps';
 import { createCheckDesignCommand } from './check-design';
@@ -26,8 +21,10 @@ import { createCICommand } from './ci';
 import { createCleanupCommand } from './cleanup';
 import { createCleanupSessionsCommand } from './cleanup-sessions';
 import { createCompoundCommand } from './compound';
+import { createCopyCraftCommand } from './copy-craft';
 import { createCreateSkillCommand } from './create-skill';
 import { createDashboardCommand } from './dashboard';
+import { createDesignPipelineCommand } from './design-pipeline';
 import { createDoctorCommand } from './doctor';
 import { createFixDriftCommand } from './fix-drift';
 import { createGatewayCommand } from './gateway';
@@ -43,6 +40,7 @@ import { createInsightsCommand } from './insights';
 import { createInstallCommand } from './install';
 import { createInstallConstraintsCommand } from './install-constraints';
 import { createIntegrationsCommand } from './integrations';
+import { createKnowledgeCraftCommand } from './knowledge-craft';
 import { createKnowledgePipelineCommand } from './knowledge-pipeline';
 import { createLearningsCommand } from './learnings';
 import { createLinterCommand } from './linter';
@@ -50,6 +48,7 @@ import { createMaintenanceCommand } from './maintenance';
 import { createMcpCommand } from './mcp';
 import { createMcpGuardCommand } from './mcp-guard';
 import { createMigrateCommand } from './migrate';
+import { createNamingCraftCommand } from './naming-craft';
 import { createNotificationsCommand } from './notifications';
 import { createOrchestratorCommand } from './orchestrator';
 import { createPerfCommand } from './perf';
@@ -69,11 +68,13 @@ import { createSetupMcpCommand } from './setup-mcp';
 import { createShareCommand } from './share';
 import { createSkillCommand } from './skill';
 import { createSnapshotCommand } from './snapshot';
+import { createSpecCraftCommand } from './spec-craft';
 import { createStateCommand } from './state';
 import { createSyncAnalysesCommand } from './sync-analyses';
 import { createSyncMainCommand } from './sync-main';
 import { createTaintCommand } from './taint';
 import { createTelemetryCommand } from './telemetry';
+import { createTestCraftCommand } from './test-craft';
 import { createTraceabilityCommand } from './traceability';
 import { createUninstallCommand } from './uninstall';
 import { createUninstallConstraintsCommand } from './uninstall-constraints';
@@ -91,15 +92,10 @@ export const commandCreators: Array<() => Command> = [
   createAdoptionCommand,
   createAdviseSkillsCommand,
   createAgentCommand,
+  createAlignDesignSystemCommand,
   createAuditProtectedCommand,
   createBackfillSkillProvenanceCommand,
   createBlueprintCommand,
-  createAlignDesignSystemCommand,
-  createDesignPipelineCommand,
-  createNamingCraftCommand,
-  createSpecCraftCommand,
-  createCopyCraftCommand,
-  createTestCraftCommand,
   createCheckArchCommand,
   createCheckDepsCommand,
   createCheckDesignCommand,
@@ -111,8 +107,10 @@ export const commandCreators: Array<() => Command> = [
   createCleanupCommand,
   createCleanupSessionsCommand,
   createCompoundCommand,
+  createCopyCraftCommand,
   createCreateSkillCommand,
   createDashboardCommand,
+  createDesignPipelineCommand,
   createDoctorCommand,
   createFixDriftCommand,
   createGatewayCommand,
@@ -128,6 +126,7 @@ export const commandCreators: Array<() => Command> = [
   createInstallCommand,
   createInstallConstraintsCommand,
   createIntegrationsCommand,
+  createKnowledgeCraftCommand,
   createKnowledgePipelineCommand,
   createLearningsCommand,
   createLinterCommand,
@@ -135,6 +134,7 @@ export const commandCreators: Array<() => Command> = [
   createMcpCommand,
   createMcpGuardCommand,
   createMigrateCommand,
+  createNamingCraftCommand,
   createNotificationsCommand,
   createOrchestratorCommand,
   createPerfCommand,
@@ -154,11 +154,13 @@ export const commandCreators: Array<() => Command> = [
   createShareCommand,
   createSkillCommand,
   createSnapshotCommand,
+  createSpecCraftCommand,
   createStateCommand,
   createSyncAnalysesCommand,
   createSyncMainCommand,
   createTaintCommand,
   createTelemetryCommand,
+  createTestCraftCommand,
   createTraceabilityCommand,
   createUninstallCommand,
   createUninstallConstraintsCommand,

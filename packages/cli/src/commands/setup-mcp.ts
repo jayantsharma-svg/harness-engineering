@@ -144,6 +144,8 @@ export const ALL_MCP_TOOLS: string[] = [
   'copy_craft',
   // craft-pipeline #3 — test-craft LLM-judgment ceiling skill (vitest/jest/mocha/playwright)
   'test_craft',
+  // craft-pipeline #9 — knowledge-craft LLM-judgment ceiling skill (docs/knowledge/ entries)
+  'knowledge_craft',
 ];
 
 /**
