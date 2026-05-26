@@ -115,7 +115,7 @@ Each package has a clear responsibility:
 - **eslint-plugin**: ESLint rules for architectural constraint enforcement (depends on types, core)
 - **linter-gen**: YAML-to-ESLint rule generator (depends on types, core)
 - **intelligence**: Intelligence pipeline for spec enrichment, complexity modeling, and pre-execution simulation (depends on types, graph)
-- **orchestrator**: Agent orchestration daemon for dispatching coding agents to issues. Modern config surface is `agent.backends` (named-map) + `agent.routing` (per-use-case). Legacy `agent.backend` / `agent.localBackend` accepted via in-memory migration shim with deprecation warning. (depends on types, core, intelligence)
+- **orchestrator**: Agent orchestration daemon for dispatching coding agents to issues. Modern config surface is `agent.backends` (named-map) + `agent.routing` (per-use-case). Routing supports per-skill + per-cognitive-mode axes with fallback chains; dashboard `/routing` panel and `harness routing {config,trace,decisions}` CLI surface decision telemetry. Legacy `agent.backend` / `agent.localBackend` accepted via in-memory migration shim with deprecation warning. (depends on types, core, intelligence)
 - **dashboard**: Web dashboard — React + Hono full-stack app with 12 pages (Adoption, Analyze, Attention, DecayTrends, Graph, Health, Impact, Maintenance, Orchestrator, Roadmap, Streams, Traceability), SSE-based live updates, and server-side data gathering (depends on types, core, graph)
 - **cli**: CLI tool and MCP server — top-level integration layer (depends on all packages)
 
