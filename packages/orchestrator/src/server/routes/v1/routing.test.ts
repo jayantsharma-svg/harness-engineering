@@ -134,3 +134,70 @@ describe('handleV1RoutingRoute — GET /api/v1/routing/decisions', () => {
     expect(statusCode()).toBe(503);
   });
 });
+
+function makeJsonReq(method: string, url: string, body: unknown): IncomingMessage {
+  const r = new IncomingMessage(new Socket());
+  r.method = method;
+  r.url = url;
+  r.headers['content-type'] = 'application/json';
+  const data = JSON.stringify(body);
+  process.nextTick(() => {
+    r.emit('data', Buffer.from(data));
+    r.emit('end');
+  });
+  return r;
+}
+
+describe('handleV1RoutingRoute — POST /api/v1/routing/trace', () => {
+  it('returns 200 with { decision, def: { type } } and does NOT emit on bus', async () => {
+    const backends: Record<string, BackendDef> = {
+      'claude-opus': { type: 'anthropic', model: 'x' },
+    };
+    const routing: RoutingConfig = { default: 'claude-opus' };
+    const router = new BackendRouter({ backends, routing });
+    const bus = new RoutingDecisionBus();
+    const ringBefore = bus.recent().length;
+    const req = makeJsonReq('POST', '/api/v1/routing/trace', {
+      useCase: { kind: 'tier', tier: 'quick-fix' },
+    });
+    const { res, chunks, statusCode } = makeRes();
+    handleV1RoutingRoute(req, res, { router, bus, routing, backends });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(statusCode()).toBe(200);
+    const body = JSON.parse(chunks.join(''));
+    expect(body.decision.backendName).toBe('claude-opus');
+    expect(body.def).toEqual({ type: 'anthropic' });
+    // dry-run: production bus must not have grown.
+    expect(bus.recent().length).toBe(ringBefore);
+  });
+
+  it('returns 400 on invalid body (missing useCase.kind)', async () => {
+    const backends: Record<string, BackendDef> = {
+      'claude-opus': { type: 'anthropic', model: 'x' },
+    };
+    const routing: RoutingConfig = { default: 'claude-opus' };
+    const router = new BackendRouter({ backends, routing });
+    const bus = new RoutingDecisionBus();
+    const req = makeJsonReq('POST', '/api/v1/routing/trace', { useCase: { tier: 'quick-fix' } });
+    const { res, chunks, statusCode } = makeRes();
+    handleV1RoutingRoute(req, res, { router, bus, routing, backends });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(statusCode()).toBe(400);
+    expect(chunks.join('')).toContain('error');
+  });
+
+  it('returns 503 when routing/backends are null (legacy single-backend config)', async () => {
+    const req = makeJsonReq('POST', '/api/v1/routing/trace', {
+      useCase: { kind: 'tier', tier: 'quick-fix' },
+    });
+    const { res, statusCode } = makeRes();
+    handleV1RoutingRoute(req, res, {
+      router: null,
+      bus: null,
+      routing: null,
+      backends: null,
+    });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(statusCode()).toBe(503);
+  });
+});
