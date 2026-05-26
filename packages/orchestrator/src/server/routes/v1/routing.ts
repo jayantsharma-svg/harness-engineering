@@ -1,8 +1,14 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import type { BackendDef, RoutingConfig, RoutingValue } from '@harness-engineering/types';
-import type { BackendRouter } from '../../../agent/backend-router';
-import { toArray } from '../../../agent/backend-router';
+import type {
+  BackendDef,
+  RoutingConfig,
+  RoutingUseCase,
+  RoutingValue,
+} from '@harness-engineering/types';
+import { z } from 'zod';
+import { BackendRouter, toArray } from '../../../agent/backend-router';
 import type { RoutingDecisionBus } from '../../../routing/decision-bus';
+import { readBody } from '../../utils';
 
 const CONFIG_RE = /^\/api\/v1\/routing\/config(?:\?.*)?$/;
 const DECISIONS_RE = /^\/api\/v1\/routing\/decisions(?:\?.*)?$/;
@@ -138,6 +144,97 @@ function handleDecisions(
 }
 
 /**
+ * Spec B Phase 5 (O3 partial): Zod schema mirroring RoutingUseCase
+ * discriminated union. Reject malformed bodies at the wire so the trace
+ * handler never hands a bad shape to BackendRouter.resolveDecisionAndDef.
+ * The schema is wider than RoutingUseCase (isolation tier is a free
+ * string here, IsolationTier in the production type); the router
+ * re-validates references against the backends map regardless.
+ */
+const UseCaseSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('tier'),
+    tier: z.enum(['quick-fix', 'guided-change', 'full-exploration', 'diagnostic']),
+  }),
+  z.object({ kind: z.literal('intelligence'), layer: z.enum(['sel', 'pesl']) }),
+  z.object({ kind: z.literal('isolation'), tier: z.string() }),
+  z.object({ kind: z.literal('maintenance') }),
+  z.object({ kind: z.literal('chat') }),
+  z.object({
+    kind: z.literal('skill'),
+    skillName: z.string().min(1),
+    cognitiveMode: z.string().optional(),
+  }),
+  z.object({ kind: z.literal('mode'), cognitiveMode: z.string().min(1) }),
+]);
+
+const TraceBodySchema = z.object({
+  useCase: UseCaseSchema,
+  invocationOverride: z.string().min(1).optional(),
+});
+
+/**
+ * Spec B Phase 5 (O3 partial): trace handler. Constructs a bus-less
+ * sibling BackendRouter per-call from the deps' routing+backends
+ * snapshots so dry-runs cannot pollute the production ring buffer
+ * (acceptance test asserts ring length unchanged after trace). Both
+ * routers share the same config, so the trace decision matches what
+ * the live router would produce for the same useCase. Per-call
+ * allocation is acceptable — trace is operator-driven, not a hot path.
+ *
+ * Response shape (D-OP-6): `def` is redacted to `{ type }` only so
+ * trace output piped to operator logs cannot leak model/endpoint
+ * secrets embedded in the BackendDef.
+ */
+async function handleTrace(
+  req: IncomingMessage,
+  res: ServerResponse,
+  deps: RoutingRouteDeps
+): Promise<boolean> {
+  if (!deps.routing || !deps.backends) {
+    unavailable(res);
+    return true;
+  }
+  let raw: string;
+  try {
+    raw = await readBody(req);
+  } catch {
+    sendJSON(res, 400, { error: 'body read failed' });
+    return true;
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    sendJSON(res, 400, { error: 'invalid JSON body' });
+    return true;
+  }
+  const r = TraceBodySchema.safeParse(parsed);
+  if (!r.success) {
+    sendJSON(res, 400, { error: r.error.message });
+    return true;
+  }
+  const opts =
+    r.data.invocationOverride !== undefined
+      ? { invocationOverride: r.data.invocationOverride }
+      : undefined;
+  try {
+    const dryRunRouter = new BackendRouter({
+      backends: deps.backends,
+      routing: deps.routing,
+    });
+    const { decision, def } = dryRunRouter.resolveDecisionAndDef(
+      r.data.useCase as RoutingUseCase,
+      opts
+    );
+    sendJSON(res, 200, { decision, def: { type: def.type } });
+  } catch (err) {
+    sendJSON(res, 500, { error: String(err) });
+  }
+  return true;
+}
+
+/**
  * Spec B Phase 5 dispatcher: GET /api/v1/routing/config, GET
  * /api/v1/routing/decisions, POST /api/v1/routing/trace. Returns true
  * when the route matched (response was written) and false to let the
@@ -152,7 +249,9 @@ export function handleV1RoutingRoute(
   const method = req.method ?? 'GET';
   if (method === 'GET' && CONFIG_RE.test(url)) return handleConfig(res, deps);
   if (method === 'GET' && DECISIONS_RE.test(url)) return handleDecisions(req, res, deps);
-  // TRACE_RE wired in Task 8
-  void TRACE_RE;
+  if (method === 'POST' && TRACE_RE.test(url)) {
+    void handleTrace(req, res, deps);
+    return true;
+  }
   return false;
 }
