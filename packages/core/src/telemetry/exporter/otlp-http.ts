@@ -235,33 +235,31 @@ export class OTLPExporter {
    * tests; not part of the supported API surface.
    */
   spansToOTLPJSON(spans: TraceSpan[]): unknown {
-    return {
-      resourceSpans: [
-        {
-          resource: {
-            attributes: [{ key: 'service.name', value: { stringValue: 'harness' } }],
-          },
-          scopeSpans: [
-            {
-              scope: { name: 'harness' },
-              spans: spans.map((s) => {
-                const span: Record<string, unknown> = {
-                  traceId: s.traceId,
-                  spanId: s.spanId,
-                  name: s.name,
-                  kind: s.kind,
-                  startTimeUnixNano: toUnixNanoString(s.startTimeNs),
-                  endTimeUnixNano: toUnixNanoString(s.endTimeNs),
-                  attributes: attributesToOTLP(s.attributes),
-                };
-                if (s.parentSpanId !== undefined) span['parentSpanId'] = s.parentSpanId;
-                if (s.statusCode !== undefined) span['status'] = { code: s.statusCode };
-                return span;
-              }),
-            },
-          ],
-        },
-      ],
+    const scopeSpan = {
+      scope: { name: 'harness' },
+      spans: spans.map(spanToOTLP),
     };
+    const resourceSpan = {
+      resource: { attributes: SERVICE_NAME_ATTR },
+      scopeSpans: [scopeSpan],
+    };
+    return { resourceSpans: [resourceSpan] };
   }
+}
+
+const SERVICE_NAME_ATTR = [{ key: 'service.name', value: { stringValue: 'harness' } }];
+
+function spanToOTLP(s: TraceSpan): Record<string, unknown> {
+  const span: Record<string, unknown> = {
+    traceId: s.traceId,
+    spanId: s.spanId,
+    name: s.name,
+    kind: s.kind,
+    startTimeUnixNano: toUnixNanoString(s.startTimeNs),
+    endTimeUnixNano: toUnixNanoString(s.endTimeNs),
+    attributes: attributesToOTLP(s.attributes),
+  };
+  if (s.parentSpanId !== undefined) span['parentSpanId'] = s.parentSpanId;
+  if (s.statusCode !== undefined) span['status'] = { code: s.statusCode };
+  return span;
 }
