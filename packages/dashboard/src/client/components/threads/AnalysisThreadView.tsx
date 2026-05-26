@@ -119,6 +119,7 @@ export function AnalysisThreadView({ thread }: Props) {
               return;
             }
             try {
+              // harness-ignore SEC-DES-001: client-side SSE consumer; trust boundary is the server, switch on `type` below acts as shape gate
               const event = JSON.parse(payload) as AnalyzeSSEEvent;
               switch (event.type) {
                 case 'status':

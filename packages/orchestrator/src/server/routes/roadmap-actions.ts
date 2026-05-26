@@ -68,6 +68,7 @@ export function handleRoadmapActionsRoute(
           return;
         }
         const body = await readBody(req);
+        // harness-ignore SEC-DES-001: input validated by Zod schema (AppendRoadmapRequestSchema)
         const parseResult = AppendRoadmapRequestSchema.safeParse(JSON.parse(body));
         if (!parseResult.success) {
           sendJSON(res, 400, {

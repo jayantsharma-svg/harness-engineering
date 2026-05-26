@@ -168,5 +168,6 @@ function appendToFile(p: string, content: string): void {
   } catch {
     /* file may not exist; treated as empty */
   }
+  // harness-ignore SEC-PTH-001: p is caller-provided path; concatenation is file content (existing + content), not the path argument
   fs.writeFileSync(p, existing + content);
 }
