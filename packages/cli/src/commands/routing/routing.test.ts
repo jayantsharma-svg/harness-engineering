@@ -46,9 +46,14 @@ function mockFetchThrow(error: Error): { fetchSpy: ReturnType<typeof vi.fn>; cal
 }
 
 describe('harness routing — subcommand acceptance contracts (Spec B Phase 6)', () => {
-  let logSpy: ReturnType<typeof vi.spyOn>;
-  let errSpy: ReturnType<typeof vi.spyOn>;
-  let exitSpy: ReturnType<typeof vi.spyOn>;
+  // Use any-typed handles for the spies so .mock.calls is treated as
+  // unknown[][]; we always coerce captured args to strings when reading.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let logSpy: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let errSpy: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let exitSpy: any;
 
   beforeEach(() => {
     process.env['HARNESS_ORCHESTRATOR_URL'] = 'http://127.0.0.1:9999';
