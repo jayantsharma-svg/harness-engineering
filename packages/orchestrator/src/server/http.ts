@@ -20,6 +20,10 @@ import { handleV1EventsSseRoute } from './routes/v1/events-sse';
 import { handleV1WebhooksRoute } from './routes/v1/webhooks';
 import { handleV1TelemetryRoute } from './routes/v1/telemetry';
 import { handleV1ProposalsRoute } from './routes/v1/proposals';
+import { handleV1RoutingRoute } from './routes/v1/routing';
+import type { BackendRouter } from '../agent/backend-router';
+import type { RoutingDecisionBus } from '../routing/decision-bus';
+import type { BackendDef, RoutingConfig, RoutingDecision } from '@harness-engineering/types';
 import type { WebhookStore } from '../gateway/webhooks/store';
 import type { WebhookDelivery } from '../gateway/webhooks/delivery';
 import type { WebhookQueue } from '../gateway/webhooks/queue';
@@ -141,6 +145,17 @@ export interface ServerDependencies {
    */
   cacheMetrics?: CacheMetricsRecorder;
   /**
+   * Spec B Phase 5 — routing observability routes (`/api/v1/routing/*`).
+   * Each accessor is a closure called on every request so the route
+   * handler always sees the current orchestrator state. Returns null
+   * when the legacy single-backend config bypassed agent.backends
+   * synthesis; the handler renders 503 in that case.
+   */
+  getBackendRouter?: () => BackendRouter | null;
+  getRoutingDecisionBus?: () => RoutingDecisionBus | null;
+  getRoutingConfig?: () => RoutingConfig | null;
+  getBackends?: () => Record<string, BackendDef> | null;
+  /**
    * Hermes Phase 4: project root used as the base path for
    * `.harness/proposals/` reads/writes and `agents/skills/` promotion.
    * Defaults to `process.cwd()`.
@@ -174,6 +189,15 @@ export class OrchestratorServer {
     | { store: WebhookStore; delivery: WebhookDelivery; queue?: WebhookQueue }
     | undefined;
   private cacheMetrics: CacheMetricsRecorder | undefined;
+  // Spec B Phase 5 — routing observability accessor closures + the WS
+  // broadcaster unsubscribe handle (D-OP-4 dual safety net: server.stop()
+  // calls it explicitly; clearListeners in Orchestrator.stop() is the
+  // belt-and-suspenders second line).
+  private getBackendRouterFn: (() => BackendRouter | null) | null = null;
+  private getRoutingDecisionBusFn: (() => RoutingDecisionBus | null) | null = null;
+  private getRoutingConfigFn: (() => RoutingConfig | null) | null = null;
+  private getBackendsFn: (() => Record<string, BackendDef> | null) | null = null;
+  private routingDecisionUnsubscribe: (() => void) | null = null;
   private recorder: StreamRecorder | null = null;
   private planWatcher: PlanWatcher | null = null;
   private tokenStore!: TokenStore;
@@ -220,6 +244,13 @@ export class OrchestratorServer {
     this.getLocalModelStatuses = deps?.getLocalModelStatuses ?? null;
     this.webhooks = deps?.webhooks;
     this.cacheMetrics = deps?.cacheMetrics;
+    // Spec B Phase 5 — routing observability accessors. Null-coalesced
+    // to null so the route handler short-circuits to 503 when
+    // unconfigured (e.g. FakeOrchestrator tests).
+    this.getBackendRouterFn = deps?.getBackendRouter ?? null;
+    this.getRoutingDecisionBusFn = deps?.getRoutingDecisionBus ?? null;
+    this.getRoutingConfigFn = deps?.getRoutingConfig ?? null;
+    this.getBackendsFn = deps?.getBackends ?? null;
   }
 
   private wireEvents(): void {
@@ -231,6 +262,19 @@ export class OrchestratorServer {
     };
     this.orchestrator.on('state_change', this.stateChangeListener);
     this.orchestrator.on('agent_event', this.agentEventListener);
+    // Spec B Phase 5 (F10): bridge RoutingDecisionBus → WS broadcaster on
+    // topic 'routing:decision'. Eager subscribe at server construction
+    // (D-OP-7) matches the agent_event listener pattern; bus.emit reaches
+    // a broadcaster with zero clients without error (broadcast() iterates
+    // an empty client set). S6 isolation in the bus catches any
+    // subscriber throw so a slow client cannot block dispatch.
+    // Unsubscribe runs in stop() before broadcaster.close().
+    const bus = this.getRoutingDecisionBusFn?.() ?? null;
+    if (bus) {
+      this.routingDecisionUnsubscribe = bus.subscribe((decision: RoutingDecision) => {
+        this.broadcaster.broadcast('routing:decision', decision);
+      });
+    }
   }
 
   /**
@@ -423,6 +467,15 @@ export class OrchestratorServer {
         handleV1TelemetryRoute(req, res, {
           ...(this.cacheMetrics ? { cacheMetrics: this.cacheMetrics } : {}),
         }),
+      // Spec B Phase 5 — routing observability. Returns 503 when the
+      // backendFactory is null (legacy single-backend configs).
+      (req, res) =>
+        handleV1RoutingRoute(req, res, {
+          router: this.getBackendRouterFn?.() ?? null,
+          bus: this.getRoutingDecisionBusFn?.() ?? null,
+          routing: this.getRoutingConfigFn?.() ?? null,
+          backends: this.getBackendsFn?.() ?? null,
+        }),
       // Hermes Phase 4 — skill proposal review queue. Read scopes
       // (`read-status`) and write scopes (`manage-proposals`) are enforced
       // upstream by V1_BRIDGE_ROUTES; this dispatcher only handles
@@ -609,6 +662,15 @@ export class OrchestratorServer {
   public stop(): void {
     this.orchestrator.removeListener('state_change', this.stateChangeListener);
     this.orchestrator.removeListener('agent_event', this.agentEventListener);
+    // Spec B Phase 5 (D-OP-4): unsubscribe the WS broadcaster from the
+    // RoutingDecisionBus BEFORE broadcaster.close() so any in-flight
+    // emission cannot try to write to a closed client set. Runs earlier
+    // in shutdown than Orchestrator.stop()'s clearListeners() — the two
+    // are complementary halves of the dual safety net.
+    if (this.routingDecisionUnsubscribe) {
+      this.routingDecisionUnsubscribe();
+      this.routingDecisionUnsubscribe = null;
+    }
     if (this.planWatcher) {
       this.planWatcher.stop();
       this.planWatcher = null;
