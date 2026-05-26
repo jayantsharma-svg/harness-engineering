@@ -52,6 +52,87 @@ With this config, heavy guided-change work runs on Claude CLI (subscription, no 
 
 `routing` selects _which_ backend handles a permitted dispatch. `escalation.alwaysHuman` and `escalation.autoExecute` continue to control _whether_ a tier dispatches at all; routing only matters once a tier is permitted.
 
+## Per-skill and per-mode routing (Spec B)
+
+Spec B extends `agent.routing` with two new axes for finer-grained backend selection:
+
+- **`routing.skills.<skill-name>`** — pins a specific skill to a backend regardless of scope tier
+- **`routing.modes.<cognitive-mode>`** — pins all skills of a given cognitive mode (declared via `cognitive_mode:` in skill.yaml) to a backend
+
+Both axes are optional. Resolution order is deterministic (see [Routing Resolution](../knowledge/orchestrator/routing-resolution.md)):
+
+1. Invocation override (`--backend <name>`)
+2. Per-skill (`routing.skills.<name>`)
+3. Per-cognitive-mode (`routing.modes.<mode>`)
+4. Per-tier / per-intelligence-layer / per-isolation (pre-Spec-B)
+5. `routing.default`
+
+First match wins.
+
+### Fallback chains
+
+Every routing value (old and new) accepts either a single backend name or an ordered fallback chain. The resolver picks the first chain entry whose backend exists in `agent.backends`:
+
+```yaml
+routing:
+  default: claude-opus
+  quick-fix: [local-fast, claude-sonnet] # try local-fast, fall back to claude-sonnet
+```
+
+Scalar form is byte-compatible with pre-Spec-B configs — no migration required.
+
+### Worked example
+
+```yaml
+agent:
+  backends:
+    claude-opus: { type: anthropic, model: claude-opus-4-7 }
+    claude-sonnet: { type: anthropic, model: claude-sonnet-4-6 }
+    local-fast: { type: local, endpoint: http://localhost:1234/v1, model: qwen3:8b }
+    local-reasoning: { type: local, endpoint: http://localhost:1234/v1, model: deepseek-r1:32b }
+  routing:
+    default: claude-opus
+    quick-fix: [local-fast, claude-sonnet] # fallback chain
+    intelligence:
+      sel: local-fast
+      pesl: local-reasoning
+    skills: # per-skill
+      harness-debugging: [local-fast, claude-sonnet]
+      harness-soundness-review: claude-opus
+      harness-brainstorming: claude-opus
+    modes: # per-cognitive-mode
+      adversarial-reviewer: [local-fast, claude-sonnet]
+      constructive-architect: claude-opus
+      meticulous-implementer: claude-sonnet
+```
+
+### Common patterns
+
+**Route reviewers to local, route architects to cloud** — use `routing.modes`:
+
+```yaml
+routing:
+  default: claude-opus
+  modes:
+    adversarial-reviewer: local-fast
+    constructive-architect: claude-opus
+```
+
+Every skill whose `cognitive_mode: adversarial-reviewer` lives in skill.yaml dispatches to `local-fast`. Architects keep running on Opus. No per-skill listing required.
+
+**Absorb cloud rate caps by pinning a specific skill local** — use `routing.skills` with a fallback chain:
+
+```yaml
+routing:
+  default: claude-opus
+  skills:
+    harness-debugging: [local-fast, claude-sonnet]
+```
+
+Only `harness-debugging` is affected — every other dispatch keeps its prior routing. If `local-fast` is misconfigured or missing from `agent.backends`, the chain falls through to `claude-sonnet`.
+
+See [Routing Trace](./routing-trace.md) for debugging routing decisions.
+
 ## Multi-local example
 
 ```yaml
@@ -106,4 +187,6 @@ See [ADR 0005: Named backends map](../knowledge/decisions/0005-named-backends-ma
 - [Local Model Resolution](../knowledge/orchestrator/local-model-resolution.md)
 - [Issue Routing](../knowledge/orchestrator/issue-routing.md)
 - [Intelligence Pipeline](./intelligence-pipeline.md)
+- [Routing Resolution](../knowledge/orchestrator/routing-resolution.md) — Spec B resolution chain + decision telemetry
+- [Routing Trace](./routing-trace.md) — Spec B operator-debugging guide
 - [Hybrid Orchestrator Quick Start](./hybrid-orchestrator-quickstart.md)
