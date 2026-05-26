@@ -109,6 +109,28 @@ export const V1_BRIDGE_ROUTES: ReadonlyArray<V1BridgeRoute> = [
     scope: 'read-telemetry',
     description: 'Prompt-cache hit/miss snapshot (rolling window).',
   },
+  // ── Spec B Phase 5 routing observability ──
+  // D-OP-1: all three reuse `read-telemetry` — matches the cacheMetrics
+  // precedent (read-only observability). A dedicated `read-routing`
+  // scope was rejected to avoid a TokenScopeSchema + ADR cascade.
+  {
+    method: 'GET',
+    pattern: /^\/api\/v1\/routing\/config(?:\?.*)?$/,
+    scope: 'read-telemetry',
+    description: 'Current routing config + resolved fallback chains + known backends.',
+  },
+  {
+    method: 'GET',
+    pattern: /^\/api\/v1\/routing\/decisions(?:\?.*)?$/,
+    scope: 'read-telemetry',
+    description: 'Recent routing decisions (newest-first), filterable by skill/mode/backend.',
+  },
+  {
+    method: 'POST',
+    pattern: /^\/api\/v1\/routing\/trace(?:\?.*)?$/,
+    scope: 'read-telemetry',
+    description: 'Dry-run a routing decision without side effects (no bus emit, no dispatch).',
+  },
 ];
 
 export function isV1Bridge(method: string, url: string): boolean {
