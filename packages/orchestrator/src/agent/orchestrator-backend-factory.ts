@@ -8,6 +8,7 @@ import type {
 } from '@harness-engineering/types';
 import type { CacheMetricsRecorder } from '@harness-engineering/core';
 import { BackendRouter } from './backend-router.js';
+import type { RoutingDecisionBus } from '../routing/decision-bus.js';
 import { createBackend } from './backend-factory.js';
 import { ContainerBackend } from './backends/container.js';
 import { DockerRuntime } from './runtime/docker.js';
@@ -49,6 +50,11 @@ export interface OrchestratorBackendFactoryOptions {
    * `/api/v1/telemetry/cache/stats` endpoint sees the full rolling window.
    */
   cacheMetrics?: CacheMetricsRecorder;
+  /**
+   * Spec B Phase 4 (D8): forwarded to the underlying BackendRouter so
+   * every resolve() during forUseCase / resolveName emits.
+   */
+  decisionBus?: RoutingDecisionBus;
 }
 
 /**
@@ -67,7 +73,11 @@ export class OrchestratorBackendFactory {
 
   constructor(opts: OrchestratorBackendFactoryOptions) {
     this.opts = opts;
-    this.router = new BackendRouter({ backends: opts.backends, routing: opts.routing });
+    this.router = new BackendRouter({
+      backends: opts.backends,
+      routing: opts.routing,
+      ...(opts.decisionBus !== undefined ? { decisionBus: opts.decisionBus } : {}),
+    });
   }
 
   /**
@@ -87,13 +97,28 @@ export class OrchestratorBackendFactory {
    * is `undefined` for pure-modern configs. Threading the routed name
    * through dispatch eliminates that gap.
    */
-  resolveName(useCase: RoutingUseCase): string {
-    return this.router.resolve(useCase);
+  resolveName(useCase: RoutingUseCase, opts?: { invocationOverride?: string }): string {
+    return this.router.resolve(useCase, opts).backendName;
   }
 
-  forUseCase(useCase: RoutingUseCase): AgentBackend {
-    const def = this.router.resolveDefinition(useCase);
-    const name = this.router.resolve(useCase);
+  /**
+   * Spec B Phase 1: expose the underlying router for callers that need
+   * it directly (e.g., {@link buildIntelligencePipeline} for the
+   * I1 SEL/PESL comparison fix). Read-only access; consumers must not
+   * mutate router state.
+   */
+  getRouter(): BackendRouter {
+    return this.router;
+  }
+
+  forUseCase(useCase: RoutingUseCase, opts?: { invocationOverride?: string }): AgentBackend {
+    // Spec B Phase 4 (closes P1-IMP-2): single resolve() per dispatch.
+    // Pre-Phase-4 this method called resolveDefinition() and resolve()
+    // separately, producing two RoutingDecisions. With Phase 4's
+    // decision-bus emission that doubled the routing-decision log
+    // volume per dispatch. resolveDecisionAndDef() collapses both.
+    const { def, decision } = this.router.resolveDecisionAndDef(useCase, opts);
+    const name = decision.backendName;
     let backend: AgentBackend;
     const createOpts = this.opts.cacheMetrics ? { cacheMetrics: this.opts.cacheMetrics } : {};
 

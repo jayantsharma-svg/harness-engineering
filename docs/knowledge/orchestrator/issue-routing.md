@@ -1,7 +1,20 @@
 ---
 type: business_process
 domain: orchestrator
-tags: [routing, triage, scope-tier, escalation, model-router, multi-backend, routing-config]
+tags:
+  [
+    routing,
+    triage,
+    scope-tier,
+    escalation,
+    model-router,
+    multi-backend,
+    routing-config,
+    per-skill,
+    per-cognitive-mode,
+    fallback-chain,
+    routing-resolution,
+  ]
 ---
 
 # Issue Routing
@@ -47,12 +60,38 @@ Once a tier is permitted to dispatch (i.e. it's not blocked by `escalation.alway
 - **Escalation** answers "should this tier dispatch at all?" — gates on `alwaysHuman`, `autoExecute`, `signalGated`, and concern signals from the intelligence pipeline.
 - **Routing** answers "where does this tier dispatch when permitted?" — selects an `agent.backends.<name>` entry by use case.
 
-The routing map is keyed by use case:
+The routing map is keyed by use case across five axes:
 
-- `default` (required) — fallback for any unmapped use case
-- `quick-fix`, `guided-change`, `full-exploration`, `diagnostic` — scope-tier dispatch
-- `intelligence.sel`, `intelligence.pesl` — analysis-provider selection for the intelligence pipeline
+- **`default`** (required) — fallback for any unmapped use case
+- **Per-tier**: `quick-fix`, `guided-change`, `full-exploration`, `diagnostic` — scope-tier dispatch
+- **Per-intelligence-layer**: `intelligence.sel`, `intelligence.pesl` — analysis-provider selection
+- **Per-isolation-tier**: `isolation.<tier>` — isolation-tier dispatch
+- **Per-skill** (Spec B): `skills.<skill-name>` — pins a specific skill to a backend regardless of scope tier
+- **Per-cognitive-mode** (Spec B): `modes.<cognitive-mode>` — pins all skills of a given cognitive mode to a backend
 
 Maintenance and dashboard chat both use `routing.default`. Unknown routing keys are validation errors.
 
-See [ADR 0005: Named backends map](../decisions/0005-named-backends-map.md) and [Multi-Backend Routing](../../guides/multi-backend-routing.md) for the schema and operator-facing semantics.
+### Resolution Order
+
+The orchestrator's `BackendRouter.resolve()` walks routing sources in a deterministic order; the first match wins:
+
+1. Invocation override (e.g., `--backend <name>` from CLI)
+2. Per-skill (`routing.skills.<name>`)
+3. Per-cognitive-mode (`routing.modes.<mode>`)
+4. Per-tier / per-intelligence-layer / per-isolation / maintenance / chat (pre-Spec-B)
+5. `routing.default`
+
+See [Routing Resolution](./routing-resolution.md) for the full walk and the `RoutingDecision` telemetry shape.
+
+### Fallback Chains
+
+Every routing value accepts a single backend name (`'claude-opus'`) or an ordered fallback chain (`['local-fast', 'claude-sonnet']`). The resolver walks the chain in declared order and picks the first entry whose backend exists in `agent.backends`. Scalar form is byte-compatible with pre-Spec-B configs.
+
+## See also
+
+- [Routing Resolution](./routing-resolution.md) — full resolution chain + decision telemetry (Spec B)
+- [Local Model Resolution](./local-model-resolution.md) — LMLM (Spec A) auto-populates models within each backend; routing references backend names
+- [Multi-Backend Routing guide](../../guides/multi-backend-routing.md) — operator-facing schema
+- [Routing Trace guide](../../guides/routing-trace.md) — debugging routing decisions
+- [ADR 0005: Named backends map](../decisions/0005-named-backends-map.md)
+- [ADR 0029: Per-skill and per-cognitive-mode routing axes](../decisions/0029-per-skill-and-per-mode-routing-axes.md)

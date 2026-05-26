@@ -9,14 +9,38 @@ import { GraphStore } from '@harness-engineering/graph';
 import type { WorkflowConfig, BackendDef } from '@harness-engineering/types';
 import type { LocalModelResolver } from './local-model-resolver';
 import { buildAnalysisProvider } from './analysis-provider-factory';
-import { toScalar } from './backend-router';
+import type { BackendRouter } from './backend-router';
 import type { StructuredLogger } from '../logging/logger';
 
-export interface IntelligenceFactoryDeps {
+/**
+ * Spec B Phase 4 (closes Phase 1 deferred finding P1-IMP-1): the
+ * pipeline-build path needs the router for the SC34/SC35 sel-vs-pesl
+ * dedupe; the per-layer path does not (it only consults the router on
+ * the routing-driven branch, which is opt-in via router presence).
+ */
+export interface BuildPipelineDeps {
   config: WorkflowConfig;
   localResolvers: Map<string, LocalModelResolver>;
   logger: StructuredLogger;
+  router: BackendRouter;
 }
+
+export interface BuildLayerDeps {
+  config: WorkflowConfig;
+  localResolvers: Map<string, LocalModelResolver>;
+  logger: StructuredLogger;
+  /**
+   * Optional: routing-driven branch consults the router when present;
+   * the intelligence.provider-explicit branch ignores it (test fixtures
+   * using only intel.provider may omit). When the routing-driven branch
+   * is reached and `router` is undefined, `buildAnalysisProviderForLayer`
+   * returns null.
+   */
+  router?: BackendRouter;
+}
+
+/** @deprecated kept as a compat re-export for one release; new code should use BuildPipelineDeps. */
+export type IntelligenceFactoryDeps = BuildPipelineDeps;
 
 export interface IntelligencePipelineBundle {
   pipeline: IntelligencePipeline;
@@ -32,9 +56,9 @@ export interface IntelligencePipelineBundle {
  * any field that needs it; this module owns no orchestrator state.
  */
 export function buildIntelligencePipeline(
-  deps: IntelligenceFactoryDeps
+  deps: BuildPipelineDeps
 ): IntelligencePipelineBundle | null {
-  const { config } = deps;
+  const { config, router } = deps;
   const intel = config.intelligence;
   if (!intel?.enabled) return null;
 
@@ -46,25 +70,16 @@ export function buildIntelligencePipeline(
   // the same backend (or pesl is unset), pass undefined so the
   // pipeline falls back to the sel provider (current behavior).
   //
-  // Spec B Phase 0 (C1 fix): compare the *resolved* backend names rather
-  // than the raw RoutingValue (which can be a fresh array literal —
-  // reference equality would be false for any chain form, building a
-  // redundant duplicate provider). `toScalar` collapses scalar | chain
-  // to the first backend name; this is byte-identical to the
-  // pre-widening behavior for scalar inputs and also makes
-  // scalar-vs-single-element-chain compare equal. Phase 1 will replace
-  // this with a `router.resolve({ kind: 'intelligence', layer: ... })`
-  // call so two distinct chains that resolve to the same backend (via
-  // chain walk + availability filtering) also compare equal.
-  const routing = config.agent.routing;
-  const peslValue = routing?.intelligence?.pesl;
-  const selValue = routing?.intelligence?.sel ?? routing?.default;
-  const peslName = peslValue !== undefined ? toScalar(peslValue) : undefined;
-  const selName = selValue !== undefined ? toScalar(selValue) : undefined;
-  const peslProvider =
-    peslName !== undefined && peslName !== selName
-      ? buildAnalysisProviderForLayer('pesl', deps)
-      : null;
+  // Spec B Phase 1 (closes Phase 0 review finding I1 part 1): ask the
+  // canonical router to resolve the actual chosen backend name for sel
+  // vs pesl. This compares post-chain-walk names, so two distinct
+  // chains that resolve to the same backend (via availability
+  // filtering) compare equal — the original intent of the SC34/SC35
+  // dedupe optimization. The Phase 0 toScalar shim and its no-router
+  // fallback are gone (per operator decision U2).
+  const peslName = router.resolve({ kind: 'intelligence', layer: 'pesl' }).backendName;
+  const selName = router.resolve({ kind: 'intelligence', layer: 'sel' }).backendName;
+  const peslProvider = peslName !== selName ? buildAnalysisProviderForLayer('pesl', deps) : null;
 
   const peslModel = intel.models?.pesl ?? config.agent.model;
   const graphStore = new GraphStore();
@@ -87,7 +102,7 @@ export function buildIntelligencePipeline(
  */
 export function buildAnalysisProviderForLayer(
   layer: 'sel' | 'pesl',
-  deps: IntelligenceFactoryDeps
+  deps: BuildLayerDeps
 ): AnalysisProvider | null {
   const { config, localResolvers, logger } = deps;
   const intel = config.intelligence;
@@ -100,7 +115,7 @@ export function buildAnalysisProviderForLayer(
   }
 
   // 2. Routing-driven selection (SC31, SC32, SC36).
-  const routed = resolveRoutedBackend(layer, config, logger);
+  const routed = resolveRoutedBackend(layer, deps);
   if (!routed) return null;
 
   const { name, def } = routed;
@@ -128,33 +143,41 @@ export function buildAnalysisProviderForLayer(
 }
 
 /**
- * Look up the routed BackendDef for an intelligence layer, falling
- * back through `routing.intelligence.<layer>` → `routing.default` → null.
+ * Look up the routed BackendDef for an intelligence layer via the
+ * canonical BackendRouter. Returns null if the router is absent
+ * (intel.provider-explicit branch never hits this code path) OR if
+ * the routed backend is missing from agent.backends.
+ *
+ * Spec B Phase 4 (closes Phase 0 review finding I1 third instance):
+ * the Phase-0 inline Array.isArray normalization is gone — the router
+ * owns chain walking + availability filtering. Two distinct chains
+ * that funnel to the same backend now produce identical names here
+ * (the SC34/SC35 dedupe optimization stays correct).
  */
 function resolveRoutedBackend(
   layer: 'sel' | 'pesl',
-  config: WorkflowConfig,
-  logger: StructuredLogger
+  deps: BuildLayerDeps
 ): { name: string; def: BackendDef } | null {
-  const routing = config.agent.routing;
+  const { config, router, logger } = deps;
   const backends = config.agent.backends;
-  if (!routing || !backends) return null;
-  // Spec B Phase 0: routing fields are now RoutingValue (scalar OR chain).
-  // Phase 1 will walk the chain; Phase 0 normalizes to the first element to
-  // preserve byte-identical behavior for scalar inputs.
-  const layerValue = routing.intelligence?.[layer];
-  const layerName =
-    layerValue !== undefined ? (Array.isArray(layerValue) ? layerValue[0] : layerValue) : undefined;
-  const defaultName = Array.isArray(routing.default) ? routing.default[0] : routing.default;
-  const name = layerName ?? defaultName;
-  const def = backends[name];
-  if (!def) {
+  if (!backends || !router) return null;
+  try {
+    const decision = router.resolve({ kind: 'intelligence', layer });
+    const def = backends[decision.backendName];
+    if (!def) {
+      logger.warn(
+        `Intelligence pipeline: routed backend '${decision.backendName}' for layer '${layer}' is not in agent.backends.`
+      );
+      return null;
+    }
+    return { name: decision.backendName, def };
+  } catch (err) {
+    // routing.default produced no available backend (S4) — log + fall through.
     logger.warn(
-      `Intelligence pipeline: routed backend '${name}' for layer '${layer}' is not in agent.backends.`
+      `Intelligence pipeline: router could not resolve intelligence.${layer}; intelligence disabled. error=${String(err)}`
     );
     return null;
   }
-  return { name, def };
 }
 
 function buildExplicitProvider(

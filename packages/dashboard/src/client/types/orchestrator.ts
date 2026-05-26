@@ -1,4 +1,8 @@
-import type { LocalModelStatus, NamedLocalModelStatus } from '@harness-engineering/types';
+import type {
+  LocalModelStatus,
+  NamedLocalModelStatus,
+  RoutingDecision,
+} from '@harness-engineering/types';
 
 export type { LocalModelStatus, NamedLocalModelStatus };
 
@@ -202,7 +206,9 @@ export type WebSocketMessage =
   | { type: 'maintenance:error'; data: MaintenanceErrorPayload }
   | { type: 'maintenance:completed'; data: MaintenanceCompletedPayload }
   | { type: 'maintenance:baseref_fallback'; data: MaintenanceBaserefFallbackPayload }
-  | { type: 'local-model:status'; data: NamedLocalModelStatus };
+  | { type: 'local-model:status'; data: NamedLocalModelStatus }
+  // Spec B Phase 7 — granular routing decisions bus topic.
+  | { type: 'routing:decision'; data: RoutingDecision };
 
 /** SSE event types from the chat proxy endpoint. */
 export type ChatSSEEvent =

@@ -35,7 +35,13 @@ import { LocalModelResolver } from './agent/local-model-resolver';
 import { migrateAgentConfig } from './agent/config-migration';
 import { OrchestratorBackendFactory } from './agent/orchestrator-backend-factory';
 import { buildIntelligencePipeline } from './agent/intelligence-factory';
-import { detectScopeTier, artifactPresenceFromIssue } from './core/model-router';
+import { toArray } from './agent/backend-router';
+import { RoutingDecisionBus } from './routing/decision-bus.js';
+// Spec B Phase 3: detectScopeTier / artifactPresenceFromIssue moved to
+// `./agent/use-case-builder` (the new caller). The dispatch site no
+// longer references them directly.
+import { discoverSkillCatalog, type SkillCatalogEntry } from './workflow/skill-catalog';
+import { buildRoutingUseCase } from './agent/use-case-builder';
 import { OrchestratorServer } from './server/http';
 import { WebhookStore } from './gateway/webhooks/store';
 import { WebhookDelivery } from './gateway/webhooks/delivery';
@@ -78,28 +84,11 @@ import { StreamRecorder } from './core/stream-recorder';
  * @fires Orchestrator#state_change Emitted when the internal state machine transitions
  * @fires Orchestrator#agent_event Emitted when an agent produces an output or thought
  */
-function useCaseForBackendParam(
-  issue: Issue,
-  backendParam: 'local' | 'primary' | undefined
-): import('@harness-engineering/types').RoutingUseCase {
-  // Spec 2 SC30 / Task 12: translate the legacy
-  // `dispatchIssue(..., backend?)` parameter into a `RoutingUseCase` for
-  // the BackendRouter.
-  //   - 'local' → quick-fix tier (typical local-backend assignment in
-  //     legacy single-runner configs).
-  //   - undefined / 'primary' → the issue's own scope tier, computed
-  //     identically to the state machine's escalation gate
-  //     (core/state-machine.ts), so escalation and routing always see
-  //     the same tier (SC43: escalation governs *whether*, routing
-  //     governs *where*).
-  // Module-level so SC30 mechanical greps at the dispatch site stay
-  // clean. Eliminating the legacy `backend?` parameter is autopilot
-  // Phase 4+.
-  if (backendParam === 'local') return { kind: 'tier', tier: 'quick-fix' };
-  const tier = detectScopeTier(issue, artifactPresenceFromIssue(issue));
-  return { kind: 'tier', tier };
-}
-
+// Spec B Phase 3: the Phase-2-era `useCaseForBackendParam` has been
+// replaced by `buildRoutingUseCase` (./agent/use-case-builder), which
+// also consults the skill catalog so per-skill / per-mode routing
+// fires at dispatch (F1/F2). The legacy local→quick-fix mapping is
+// preserved inside the new helper.
 export class Orchestrator extends EventEmitter {
   private state: OrchestratorState;
   private config: WorkflowConfig;
@@ -125,6 +114,14 @@ export class Orchestrator extends EventEmitter {
    */
   private backendFactory: OrchestratorBackendFactory | null;
   /**
+   * Spec B Phase 4 (D8): per-orchestrator in-process bus for
+   * `RoutingDecision` events. Constructed alongside backendFactory when
+   * agent.backends synthesis succeeds; null when legacy single-backend
+   * config bypassed backends. Phase 5+ consumers (HTTP, WS, dashboard)
+   * subscribe via `getRoutingDecisionBus()`.
+   */
+  private routingDecisionBus: RoutingDecisionBus | null;
+  /**
    * Test-only: when overrides.backend is provided, dispatch uses this
    * instance directly (bypassing the factory). Mirrors Phase 1
    * `overrides.backend → this.runner.backend` behavior so existing
@@ -146,6 +143,15 @@ export class Orchestrator extends EventEmitter {
    * so this map is the single source of truth post-migration.
    */
   private localResolvers = new Map<string, LocalModelResolver>();
+  /**
+   * Spec B Phase 3: skill catalog (name + cognitiveMode) read once at
+   * construction from `projectRoot/agents/skills/`. Consulted by
+   * `buildRoutingUseCase` at dispatch start to construct
+   * `{ kind: 'skill', skillName, cognitiveMode }` RoutingUseCases.
+   * Empty when the orchestrator runs outside a harness project root
+   * (then dispatch falls through to per-tier, preserving F11/N2).
+   */
+  private readonly skillCatalog: readonly SkillCatalogEntry[];
   /**
    * Per-resolver `onStatusChange` unsubscribe callbacks. Spec 2 Phase 5
    * (SC39): each local/pi resolver gets its own listener emitting a
@@ -281,6 +287,21 @@ export class Orchestrator extends EventEmitter {
     // on `roadmap.mode`. The Phase 3 constructor-time read of
     // `harness.config.json` is no longer needed.
 
+    // Spec B Phase 3: snapshot the skill catalog at construction. Reads
+    // from `<projectRoot>/agents/skills/<host>/<skill>/skill.yaml`.
+    // `projectRoot` is derived from `workspace.root` identically to the
+    // `projectRoot` getter below; computing it inline here keeps the
+    // constructor flow self-contained (the getter relies on a fully-
+    // built `this.config`, which is true by this point).
+    const skillCatalogRoot = path.resolve(this.config.workspace.root, '..', '..');
+    this.skillCatalog = discoverSkillCatalog(skillCatalogRoot);
+    if (this.skillCatalog.length === 0) {
+      this.logger.warn(
+        'Spec B Phase 3: skill catalog discovery returned 0 entries; per-skill / per-mode routing will fall through to per-tier. ' +
+          `Looked under ${path.join(skillCatalogRoot, 'agents/skills')}.`
+      );
+    }
+
     // Initialize adapters based on config or overrides
     this.tracker = overrides?.tracker || this.createTracker();
     this.workspace = new WorkspaceManager(config.workspace, {
@@ -382,6 +403,15 @@ export class Orchestrator extends EventEmitter {
       const routing = this.config.agent.routing ?? {
         default: firstBackendName ?? 'primary',
       };
+      // Spec B Phase 4 (D8): construct the bus once per orchestrator
+      // instance. Capacity hardcoded to 500 per operator decision D-OP-4
+      // (configurable via schema delta in Phase 5/6). Logger threaded so
+      // O1 routing-decision lines emit at info; S6 warn() lines emit on
+      // subscriber faults.
+      this.routingDecisionBus = new RoutingDecisionBus({
+        capacity: 500,
+        logger: this.logger,
+      });
       this.backendFactory = new OrchestratorBackendFactory({
         backends: this.config.agent.backends,
         routing,
@@ -391,6 +421,7 @@ export class Orchestrator extends EventEmitter {
           : {}),
         ...(this.config.agent.secrets !== undefined ? { secrets: this.config.agent.secrets } : {}),
         cacheMetrics: this.cacheMetrics,
+        decisionBus: this.routingDecisionBus,
         getResolverModelFor: (name) => {
           const resolver = this.localResolvers.get(name);
           return resolver ? () => resolver.resolveModel() : undefined;
@@ -398,6 +429,7 @@ export class Orchestrator extends EventEmitter {
       });
     } else {
       this.backendFactory = null;
+      this.routingDecisionBus = null;
     }
 
     // Pipeline construction deferred to start() — see initLocalModelAndPipeline().
@@ -506,6 +538,15 @@ export class Orchestrator extends EventEmitter {
           queue: this.webhookQueue,
         },
         cacheMetrics: this.cacheMetrics,
+        // Spec B Phase 5: routing observability accessors. Closures so the
+        // server re-reads on every request — stop() / start() do not
+        // require server reconstruction. Returns null if no backendFactory
+        // (legacy single-backend configs), and the route handler renders
+        // 503 in that case.
+        getBackendRouter: () => this.getBackendRouter(),
+        getRoutingDecisionBus: () => this.getRoutingDecisionBus(),
+        getRoutingConfig: () => this.getRoutingConfig(),
+        getBackends: () => this.getBackends(),
         plansDir: path.resolve(config.workspace.root, '..', 'docs', 'plans'),
         pipeline: this.pipeline,
         analysisArchive: this.analysisArchive,
@@ -762,10 +803,31 @@ export class Orchestrator extends EventEmitter {
   }
 
   private createIntelligencePipeline(): IntelligencePipeline | null {
+    // Spec B Phase 1: the intelligence pipeline now consumes the
+    // canonical BackendRouter via deps.router (required field, per
+    // operator decision U2/U6 — no more toScalar fallback). If the
+    // backend factory failed to construct (legacy config migration
+    // threw), there is no router to thread and no intelligence
+    // pipeline to build; return null and let the caller proceed
+    // without intelligence (matches the prior behavior where
+    // buildIntelligencePipeline returned null on unresolvable routes).
+    if (!this.backendFactory) {
+      // Spec B Phase 4 (closes P1-IMP-3): make the silent drop visible.
+      // The only path here is a legacy config where agent.backends is
+      // absent/empty (migration would normally synthesize), AND
+      // intelligence.enabled was set. Dispatch would have already
+      // failed; intelligence-only deployments are exceedingly rare but
+      // should not get a null pipeline with zero diagnostic output.
+      this.logger.warn(
+        'intelligence pipeline disabled: no backendFactory available (legacy config without agent.backends)'
+      );
+      return null;
+    }
     const bundle = buildIntelligencePipeline({
       config: this.config,
       localResolvers: this.localResolvers,
       logger: this.logger,
+      router: this.backendFactory.getRouter(),
     });
     if (!bundle) return null;
     this.graphStore = bundle.graphStore;
@@ -1358,29 +1420,42 @@ export class Orchestrator extends EventEmitter {
       //    surface as `undefined` in dashboard telemetry + stream
       //    metadata. The router's `resolveName` is total: post-migration
       //    every `routing` slot maps to a known backend in `backends`.
-      const useCase = useCaseForBackendParam(issue, backend);
+      const useCase = buildRoutingUseCase(issue, backend, this.skillCatalog);
+
+      // Spec B Phase 3 (D7 / F4): one-shot invocation override via env
+      // hint. `harness skill run <name> --backend <name>` emits a
+      // preamble that exports HARNESS_BACKEND_OVERRIDE; this branch
+      // picks it up at the single dispatch about to follow, then the
+      // orchestrator continues routing normally for subsequent
+      // dispatches.
+      const invocationOverride = process.env.HARNESS_BACKEND_OVERRIDE;
+      const routerOpts = invocationOverride ? { invocationOverride } : undefined;
+      if (invocationOverride) {
+        this.logger.info(
+          `Spec B Phase 3: HARNESS_BACKEND_OVERRIDE='${invocationOverride}' taking effect for ${issue.identifier}`,
+          { issueId: issue.id }
+        );
+      }
+
       let routedBackendName: string;
       if (this.overrideBackend !== null) {
         routedBackendName = this.overrideBackend.name;
       } else if (this.backendFactory !== null) {
-        routedBackendName = this.backendFactory.resolveName(useCase);
+        routedBackendName = this.backendFactory.resolveName(useCase, routerOpts);
       } else {
         // Legacy-fallback path: factory absent because migration threw.
-        // Prefer `routing.default` if migration partially succeeded;
-        // otherwise fall back to legacy `agent.backend` (still a string
-        // when this branch is reachable: migration only throws on
-        // legacy configs that have `agent.backend` set).
+        // Pre-Spec-B configs that have `agent.backend` set without
+        // `agent.backends` reach here. routing.default may be
+        // RoutingValue (scalar OR chain); we take the first chain
+        // entry without availability filtering (validateReferences
+        // would have caught typos at construction time).
         //
-        // Spec B Phase 0: routing.default is RoutingValue (scalar OR chain).
-        // Normalize to first element for byte-identical scalar behavior;
-        // Phase 1 replaces this with the proper chain walk.
+        // Spec B Phase 1 (closes Phase 0 review finding I1 part 2):
+        // the inline Array.isArray normalization is replaced with the
+        // canonical toArray helper from backend-router.ts.
         const routingDefault = this.config.agent.routing?.default;
         const routingDefaultScalar =
-          routingDefault === undefined
-            ? undefined
-            : Array.isArray(routingDefault)
-              ? routingDefault[0]
-              : routingDefault;
+          routingDefault !== undefined ? toArray(routingDefault)[0] : undefined;
         routedBackendName = routingDefaultScalar ?? this.config.agent.backend ?? 'unknown';
       }
 
@@ -1434,7 +1509,7 @@ export class Orchestrator extends EventEmitter {
       if (this.overrideBackend !== null) {
         agentBackend = this.overrideBackend;
       } else if (this.backendFactory !== null) {
-        agentBackend = this.backendFactory.forUseCase(useCase);
+        agentBackend = this.backendFactory.forUseCase(useCase, routerOpts);
       } else {
         // Legacy fallback: migration failed, no override supplied. Fail
         // dispatch the same way the deleted `createBackend()` legacy
@@ -1816,6 +1891,15 @@ export class Orchestrator extends EventEmitter {
       unsub();
     }
     this.localModelStatusUnsubscribes = [];
+    // Spec B Phase 5 (Phase 4 review-S2 fix): release any subscribers
+    // (the WS broadcaster registers in OrchestratorServer.wireEvents and
+    // unsubscribes itself in server.stop, but clearListeners() is the
+    // belt-and-suspenders second line in case a future subscriber forgets).
+    // Run BEFORE nulling so the bus reference is still valid.
+    this.routingDecisionBus?.clearListeners();
+    // Null out the bus reference; ring buffer + listener set are
+    // eligible for GC once no external references remain.
+    this.routingDecisionBus = null;
     for (const resolver of this.localResolvers.values()) {
       resolver.stop();
     }
@@ -1903,6 +1987,46 @@ export class Orchestrator extends EventEmitter {
       claimRejections: this.state.claimRejections,
       tickActivity: this.tickActivity,
     };
+  }
+
+  /**
+   * Spec B Phase 4 (D8): expose the bus for Phase 5 (HTTP routes) and
+   * Phase 7 (dashboard WS broadcast). Returns null when the legacy
+   * single-backend config bypassed agent.backends synthesis.
+   */
+  public getRoutingDecisionBus(): RoutingDecisionBus | null {
+    return this.routingDecisionBus;
+  }
+
+  /**
+   * Spec B Phase 5: live BackendRouter for HTTP routes. The orchestrator
+   * dispatch path uses the factory-owned router directly; observability
+   * routes (config / decisions) reach it through this accessor. Returns
+   * null when the legacy single-backend config bypassed agent.backends
+   * synthesis (no backendFactory built).
+   */
+  public getBackendRouter(): import('./agent/backend-router').BackendRouter | null {
+    return this.backendFactory?.getRouter() ?? null;
+  }
+
+  /**
+   * Spec B Phase 5: snapshot of the active RoutingConfig for the config
+   * route and the trace route's bus-less router construction. Returns
+   * null when the operator's harness.config.json carries no
+   * `agent.routing` block.
+   */
+  public getRoutingConfig(): import('@harness-engineering/types').RoutingConfig | null {
+    return this.config.agent.routing ?? null;
+  }
+
+  /**
+   * Spec B Phase 5: snapshot of `agent.backends` for the config route
+   * (existence annotations) and the trace route (bus-less router
+   * construction). Returns null when no synthesized backends map exists
+   * (legacy single-backend configs).
+   */
+  public getBackends(): Record<string, import('@harness-engineering/types').BackendDef> | null {
+    return this.config.agent.backends ?? null;
   }
 
   /** Returns the maintenance scheduler status, or null if maintenance is not enabled. */

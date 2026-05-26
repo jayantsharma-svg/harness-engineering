@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import type { BackendDef, RoutingConfig, RoutingUseCase } from '@harness-engineering/types';
 import { BackendRouter } from '../../src/agent/backend-router.js';
+import { RoutingDecisionBus } from '../../src/routing/decision-bus.js';
 
 const cloud: BackendDef = { type: 'claude', command: 'claude' };
 const local: BackendDef = {
@@ -14,25 +15,25 @@ describe('BackendRouter — resolution', () => {
     const routing: RoutingConfig = { default: 'cloud', 'quick-fix': 'local' };
     const router = new BackendRouter({ backends: { cloud, local }, routing });
     const useCase: RoutingUseCase = { kind: 'tier', tier: 'quick-fix' };
-    expect(router.resolve(useCase)).toBe('local');
+    expect(router.resolve(useCase).backendName).toBe('local');
   });
 
   it('falls back to default when a tier scope is not in routing', () => {
     const routing: RoutingConfig = { default: 'cloud', 'quick-fix': 'local' };
     const router = new BackendRouter({ backends: { cloud, local }, routing });
-    expect(router.resolve({ kind: 'tier', tier: 'guided-change' })).toBe('cloud');
+    expect(router.resolve({ kind: 'tier', tier: 'guided-change' }).backendName).toBe('cloud');
   });
 
   it('falls back to default for the maintenance use case (always default per SC19)', () => {
     const routing: RoutingConfig = { default: 'cloud' };
     const router = new BackendRouter({ backends: { cloud }, routing });
-    expect(router.resolve({ kind: 'maintenance' })).toBe('cloud');
+    expect(router.resolve({ kind: 'maintenance' }).backendName).toBe('cloud');
   });
 
   it('falls back to default for the chat use case (SC20)', () => {
     const routing: RoutingConfig = { default: 'cloud', 'quick-fix': 'local' };
     const router = new BackendRouter({ backends: { cloud, local }, routing });
-    expect(router.resolve({ kind: 'chat' })).toBe('cloud');
+    expect(router.resolve({ kind: 'chat' }).backendName).toBe('cloud');
   });
 
   it('returns the BackendDef reference (identity, not a copy) from resolveDefinition', () => {
@@ -49,7 +50,7 @@ describe('BackendRouter — resolution', () => {
       intelligence: { sel: 'local' },
     };
     const router = new BackendRouter({ backends: { cloud, local }, routing });
-    expect(router.resolve({ kind: 'intelligence', layer: 'sel' })).toBe('local');
+    expect(router.resolve({ kind: 'intelligence', layer: 'sel' }).backendName).toBe('local');
   });
 
   it('falls back to default when intelligence layer is unmapped', () => {
@@ -58,13 +59,13 @@ describe('BackendRouter — resolution', () => {
       intelligence: { sel: 'local' },
     };
     const router = new BackendRouter({ backends: { cloud, local }, routing });
-    expect(router.resolve({ kind: 'intelligence', layer: 'pesl' })).toBe('cloud');
+    expect(router.resolve({ kind: 'intelligence', layer: 'pesl' }).backendName).toBe('cloud');
   });
 
   it('falls back to default when intelligence map is absent', () => {
     const routing: RoutingConfig = { default: 'cloud' };
     const router = new BackendRouter({ backends: { cloud }, routing });
-    expect(router.resolve({ kind: 'intelligence', layer: 'sel' })).toBe('cloud');
+    expect(router.resolve({ kind: 'intelligence', layer: 'sel' }).backendName).toBe('cloud');
   });
 });
 
@@ -88,7 +89,9 @@ describe('BackendRouter — isolation tier (Hermes Phase 5)', () => {
       isolation: { 'remote-sandbox': 'remote' },
     };
     const router = new BackendRouter({ backends: { cloud, remote }, routing });
-    expect(router.resolve({ kind: 'isolation', tier: 'remote-sandbox' })).toBe('remote');
+    expect(router.resolve({ kind: 'isolation', tier: 'remote-sandbox' }).backendName).toBe(
+      'remote'
+    );
   });
 
   it('falls back to default when the isolation tier is unmapped', () => {
@@ -100,13 +103,13 @@ describe('BackendRouter — isolation tier (Hermes Phase 5)', () => {
       backends: { cloud, sandbox: { ...sandbox, isolation: 'container' } },
       routing,
     });
-    expect(router.resolve({ kind: 'isolation', tier: 'remote-sandbox' })).toBe('cloud');
+    expect(router.resolve({ kind: 'isolation', tier: 'remote-sandbox' }).backendName).toBe('cloud');
   });
 
   it('falls back to default when the isolation map is absent entirely', () => {
     const routing: RoutingConfig = { default: 'cloud' };
     const router = new BackendRouter({ backends: { cloud }, routing });
-    expect(router.resolve({ kind: 'isolation', tier: 'container' })).toBe('cloud');
+    expect(router.resolve({ kind: 'isolation', tier: 'container' }).backendName).toBe('cloud');
   });
 
   it('throws when routing.isolation references an unknown backend', () => {
@@ -185,5 +188,46 @@ describe('BackendRouter + createBackend integration', () => {
     expect(createBackend(cloudDef)).toBeInstanceOf(ClaudeBackend);
     expect(createBackend(localDef)).toBeInstanceOf(PiBackend);
     expect(createBackend(intelDef)).toBeInstanceOf(PiBackend);
+  });
+});
+
+describe('BackendRouter — decision bus emission (Spec B Phase 4)', () => {
+  it('emits exactly one decision per resolve() when a bus is provided', () => {
+    const bus = new RoutingDecisionBus({ capacity: 5 });
+    const emitSpy = vi.spyOn(bus, 'emit');
+    const router = new BackendRouter({
+      backends: { cloud, local },
+      routing: { default: 'cloud', 'quick-fix': 'local' },
+      decisionBus: bus,
+    });
+    router.resolve({ kind: 'tier', tier: 'quick-fix' });
+    router.resolve({ kind: 'tier', tier: 'guided-change' });
+    expect(emitSpy).toHaveBeenCalledTimes(2);
+    expect(bus.recent()).toHaveLength(2);
+  });
+
+  it('does not throw when no bus is provided (legacy ctor shape)', () => {
+    const router = new BackendRouter({
+      backends: { cloud, local },
+      routing: { default: 'cloud' },
+    });
+    expect(() => router.resolve({ kind: 'tier', tier: 'quick-fix' })).not.toThrow();
+  });
+
+  it('resolveDecisionAndDef: single resolve() call, returns matching decision+def', () => {
+    const bus = new RoutingDecisionBus({ capacity: 5 });
+    const backends = { cloud, local };
+    const router = new BackendRouter({
+      backends,
+      routing: { default: 'cloud', 'quick-fix': 'local' },
+      decisionBus: bus,
+    });
+    const { decision, def } = router.resolveDecisionAndDef({
+      kind: 'tier',
+      tier: 'quick-fix',
+    });
+    expect(decision.backendName).toBe('local');
+    expect(def).toBe(backends.local); // identity
+    expect(bus.recent()).toHaveLength(1); // one emit, not two
   });
 });

@@ -60,6 +60,7 @@ import { createPulseCommand } from './pulse';
 import { createQueryCommand } from './graph/query';
 import { createRecommendCommand } from './recommend';
 import { createRoadmapCommand } from './roadmap';
+import { createRoutingCommand } from './routing';
 import { createScanCommand } from './graph/scan';
 import { createScanConfigCommand } from './scan-config';
 import { createSearchCommand } from './search';
@@ -147,6 +148,7 @@ export const commandCreators: Array<() => Command> = [
   createQueryCommand,
   createRecommendCommand,
   createRoadmapCommand,
+  createRoutingCommand,
   createScanCommand,
   createScanConfigCommand,
   createSearchCommand,
