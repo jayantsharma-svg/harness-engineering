@@ -91,6 +91,53 @@ function handleConfig(res: ServerResponse, deps: RoutingRouteDeps): boolean {
 }
 
 /**
+ * Spec B Phase 5 (F8): parse the decisions query string into the bus's
+ * filter shape. Supports `skill`, `mode`, `backend`, `limit`; all
+ * optional and AND-combined. `limit` is coerced to a positive integer;
+ * non-numeric / non-positive values are silently dropped so the bus
+ * returns its default-bounded result.
+ */
+function parseDecisionsQuery(url: string): {
+  skillName?: string;
+  mode?: string;
+  backendName?: string;
+  limit?: number;
+} {
+  const qIdx = url.indexOf('?');
+  if (qIdx === -1) return {};
+  const p = new URLSearchParams(url.slice(qIdx + 1));
+  const filter: {
+    skillName?: string;
+    mode?: string;
+    backendName?: string;
+    limit?: number;
+  } = {};
+  const skill = p.get('skill');
+  const mode = p.get('mode');
+  const backend = p.get('backend');
+  const limit = p.get('limit');
+  if (skill) filter.skillName = skill;
+  if (mode) filter.mode = mode;
+  if (backend) filter.backendName = backend;
+  if (limit) {
+    const n = Number(limit);
+    if (Number.isFinite(n) && n > 0) filter.limit = Math.floor(n);
+  }
+  return filter;
+}
+
+function handleDecisions(
+  req: IncomingMessage,
+  res: ServerResponse,
+  deps: RoutingRouteDeps
+): boolean {
+  if (!deps.bus) return unavailable(res);
+  const filter = parseDecisionsQuery(req.url ?? '');
+  sendJSON(res, 200, { decisions: deps.bus.recent(filter) });
+  return true;
+}
+
+/**
  * Spec B Phase 5 dispatcher: GET /api/v1/routing/config, GET
  * /api/v1/routing/decisions, POST /api/v1/routing/trace. Returns true
  * when the route matched (response was written) and false to let the
@@ -104,8 +151,8 @@ export function handleV1RoutingRoute(
   const url = req.url ?? '';
   const method = req.method ?? 'GET';
   if (method === 'GET' && CONFIG_RE.test(url)) return handleConfig(res, deps);
-  // DECISIONS_RE + TRACE_RE wired in Tasks 6/8
-  void DECISIONS_RE;
+  if (method === 'GET' && DECISIONS_RE.test(url)) return handleDecisions(req, res, deps);
+  // TRACE_RE wired in Task 8
   void TRACE_RE;
   return false;
 }
