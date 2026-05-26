@@ -36,6 +36,7 @@ import { migrateAgentConfig } from './agent/config-migration';
 import { OrchestratorBackendFactory } from './agent/orchestrator-backend-factory';
 import { buildIntelligencePipeline } from './agent/intelligence-factory';
 import { toArray } from './agent/backend-router';
+import { RoutingDecisionBus } from './routing/decision-bus.js';
 // Spec B Phase 3: detectScopeTier / artifactPresenceFromIssue moved to
 // `./agent/use-case-builder` (the new caller). The dispatch site no
 // longer references them directly.
@@ -112,6 +113,14 @@ export class Orchestrator extends EventEmitter {
    * construction time. Eliminating this fallback is autopilot Phase 4+.
    */
   private backendFactory: OrchestratorBackendFactory | null;
+  /**
+   * Spec B Phase 4 (D8): per-orchestrator in-process bus for
+   * `RoutingDecision` events. Constructed alongside backendFactory when
+   * agent.backends synthesis succeeds; null when legacy single-backend
+   * config bypassed backends. Phase 5+ consumers (HTTP, WS, dashboard)
+   * subscribe via `getRoutingDecisionBus()`.
+   */
+  private routingDecisionBus: RoutingDecisionBus | null;
   /**
    * Test-only: when overrides.backend is provided, dispatch uses this
    * instance directly (bypassing the factory). Mirrors Phase 1
@@ -394,6 +403,15 @@ export class Orchestrator extends EventEmitter {
       const routing = this.config.agent.routing ?? {
         default: firstBackendName ?? 'primary',
       };
+      // Spec B Phase 4 (D8): construct the bus once per orchestrator
+      // instance. Capacity hardcoded to 500 per operator decision D-OP-4
+      // (configurable via schema delta in Phase 5/6). Logger threaded so
+      // O1 routing-decision lines emit at info; S6 warn() lines emit on
+      // subscriber faults.
+      this.routingDecisionBus = new RoutingDecisionBus({
+        capacity: 500,
+        logger: this.logger,
+      });
       this.backendFactory = new OrchestratorBackendFactory({
         backends: this.config.agent.backends,
         routing,
@@ -403,6 +421,7 @@ export class Orchestrator extends EventEmitter {
           : {}),
         ...(this.config.agent.secrets !== undefined ? { secrets: this.config.agent.secrets } : {}),
         cacheMetrics: this.cacheMetrics,
+        decisionBus: this.routingDecisionBus,
         getResolverModelFor: (name) => {
           const resolver = this.localResolvers.get(name);
           return resolver ? () => resolver.resolveModel() : undefined;
@@ -410,6 +429,7 @@ export class Orchestrator extends EventEmitter {
       });
     } else {
       this.backendFactory = null;
+      this.routingDecisionBus = null;
     }
 
     // Pipeline construction deferred to start() — see initLocalModelAndPipeline().
@@ -1851,6 +1871,10 @@ export class Orchestrator extends EventEmitter {
       unsub();
     }
     this.localModelStatusUnsubscribes = [];
+    // Spec B Phase 4: null out the bus reference; ring buffer + listener
+    // set are eligible for GC once no external references remain. (HTTP
+    // routes / WS subscribers from Phase 5+ unsubscribe themselves.)
+    this.routingDecisionBus = null;
     for (const resolver of this.localResolvers.values()) {
       resolver.stop();
     }
@@ -1938,6 +1962,15 @@ export class Orchestrator extends EventEmitter {
       claimRejections: this.state.claimRejections,
       tickActivity: this.tickActivity,
     };
+  }
+
+  /**
+   * Spec B Phase 4 (D8): expose the bus for Phase 5 (HTTP routes) and
+   * Phase 7 (dashboard WS broadcast). Returns null when the legacy
+   * single-backend config bypassed agent.backends synthesis.
+   */
+  public getRoutingDecisionBus(): RoutingDecisionBus | null {
+    return this.routingDecisionBus;
   }
 
   /** Returns the maintenance scheduler status, or null if maintenance is not enabled. */
