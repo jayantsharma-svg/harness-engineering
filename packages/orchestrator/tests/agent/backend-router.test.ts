@@ -213,4 +213,21 @@ describe('BackendRouter — decision bus emission (Spec B Phase 4)', () => {
     });
     expect(() => router.resolve({ kind: 'tier', tier: 'quick-fix' })).not.toThrow();
   });
+
+  it('resolveDecisionAndDef: single resolve() call, returns matching decision+def', () => {
+    const bus = new RoutingDecisionBus({ capacity: 5 });
+    const backends = { cloud, local };
+    const router = new BackendRouter({
+      backends,
+      routing: { default: 'cloud', 'quick-fix': 'local' },
+      decisionBus: bus,
+    });
+    const { decision, def } = router.resolveDecisionAndDef({
+      kind: 'tier',
+      tier: 'quick-fix',
+    });
+    expect(decision.backendName).toBe('local');
+    expect(def).toBe(backends.local); // identity
+    expect(bus.recent()).toHaveLength(1); // one emit, not two
+  });
 });

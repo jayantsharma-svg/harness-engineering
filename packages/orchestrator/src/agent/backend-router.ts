@@ -196,6 +196,32 @@ export class BackendRouter {
   }
 
   /**
+   * Spec B Phase 4 (closes P1-IMP-2): a single resolve() + def lookup
+   * for callers that need both. Replaces the previous pattern of
+   * `resolveDefinition(useCase) + resolve(useCase)` which produced two
+   * RoutingDecision emissions per dispatch — doubling routing-decision
+   * log volume now that Phase 4 emits.
+   *
+   * Identity-equal `BackendDef` (no copy) so callers relying on
+   * reference equality (SC21) continue to work.
+   */
+  resolveDecisionAndDef(
+    useCase: RoutingUseCase,
+    opts?: { invocationOverride?: string }
+  ): { decision: RoutingDecision; def: BackendDef } {
+    const decision = this.resolve(useCase, opts);
+    const def = this.backends[decision.backendName];
+    if (!def) {
+      // Unreachable: resolve() only returns a name present in backends.
+      throw new Error(
+        `BackendRouter.resolveDecisionAndDef: routing target '${decision.backendName}' is not in backends ` +
+          `(useCase=${JSON.stringify(useCase)}).`
+      );
+    }
+    return { decision, def };
+  }
+
+  /**
    * The pre-Spec-B resolution helper: returns the configured
    * {@link RoutingValue} for tier/intelligence/isolation/maintenance/chat
    * use cases (or `undefined` for skill/mode use cases, which are owned
