@@ -6,10 +6,10 @@ import { createAddCommand } from './add';
 import { createAdoptionCommand } from './adoption';
 import { createAdviseSkillsCommand } from './advise-skills';
 import { createAgentCommand } from './agent';
+import { createAlignDesignSystemCommand } from './align-design-system';
 import { createAuditProtectedCommand } from './audit-protected';
 import { createBackfillSkillProvenanceCommand } from './backfill-skill-provenance';
 import { createBlueprintCommand } from './blueprint';
-import { createAlignDesignSystemCommand } from './align-design-system';
 import { createCheckArchCommand } from './check-arch';
 import { createCheckDepsCommand } from './check-deps';
 import { createCheckDesignCommand } from './check-design';
@@ -56,6 +56,7 @@ import { createPulseCommand } from './pulse';
 import { createQueryCommand } from './graph/query';
 import { createRecommendCommand } from './recommend';
 import { createRoadmapCommand } from './roadmap';
+import { createRoutingCommand } from './routing';
 import { createScanCommand } from './graph/scan';
 import { createScanConfigCommand } from './scan-config';
 import { createSearchCommand } from './search';
@@ -86,10 +87,10 @@ export const commandCreators: Array<() => Command> = [
   createAdoptionCommand,
   createAdviseSkillsCommand,
   createAgentCommand,
+  createAlignDesignSystemCommand,
   createAuditProtectedCommand,
   createBackfillSkillProvenanceCommand,
   createBlueprintCommand,
-  createAlignDesignSystemCommand,
   createCheckArchCommand,
   createCheckDepsCommand,
   createCheckDesignCommand,
@@ -136,6 +137,7 @@ export const commandCreators: Array<() => Command> = [
   createQueryCommand,
   createRecommendCommand,
   createRoadmapCommand,
+  createRoutingCommand,
   createScanCommand,
   createScanConfigCommand,
   createSearchCommand,
