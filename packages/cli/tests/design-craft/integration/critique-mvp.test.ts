@@ -159,16 +159,25 @@ describe('design-craft MCP handler (MVP)', () => {
       };
     };
 
-    expect(payload.findings).toHaveLength(1);
-    expect(payload.findings[0].code).toBe('CRAFT-C001');
-    expect(payload.findings[0].confidence).toBe('low');
-    expect(payload.findings[0].derived.priority).toBeGreaterThan(0);
+    // Phase 2: MCP path now runs all 3 seed rubrics (hierarchy-clarity,
+    // typography-craft, motion-quality) → 3 findings × 1 target.
+    expect(payload.findings).toHaveLength(3);
+    const codes = payload.findings.map((f) => f.code).sort();
+    expect(codes).toEqual(['CRAFT-C001', 'CRAFT-C002', 'CRAFT-C003']);
+    for (const finding of payload.findings) {
+      expect(finding.confidence).toBe('low');
+      expect(finding.derived.priority).toBeGreaterThan(0);
+    }
     expect(payload.scores).toEqual([]);
     expect(payload.summary.phaseRun).toEqual(['critique']);
     expect(payload.summary.mode).toBe('fast');
     expect(payload.summary.llmCalls.provider).toBe('mock');
-    expect(payload.summary.llmCalls.count).toBe(1);
-    expect(payload.summary.catalog.rubricsApplied).toEqual(['rubric-hierarchy-clarity']);
+    expect(payload.summary.llmCalls.count).toBe(3);
+    expect(payload.summary.catalog.rubricsApplied).toEqual([
+      'rubric-hierarchy-clarity',
+      'rubric-typography-craft',
+      'rubric-motion-quality',
+    ]);
     expect(payload.summary.runId).toMatch(/^[0-9a-f-]{36}$/);
 
     fs.rmSync(tmpDir, { recursive: true, force: true });

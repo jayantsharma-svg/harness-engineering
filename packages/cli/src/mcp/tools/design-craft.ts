@@ -37,7 +37,13 @@ import { resultToMcpResponse } from '../utils/result-adapter.js';
 import type { McpToolResponse } from '../utils/result-adapter.js';
 import { runCritique } from '../../design-craft/phases/critique.js';
 import type { CritiqueTarget } from '../../design-craft/phases/critique.js';
-import { hierarchyClarityRubric } from '../../design-craft/catalog/rubrics/hierarchy-clarity.js';
+import { runPolish } from '../../design-craft/phases/polish.js';
+import type { PolishTarget } from '../../design-craft/phases/polish.js';
+import { runBenchmark } from '../../design-craft/phases/benchmark.js';
+import type { BenchmarkTarget } from '../../design-craft/phases/benchmark.js';
+import { SEED_RUBRICS } from '../../design-craft/catalog/rubrics/index.js';
+import { SEED_PATTERNS } from '../../design-craft/catalog/patterns/index.js';
+import { SEED_EXEMPLARS } from '../../design-craft/catalog/exemplars/index.js';
 import { getProvider } from '../../design-craft/llm/provider.js';
 import type { LlmProvider } from '../../design-craft/llm/provider.js';
 import type {
@@ -63,6 +69,18 @@ export interface DesignCraftInput {
     exemplars?: string[];
   };
   /**
+   * BENCHMARK target descriptors. Phase 2 increment: BENCHMARK needs a
+   * `component` identifier (CRITIQUE/POLISH can infer one from the file
+   * path; BENCHMARK matches by componentType so a richer target shape is
+   * required). Optional — if absent, BENCHMARK is skipped even when the
+   * phase is requested.
+   */
+  benchmarkTargets?: Array<{
+    file: string;
+    component: string;
+    componentType?: string;
+  }>;
+  /**
    * Test seam — inject an LlmProvider directly (e.g. MockLlmProvider).
    * NOT documented in the MCP tool schema; used by integration tests so
    * deterministic CI works without touching the live provider factory.
@@ -75,7 +93,7 @@ const DEFAULT_PHASES: readonly Phase[] = ['critique', 'polish', 'benchmark'];
 export const designCraftToolDefinition = {
   name: 'design_craft',
   description:
-    "Run the harness-design-craft skill: CRITIQUE / POLISH / BENCHMARK phases over a project's components. Phase 1 MVP: fast-mode CRITIQUE with the seeded hierarchy-clarity rubric; POLISH and BENCHMARK are stubs.",
+    "Run the harness-design-craft skill: CRITIQUE / POLISH / BENCHMARK phases over a project's components. Phase 2 increment: fast-mode CRITIQUE wired to the 3 seed rubrics (hierarchy-clarity, typography-craft, motion-quality), POLISH wired to spring-physics, BENCHMARK wired to the linear-empty-list exemplar.",
   inputSchema: {
     type: 'object' as const,
     properties: {
@@ -107,6 +125,20 @@ export const designCraftToolDefinition = {
         enum: ['strict', 'standard', 'permissive'],
         description: 'Overall design strictness (passed through to harness-design when chained).',
       },
+      benchmarkTargets: {
+        type: 'array',
+        description:
+          'BENCHMARK target descriptors. Each entry needs at minimum { file, component }; optional componentType narrows exemplar selection.',
+        items: {
+          type: 'object',
+          properties: {
+            file: { type: 'string' },
+            component: { type: 'string' },
+            componentType: { type: 'string' },
+          },
+          required: ['file', 'component'],
+        },
+      },
     },
     required: ['path'],
   },
@@ -121,6 +153,22 @@ function selectPhases(requested?: Phase[]): Phase[] {
 function buildTargetsFromFiles(files: string[] | undefined): CritiqueTarget[] {
   if (!files || files.length === 0) return [];
   return files.map((file) => ({ file }));
+}
+
+function buildPolishTargets(files: string[] | undefined): PolishTarget[] {
+  if (!files || files.length === 0) return [];
+  return files.map((file) => ({ file }));
+}
+
+function buildBenchmarkTargets(
+  descriptors: DesignCraftInput['benchmarkTargets']
+): BenchmarkTarget[] {
+  if (!descriptors || descriptors.length === 0) return [];
+  return descriptors.map((d) => ({
+    file: d.file,
+    component: d.component,
+    ...(d.componentType !== undefined ? { componentType: d.componentType } : {}),
+  }));
 }
 
 /**
@@ -173,22 +221,41 @@ async function runPipeline(
   }
 
   const provider = input.__testProvider ?? getProvider();
-  const targets = buildTargetsFromFiles(input.files);
+  const critiqueTargets = buildTargetsFromFiles(input.files);
+  const polishTargets = buildPolishTargets(input.files);
+  const benchmarkTargets = buildBenchmarkTargets(input.benchmarkTargets);
 
   const startedAt = Date.now();
   const findings: CraftFinding[] = [];
   const scores: BenchmarkScore[] = [];
 
   let rubricsApplied: string[] = [];
-  if (phases.includes('critique') && targets.length > 0) {
-    const rubrics = [hierarchyClarityRubric];
+  if (phases.includes('critique') && critiqueTargets.length > 0) {
+    const rubrics = [...SEED_RUBRICS];
     rubricsApplied = rubrics.map((r) => r.id);
-    const critiqueFindings = await runCritique({ targets, rubrics, provider });
+    const critiqueFindings = await runCritique({ targets: critiqueTargets, rubrics, provider });
     findings.push(...critiqueFindings);
   }
 
-  // POLISH stub — Phase 2 work per spec Implementation Order.
-  // BENCHMARK stub — Phase 2 work per spec Implementation Order.
+  let patternsApplied: string[] = [];
+  if (phases.includes('polish') && polishTargets.length > 0) {
+    const patterns = [...SEED_PATTERNS];
+    patternsApplied = patterns.map((p) => p.id);
+    const polishFindings = await runPolish({ targets: polishTargets, patterns, provider });
+    findings.push(...polishFindings);
+  }
+
+  let exemplarsCited: string[] = [];
+  if (phases.includes('benchmark') && benchmarkTargets.length > 0) {
+    const exemplars = [...SEED_EXEMPLARS];
+    const benchmarkScores = await runBenchmark({
+      targets: benchmarkTargets,
+      exemplars,
+      provider,
+    });
+    scores.push(...benchmarkScores);
+    exemplarsCited = Array.from(new Set(benchmarkScores.flatMap((s) => s.exemplars)));
+  }
 
   const output: DesignCraftOutput = {
     findings,
@@ -200,8 +267,8 @@ async function runPipeline(
       llmCalls: summarizeLlmCalls(provider),
       catalog: {
         rubricsApplied,
-        patternsApplied: [],
-        exemplarsCited: [],
+        patternsApplied,
+        exemplarsCited,
       },
       preconditions: {
         // Real precondition probing lands with resolvers/preconditions.ts.
