@@ -59,7 +59,7 @@ describe('align revert state', () => {
     expect(loaded.version).toBe(1);
     expect(loaded.mode).toBe('standalone');
     expect(loaded.entries).toHaveLength(1);
-    expect(loaded.entries[0]!.postApplySha1).toBe(hashContent(postContent));
+    expect(loaded.entries[0]!.postApplySha256).toBe(hashContent(postContent));
   });
 
   it('skips non-applied outcomes when saving', () => {
@@ -98,7 +98,7 @@ describe('align revert state', () => {
 
     const loaded = loadLastBatch(tmpDir);
     expect(loaded?.entries).toHaveLength(3);
-    expect(new Set(loaded?.entries.map((e) => e.postApplySha1))).toHaveProperty('size', 1);
+    expect(new Set(loaded?.entries.map((e) => e.postApplySha256))).toHaveProperty('size', 1);
   });
 
   it('returns null when no batch file exists', () => {
@@ -133,7 +133,7 @@ describe('align revert state', () => {
     );
     const second = loadLastBatch(tmpDir);
 
-    expect(first?.entries[0]!.postApplySha1).not.toBe(second?.entries[0]!.postApplySha1);
+    expect(first?.entries[0]!.postApplySha256).not.toBe(second?.entries[0]!.postApplySha256);
     expect(second?.mode).toBe('pipeline');
   });
 });

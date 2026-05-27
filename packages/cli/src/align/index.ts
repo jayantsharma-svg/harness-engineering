@@ -74,40 +74,16 @@ export async function runAlignDesignSystem(input: AlignInput): Promise<AlignDesi
 
   const findings = await loadFindings(projectRoot, input, mode);
   const tokenPaths = loadTokenPathIndex(projectRoot);
-  const outcomes: FixOutcome[] = [];
-  const filesModified = new Set<string>();
-
-  // Cache file source between fixes on the same file
   const sourceCache = new Map<string, string>();
+  const { outcomes, filesModified } = await applyAll({
+    findings,
+    fixBatch: input.fixBatch,
+    tokenPaths,
+    sourceCache,
+    dryRun,
+  });
 
-  for (const finding of findings) {
-    if (input.fixBatch !== undefined && !input.fixBatch.includes(findingKey(finding))) {
-      continue;
-    }
-    try {
-      const outcome = await processFinding(finding, tokenPaths, sourceCache, dryRun);
-      if (outcome.kind === 'applied') filesModified.add(outcome.diff.file);
-      outcomes.push(outcome);
-    } catch (err) {
-      outcomes.push({
-        kind: 'failed',
-        finding,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-  }
-
-  if (mode === 'pipeline') {
-    writePipelineFixesApplied(projectRoot, outcomes);
-  }
-
-  if (!dryRun) {
-    saveLastBatch(projectRoot, outcomes, mode, (file) => {
-      const cached = sourceCache.get(file);
-      if (cached !== undefined) return cached;
-      return fs.readFileSync(file, 'utf-8');
-    });
-  }
+  persistRunArtifacts({ projectRoot, mode, dryRun, outcomes, sourceCache });
 
   return aggregateOutput(outcomes, {
     mode,
@@ -115,6 +91,71 @@ export async function runAlignDesignSystem(input: AlignInput): Promise<AlignDesi
     tokensLoaded: tokenPaths !== null,
     durationMs: Date.now() - startedAt,
     filesModified: filesModified.size,
+  });
+}
+
+interface ApplyAllInput {
+  findings: DriftFinding[];
+  fixBatch: string[] | undefined;
+  tokenPaths: TokenPathIndex | null;
+  sourceCache: Map<string, string>;
+  dryRun: boolean;
+}
+
+async function applyAll(input: ApplyAllInput): Promise<{
+  outcomes: FixOutcome[];
+  filesModified: Set<string>;
+}> {
+  const outcomes: FixOutcome[] = [];
+  const filesModified = new Set<string>();
+  for (const finding of input.findings) {
+    if (input.fixBatch !== undefined && !input.fixBatch.includes(findingKey(finding))) {
+      continue;
+    }
+    const outcome = await processFindingSafely(
+      finding,
+      input.tokenPaths,
+      input.sourceCache,
+      input.dryRun
+    );
+    if (outcome.kind === 'applied') filesModified.add(outcome.diff.file);
+    outcomes.push(outcome);
+  }
+  return { outcomes, filesModified };
+}
+
+async function processFindingSafely(
+  finding: DriftFinding,
+  tokenPaths: TokenPathIndex | null,
+  sourceCache: Map<string, string>,
+  dryRun: boolean
+): Promise<FixOutcome> {
+  try {
+    return await processFinding(finding, tokenPaths, sourceCache, dryRun);
+  } catch (err) {
+    return {
+      kind: 'failed',
+      finding,
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+}
+
+function persistRunArtifacts(args: {
+  projectRoot: string;
+  mode: AlignMode;
+  dryRun: boolean;
+  outcomes: FixOutcome[];
+  sourceCache: Map<string, string>;
+}): void {
+  if (args.mode === 'pipeline') {
+    writePipelineFixesApplied(args.projectRoot, args.outcomes);
+  }
+  if (args.dryRun) return;
+  saveLastBatch(args.projectRoot, args.outcomes, args.mode, (file) => {
+    const cached = args.sourceCache.get(file);
+    if (cached !== undefined) return cached;
+    return fs.readFileSync(file, 'utf-8');
   });
 }
 
@@ -148,63 +189,9 @@ async function runRevert(
 
   const sourceCache = new Map<string, string>();
   for (const entry of ordered) {
-    let source: string;
-    try {
-      source = sourceCache.get(entry.diff.file) ?? fs.readFileSync(entry.diff.file, 'utf-8');
-    } catch (err) {
-      outcomes.push({
-        kind: 'failed',
-        finding: entry.finding,
-        error: `cannot read source file: ${err instanceof Error ? err.message : String(err)}`,
-      });
-      continue;
-    }
-
-    // Content-hash check: only the first time we touch the file in this
-    // run (subsequent reverts in the same file mutate it from the cached
-    // source; we cannot re-verify against the snapshot hash). The hash
-    // gate guards against external edits between apply and revert.
-    if (!sourceCache.has(entry.diff.file)) {
-      const actual = hashContent(source);
-      if (actual !== entry.postApplySha1) {
-        outcomes.push({
-          kind: 'skipped-unsafe',
-          finding: entry.finding,
-          reason: 'file changed externally since apply (content hash mismatch)',
-        });
-        // Mark as touched so we don't re-hash on subsequent entries for
-        // the same file (every entry for this file will skip).
-        sourceCache.set(entry.diff.file, source);
-        continue;
-      }
-      sourceCache.set(entry.diff.file, source);
-    }
-
-    const result = applyInverse(source, entry.diff);
-    if (!result.ok) {
-      outcomes.push({
-        kind: 'skipped-unsafe',
-        finding: entry.finding,
-        reason: result.reason,
-      });
-      continue;
-    }
-
-    if (!dryRun) {
-      try {
-        fs.writeFileSync(entry.diff.file, result.newSource, 'utf-8');
-      } catch (err) {
-        outcomes.push({
-          kind: 'failed',
-          finding: entry.finding,
-          error: `cannot write source file: ${err instanceof Error ? err.message : String(err)}`,
-        });
-        continue;
-      }
-    }
-    sourceCache.set(entry.diff.file, result.newSource);
-    filesModified.add(entry.diff.file);
-    outcomes.push({ kind: 'applied', finding: entry.finding, diff: result.invertedDiff });
+    const outcome = revertEntry(entry, sourceCache, dryRun);
+    if (outcome.kind === 'applied') filesModified.add(outcome.diff.file);
+    outcomes.push(outcome);
   }
 
   return aggregateOutput(outcomes, {
@@ -215,6 +202,68 @@ async function runRevert(
     filesModified: filesModified.size,
     revert: true,
   });
+}
+
+function revertEntry(
+  entry: import('./revert/state.js').LastBatchEntry,
+  sourceCache: Map<string, string>,
+  dryRun: boolean
+): FixOutcome {
+  const source = readForRevert(entry.diff.file, sourceCache);
+  if (source.kind === 'failed')
+    return { kind: 'failed', finding: entry.finding, error: source.error };
+
+  if (!sourceCache.has(entry.diff.file)) {
+    // Content-hash check happens only the first time we touch the file.
+    // Subsequent entries for the same file read the mutated cache, so
+    // re-hashing would always mismatch. The first check is the gate.
+    if (hashContent(source.text) !== entry.postApplySha256) {
+      sourceCache.set(entry.diff.file, source.text);
+      return {
+        kind: 'skipped-unsafe',
+        finding: entry.finding,
+        reason: 'file changed externally since apply (content hash mismatch)',
+      };
+    }
+    sourceCache.set(entry.diff.file, source.text);
+  }
+
+  const result = applyInverse(source.text, entry.diff);
+  if (!result.ok) {
+    return { kind: 'skipped-unsafe', finding: entry.finding, reason: result.reason };
+  }
+
+  if (!dryRun) {
+    const writeErr = tryWrite(entry.diff.file, result.newSource);
+    if (writeErr !== null) return { kind: 'failed', finding: entry.finding, error: writeErr };
+  }
+  sourceCache.set(entry.diff.file, result.newSource);
+  return { kind: 'applied', finding: entry.finding, diff: result.invertedDiff };
+}
+
+function readForRevert(
+  file: string,
+  sourceCache: Map<string, string>
+): { kind: 'ok'; text: string } | { kind: 'failed'; error: string } {
+  const cached = sourceCache.get(file);
+  if (cached !== undefined) return { kind: 'ok', text: cached };
+  try {
+    return { kind: 'ok', text: fs.readFileSync(file, 'utf-8') };
+  } catch (err) {
+    return {
+      kind: 'failed',
+      error: `cannot read source file: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
+}
+
+function tryWrite(file: string, content: string): string | null {
+  try {
+    fs.writeFileSync(file, content, 'utf-8');
+    return null;
+  } catch (err) {
+    return `cannot write source file: ${err instanceof Error ? err.message : String(err)}`;
+  }
 }
 
 async function loadFindings(

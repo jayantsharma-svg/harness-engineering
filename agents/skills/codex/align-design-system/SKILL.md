@@ -151,7 +151,7 @@ v1 never auto-applies primitive adoption — prop translation across `<button>` 
 
 ### Example: Revert the last batch
 
-After a write run, the applied diffs (plus a SHA-1 of each post-apply file) are persisted to `.harness/align/last-batch.json`. Running `harness align-design-system --revert` reads that batch and inverse-applies each diff:
+After a write run, the applied diffs (plus a SHA-256 of each post-apply file) are persisted to `.harness/align/last-batch.json`. Running `harness align-design-system --revert` reads that batch and inverse-applies each diff:
 
 ```
 src/Card.tsx
@@ -162,7 +162,7 @@ src/Card.tsx
 Summary: 1 reverted, 0 suggestions, 0 skipped, 0 failed (1 files modified, 4ms)
 ```
 
-If the file has been edited externally between apply and revert (the SHA-1 doesn't match), every entry for that file is skipped with `skipped-unsafe / reason: file changed externally since apply`. A second revert on the same batch is a no-op for the same reason — the file's post-revert content no longer matches the recorded post-apply text.
+If the file has been edited externally between apply and revert (the SHA-256 doesn't match), every entry for that file is skipped with `skipped-unsafe / reason: file changed externally since apply`. A second revert on the same batch is a no-op for the same reason — the file's post-revert content no longer matches the recorded post-apply text.
 
 ## Gates
 

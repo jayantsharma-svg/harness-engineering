@@ -5,8 +5,9 @@
  * history is v1.x.
  *
  * Each entry records the original DriftFinding + the diff that was
- * written + a SHA-1 of the post-apply file content. The hash lets revert
- * detect "file edited externally since apply" (SC #27).
+ * written + a SHA-256 of the post-apply file content. The hash lets
+ * revert detect "file edited externally since apply" (SC #27); it is
+ * used for integrity, not for a security boundary.
  *
  * Source: docs/changes/design-pipeline/align-design-system/proposal.md
  *   (Open questions deferred to implementation → Revert state location).
@@ -23,8 +24,8 @@ export const LAST_BATCH_PATH = '.harness/align/last-batch.json';
 export interface LastBatchEntry {
   finding: DriftFinding;
   diff: FixDiff;
-  /** SHA-1 of the file content right after the codemod wrote it. */
-  postApplySha1: string;
+  /** SHA-256 of the file content right after the codemod wrote it. */
+  postApplySha256: string;
 }
 
 export interface LastBatch {
@@ -35,7 +36,7 @@ export interface LastBatch {
 }
 
 export function hashContent(content: string): string {
-  return createHash('sha1').update(content).digest('hex');
+  return createHash('sha256').update(content).digest('hex');
 }
 
 /**
@@ -71,7 +72,7 @@ export function saveLastBatch(
       }
       hashCache.set(o.diff.file, hash);
     }
-    entries.push({ finding: o.finding, diff: o.diff, postApplySha1: hash });
+    entries.push({ finding: o.finding, diff: o.diff, postApplySha256: hash });
   }
   if (entries.length === 0) return;
 
