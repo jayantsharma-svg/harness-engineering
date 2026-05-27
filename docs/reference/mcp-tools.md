@@ -455,7 +455,7 @@ LLM-judgment critique of prose-in-code across six surfaces: error messages, log 
 
 ### `design_craft`
 
-Run the harness-design-craft skill: CRITIQUE / POLISH / BENCHMARK phases over a project's components. Phase 1 MVP: fast-mode CRITIQUE with the seeded hierarchy-clarity rubric; POLISH and BENCHMARK are stubs.
+Run the harness-design-craft skill: CRITIQUE / POLISH / BENCHMARK phases over a project's components. Phase 2 increment: fast-mode CRITIQUE wired to the 3 seed rubrics (hierarchy-clarity, typography-craft, motion-quality), POLISH wired to spring-physics, BENCHMARK wired to the linear-empty-list exemplar.
 
 **Parameters:**
 
@@ -465,6 +465,7 @@ Run the harness-design-craft skill: CRITIQUE / POLISH / BENCHMARK phases over a 
 - `files` (array, optional) — Optional file scoping. Each entry is a path relative to project root.
 - `autoCapture` (string, optional) — B' detect-and-offer behavior when preconditions are missing. MVP: only "skip" is fully implemented.
 - `designStrictness` (string, optional) — Overall design strictness (passed through to harness-design when chained).
+- `benchmarkTargets` (array, optional) — BENCHMARK target descriptors. Each entry needs at minimum { file, component }; optional componentType narrows exemplar selection.
 
 ### `dispatch_skills`
 
