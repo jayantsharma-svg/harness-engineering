@@ -131,7 +131,11 @@ export async function runAudit(input: AuditAnatomyInput): Promise<AuditAnatomyOu
     conventionsApplied.add(rule.componentType);
 
     const fileRelative = path.relative(projectRoot, absolute).replaceAll('\\', '/') || absolute;
-    const fileFindings = runConventionRule(rule, parsed, { filePath: fileRelative });
+    const runnerOptions: Parameters<typeof runConventionRule>[2] = { filePath: fileRelative };
+    if (input.designStrictness !== undefined) {
+      runnerOptions.strictness = input.designStrictness;
+    }
+    const fileFindings = runConventionRule(rule, parsed, runnerOptions);
     findings.push(...fileFindings);
 
     // Pattern catalog is stubbed for the MVP — patterns return empty in

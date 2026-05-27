@@ -20,6 +20,11 @@
 
 import type { ParsedComponent } from '../parsers/ast.js';
 import type { AnatomyFinding, AnatomyFindingCode, Severity } from '../findings/finding.js';
+import {
+  defaultSeverityForCode,
+  resolveSeverity,
+  type DesignStrictness,
+} from '../findings/severity.js';
 import type { ConventionRule } from './convention-rule.js';
 
 /**
@@ -81,23 +86,32 @@ function isSlotSatisfied(
  * @param rule    The ConventionRule for the component's type.
  * @param parsed  Output of `parseComponentDefinition`.
  * @param options Optional overrides:
- *                  - `filePath`       — finding.file value (defaults to '').
- *                  - `severityFor`    — override severity per code (defaults
- *                                       to `error` for Tier-1 D001–D029).
- *                  - `runId`          — currently unused; reserved for
- *                                       sub-project #4 fixpoint detection.
+ *                  - `filePath`        — finding.file value (defaults to '').
+ *                  - `strictness`      — `design.strictness` from harness.config.json
+ *                                        used to compute final severity via the
+ *                                        full strictness × default-severity matrix.
+ *                  - `severityFor`     — caller-supplied severity resolver. When
+ *                                        provided, supersedes both `strictness`
+ *                                        and the built-in default — used by
+ *                                        tests and callers with custom matrices.
+ *                  - `runId`           — currently unused; reserved for
+ *                                        sub-project #4 fixpoint detection.
  */
 export function runConventionRule(
   rule: ConventionRule,
   parsed: ParsedComponent,
   options?: {
     filePath?: string;
+    strictness?: DesignStrictness;
     severityFor?: (code: AnatomyFindingCode) => Severity;
   }
 ): AnatomyFinding[] {
   const findings: AnatomyFinding[] = [];
   const filePath = options?.filePath ?? '';
-  const severityFor = options?.severityFor ?? defaultSeverityForCode;
+  const strictness = options?.strictness;
+  const severityFor =
+    options?.severityFor ??
+    ((code: AnatomyFindingCode) => resolveSeverity(defaultSeverityForCode(code), strictness));
 
   const componentCodes = slotFindingCodes[rule.componentType];
 
@@ -135,29 +149,4 @@ export function runConventionRule(
   }
 
   return findings;
-}
-
-/**
- * Default severity table per the finding-codes.md tier-band allocation
- * at `standard` strictness:
- *   - D001–D029 → error
- *   - D030–D099 → warn
- *   - D100–D199 → info
- *   - D000      → info (authoring guidance, not promoted by strictness)
- * All other codes default to `warn`.
- *
- * Sprint 3 ships the full strictness × tier matrix in
- * `findings/severity.ts`; this MVP function is the trivial subset
- * needed by the vertical slice.
- */
-function defaultSeverityForCode(code: AnatomyFindingCode): Severity {
-  const match = /^ANAT-D(\d{3})$/.exec(code);
-  if (match) {
-    const n = Number(match[1]);
-    if (n === 0) return 'info';
-    if (n >= 1 && n <= 29) return 'error';
-    if (n >= 30 && n <= 99) return 'warn';
-    if (n >= 100 && n <= 199) return 'info';
-  }
-  return 'warn';
 }
