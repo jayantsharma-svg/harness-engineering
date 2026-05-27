@@ -12,16 +12,7 @@
  */
 
 import type { ConventionRule } from '../rules/convention-rule.js';
-import { buttonConvention } from '../catalog/conventions/button.js';
-
-/**
- * Phase-1-vertical-slice catalog. Phase 2 expansion will replace this
- * inline map with a generated index that mirrors every convention file
- * under `catalog/conventions/`.
- */
-const conventionCatalog: Record<string, ConventionRule> = {
-  [buttonConvention.componentType]: buttonConvention,
-};
+import { lookupConvention } from '../catalog/index.js';
 
 /**
  * Resolve the active anatomy rules for a component.
@@ -47,8 +38,8 @@ export function resolveAnatomyRules(
   const overrideRule = resolveFromDesignOverrides(filePath, componentType);
   if (overrideRule !== null) return overrideRule;
 
-  // Layer 3: built-in catalog lookup.
-  return conventionCatalog[componentType] ?? null;
+  // Layer 3: built-in catalog lookup via the central registry.
+  return lookupConvention(componentType);
 }
 
 /** STUB. Returns null until the JSDoc parser task lands. */

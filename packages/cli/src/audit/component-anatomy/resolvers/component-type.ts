@@ -17,17 +17,16 @@
  * Decision #3 the audit deliberately does NOT guess.
  */
 
-import { buttonConvention } from '../catalog/conventions/button.js';
+import { getCatalogTypes } from '../catalog/index.js';
 
 /**
- * Phase-1-vertical-slice catalog. Phase 2 expansion will replace this
- * inline list with a generated index that mirrors every catalog file
- * under `catalog/conventions/`. The shape (`Record<componentType, ...>`)
- * is the durable contract — only the entries change.
+ * Catalog of recognised component types, lazily materialised from the
+ * central registry. Memoised at module level — the catalog content is
+ * static for the duration of a process (entries added at module load,
+ * never at runtime), so a one-shot computation is correct and avoids
+ * paying the lookup cost on every resolve call.
  */
-const componentTypeCatalog: Record<string, true> = {
-  [buttonConvention.componentType]: true,
-};
+const componentTypeSet: Set<string> = new Set(getCatalogTypes());
 
 /**
  * Resolve a component type for a given file using the Decision #3
@@ -82,7 +81,7 @@ function resolveFromExportName(fileContents: string): string | null {
   for (const pattern of patterns) {
     const match = pattern.exec(fileContents);
     const name = match?.[1];
-    if (name && componentTypeCatalog[name]) {
+    if (name && componentTypeSet.has(name)) {
       return name;
     }
   }
