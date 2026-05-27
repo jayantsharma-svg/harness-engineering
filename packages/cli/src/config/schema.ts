@@ -599,6 +599,64 @@ export const CraftConfigSchema = z.object({
     .optional(),
 });
 
+/**
+ * Schema for the Local Model Lifecycle Manager (LMLM) config block.
+ *
+ * Phase 0 stub — declares the shape so configs may reference it. Runtime
+ * behavior (hardware detect, ranker, pool, installer, proposal loop) lands
+ * in Phases 1–9. Setting `enabled: false` (default) makes LMLM byte-identical
+ * to the prior orchestrator (success-criterion F9 / N4).
+ *
+ * @see docs/changes/local-model-lifecycle-manager/proposal.md
+ */
+export const LocalModelsHardwareOverrideSchema = z.object({
+  platform: z.enum(['macos', 'nvidia', 'cpu']),
+  vramGb: z.number().positive(),
+  bandwidthGbps: z.number().positive(),
+  ramGb: z.number().positive().optional(),
+  gpuName: z.string().optional(),
+  cpuName: z.string().optional(),
+});
+
+export const LocalModelsPoolConfigSchema = z.object({
+  /** Hard ceiling on total on-disk size of installed pool members. */
+  diskBudgetGb: z.number().positive().default(100),
+  /** Hugging Face org allowlist. Models outside these orgs cannot be installed (D1). */
+  allowedOrgs: z.array(z.string()).default([]),
+  /** Optional family allowlist; empty means "all families under the allowed orgs". */
+  allowedFamilies: z.array(z.string()).default([]),
+});
+
+export const LocalModelsRefreshConfigSchema = z.object({
+  /** Re-rank cadence in ms. Floor 1h to keep HF API usage civil (D9). */
+  intervalMs: z.number().int().min(3_600_000, 'minimum 1h').default(86_400_000),
+  /** Minimum score delta to emit a swap proposal (D2). */
+  proposalThreshold: z.number().nonnegative().default(5),
+  /** Random jitter added to the interval to avoid thundering herd (D9). */
+  jitterMs: z.number().int().nonnegative().default(600_000),
+});
+
+export const LocalModelsInstallerConfigSchema = z.object({
+  /** `'ollama'` performs auto-install via REST; `'advisory'` emits copy-paste only (D4). */
+  backend: z.enum(['ollama', 'advisory']).default('ollama'),
+  /** Ollama REST endpoint. Only consulted when `backend === 'ollama'`. */
+  ollamaEndpoint: z.string().url().default('http://localhost:11434'),
+});
+
+export const LocalModelsConfigSchema = z.object({
+  /** Opt-in switch. Default false preserves today's behavior. */
+  enabled: z.boolean().default(false),
+  pool: LocalModelsPoolConfigSchema.default({}),
+  refresh: LocalModelsRefreshConfigSchema.default({}),
+  installer: LocalModelsInstallerConfigSchema.default({}),
+  hardware: z
+    .object({
+      /** Manual override that skips autodetection (D7 fallback path). */
+      override: LocalModelsHardwareOverrideSchema.optional(),
+    })
+    .optional(),
+});
+
 export const HarnessConfigSchema = z.object({
   /** Configuration schema version */
   version: z.literal(1),
@@ -737,6 +795,12 @@ export const HarnessConfigSchema = z.object({
       cacheTtlHours: z.number().positive().default(24),
     })
     .optional(),
+  /**
+   * Local Model Lifecycle Manager (LMLM) configuration. Optional and
+   * disabled by default (`enabled: false`); see
+   * `docs/changes/local-model-lifecycle-manager/proposal.md`.
+   */
+  localModels: LocalModelsConfigSchema.optional(),
 });
 
 /**

@@ -10,6 +10,7 @@
     { "path": "./packages/linter-gen" },
     { "path": "./packages/intelligence" },
     { "path": "./packages/orchestrator" },
-    { "path": "./packages/dashboard" }
+    { "path": "./packages/dashboard" },
+    { "path": "./packages/local-models" }
   ]
 }
