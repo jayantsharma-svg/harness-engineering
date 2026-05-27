@@ -279,6 +279,17 @@ export type {
   NotificationDeliveryResult,
 } from './notifications';
 
+// --- Local Model Lifecycle Manager (LMLM) — Phase 0 ---
+export type {
+  LocalModelsPlatform,
+  LocalModelsInstallerBackend,
+  LocalModelsHardwareOverride,
+  LocalModelsPoolConfig,
+  LocalModelsRefreshConfig,
+  LocalModelsInstallerConfig,
+  LocalModelsConfig,
+} from './local-models';
+
 // --- Skill Proposals (Hermes Phase 4) ---
 export {
   SkillProvenanceSchema,

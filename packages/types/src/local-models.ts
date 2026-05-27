@@ -1,0 +1,85 @@
+/**
+ * Local Model Lifecycle Manager (LMLM) — configuration types.
+ *
+ * Phase 0 stub. Mirrors the config block defined in
+ * `docs/changes/local-model-lifecycle-manager/proposal.md` (lines 178–198).
+ * Runtime behavior arrives in Phases 1–9; this file only declares the shape
+ * so consumers (CLI schema, orchestrator wiring) can reference it.
+ *
+ * @see docs/changes/local-model-lifecycle-manager/proposal.md
+ */
+
+/** Platforms supported for hardware detection (D7). AMD/ROCm deferred to v2. */
+export type LocalModelsPlatform = 'macos' | 'nvidia' | 'cpu';
+
+/** Installer backend choice (D4). `'advisory'` emits copy-paste commands only. */
+export type LocalModelsInstallerBackend = 'ollama' | 'advisory';
+
+/**
+ * Optional manual override that skips hardware autodetection. When set, the
+ * detector returns this profile verbatim and does not shell out.
+ */
+export interface LocalModelsHardwareOverride {
+  platform: LocalModelsPlatform;
+  vramGb: number;
+  bandwidthGbps: number;
+  ramGb?: number;
+  gpuName?: string;
+  cpuName?: string;
+}
+
+/**
+ * Pool bounds — the operator's approved trust line. The orchestrator may
+ * auto-pull, swap, and evict only within these bounds (D1).
+ */
+export interface LocalModelsPoolConfig {
+  /** Hard ceiling on total on-disk size of installed pool members. */
+  diskBudgetGb: number;
+  /**
+   * Hugging Face organization names whose models the orchestrator is allowed
+   * to install (e.g., `'Qwen'`, `'deepseek-ai'`, `'meta-llama'`).
+   */
+  allowedOrgs: string[];
+  /**
+   * Optional model-family allowlist. Empty array means "all families under
+   * the allowed orgs are permitted".
+   */
+  allowedFamilies: string[];
+}
+
+/**
+ * Background refresh + proposal-emission cadence (D9). Defaults: 24h with
+ * ±10min jitter. Minimum interval 1h to keep HF API usage civil.
+ */
+export interface LocalModelsRefreshConfig {
+  /** Re-rank cadence in milliseconds. Default 86_400_000 (24h). Minimum 3_600_000 (1h). */
+  intervalMs: number;
+  /** Minimum score delta required to emit a swap proposal. Default 5. */
+  proposalThreshold: number;
+  /** Random jitter added to the interval to avoid thundering herd. Default 600_000 (10min). */
+  jitterMs: number;
+}
+
+/** Installer adapter configuration. Only `backend: 'ollama'` performs auto-install in v1. */
+export interface LocalModelsInstallerConfig {
+  backend: LocalModelsInstallerBackend;
+  /** Ollama REST endpoint. Only consulted when `backend === 'ollama'`. */
+  ollamaEndpoint: string;
+}
+
+/**
+ * Top-level config block for LMLM. Lives under `localModels` on the root
+ * harness config. Opt-in (`enabled: false` by default) preserves today's
+ * behavior — disabling LMLM is byte-identical to the prior orchestrator.
+ */
+export interface LocalModelsConfig {
+  /** Opt-in switch. Default false; when false, no LMLM code paths execute. */
+  enabled: boolean;
+  pool: LocalModelsPoolConfig;
+  refresh: LocalModelsRefreshConfig;
+  installer: LocalModelsInstallerConfig;
+  hardware?: {
+    /** Manual override that skips autodetection (D7 fallback path). */
+    override?: LocalModelsHardwareOverride;
+  };
+}

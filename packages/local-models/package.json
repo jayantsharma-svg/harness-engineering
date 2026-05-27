@@ -1,0 +1,59 @@
+{
+  "name": "@harness-engineering/local-models",
+  "version": "0.1.0",
+  "description": "Hardware-aware local-model recommender, pool manager, and proposal engine for Harness Engineering (LMLM)",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --tsconfig tsconfig.build.json",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "clean": "node ../../scripts/clean.mjs dist",
+    "test:coverage": "vitest run --coverage"
+  },
+  "keywords": [
+    "harness",
+    "engineering",
+    "local-models",
+    "ollama",
+    "huggingface",
+    "ai",
+    "agents"
+  ],
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Intense-Visions/harness-engineering.git",
+    "directory": "packages/local-models"
+  },
+  "bugs": {
+    "url": "https://github.com/Intense-Visions/harness-engineering/issues"
+  },
+  "homepage": "https://github.com/Intense-Visions/harness-engineering/tree/main/packages/local-models#readme",
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^4.1.5",
+    "tsup": "^8.5.1",
+    "vitest": "^4.1.5"
+  }
+}
