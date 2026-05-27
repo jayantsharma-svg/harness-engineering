@@ -26,6 +26,8 @@ import { applyT003Codemod } from './codemods/t003-px-spacing.js';
 import { emitT004Suggestion } from './suggestions/t004-deprecated.js';
 import { emitPrimitiveSuggestion } from './suggestions/p-primitives.js';
 import type { AlignDesignSystemOutput, AlignMode, FixOutcome } from './findings/outcome.js';
+import { saveLastBatch, loadLastBatch, hashContent } from './revert/state.js';
+import { applyInverse } from './revert/inverse.js';
 
 export interface AlignInput {
   path: string;
@@ -40,6 +42,13 @@ export interface AlignInput {
   mode?: AlignMode;
   /** Pipeline-mode: limit to specific finding code-line keys */
   fixBatch?: string[];
+  /**
+   * When true, inverse-applies the last batch persisted at
+   * `.harness/align/last-batch.json` and exits — no detect / classify /
+   * codemod work runs. Skips silently if no batch is recorded or files
+   * have been edited externally since the apply (SC #27).
+   */
+  revert?: boolean;
 }
 
 const HANDOFF_PATH = '.harness/handoff.json';
@@ -58,6 +67,10 @@ export async function runAlignDesignSystem(input: AlignInput): Promise<AlignDesi
   const projectRoot = sanitizePath(input.path);
   const mode: AlignMode = input.mode ?? 'standalone';
   const dryRun = input.dryRun === true;
+
+  if (input.revert === true) {
+    return runRevert(projectRoot, mode, dryRun, startedAt);
+  }
 
   const findings = await loadFindings(projectRoot, input, mode);
   const tokenPaths = loadTokenPathIndex(projectRoot);
@@ -88,12 +101,119 @@ export async function runAlignDesignSystem(input: AlignInput): Promise<AlignDesi
     writePipelineFixesApplied(projectRoot, outcomes);
   }
 
+  if (!dryRun) {
+    saveLastBatch(projectRoot, outcomes, mode, (file) => {
+      const cached = sourceCache.get(file);
+      if (cached !== undefined) return cached;
+      return fs.readFileSync(file, 'utf-8');
+    });
+  }
+
   return aggregateOutput(outcomes, {
     mode,
     dryRun,
     tokensLoaded: tokenPaths !== null,
     durationMs: Date.now() - startedAt,
     filesModified: filesModified.size,
+  });
+}
+
+async function runRevert(
+  projectRoot: string,
+  mode: AlignMode,
+  dryRun: boolean,
+  startedAt: number
+): Promise<AlignDesignSystemOutput> {
+  const batch = loadLastBatch(projectRoot);
+  if (batch === null) {
+    return aggregateOutput([], {
+      mode,
+      dryRun,
+      tokensLoaded: false,
+      durationMs: Date.now() - startedAt,
+      filesModified: 0,
+      revert: true,
+    });
+  }
+
+  const outcomes: FixOutcome[] = [];
+  const filesModified = new Set<string>();
+  // Sort entries by file then by descending line so multi-edit files
+  // revert cleanly (later lines first means earlier line numbers stay
+  // valid after each replacement).
+  const ordered = [...batch.entries].sort((a, b) => {
+    if (a.diff.file !== b.diff.file) return a.diff.file.localeCompare(b.diff.file);
+    return b.diff.line - a.diff.line;
+  });
+
+  const sourceCache = new Map<string, string>();
+  for (const entry of ordered) {
+    let source: string;
+    try {
+      source = sourceCache.get(entry.diff.file) ?? fs.readFileSync(entry.diff.file, 'utf-8');
+    } catch (err) {
+      outcomes.push({
+        kind: 'failed',
+        finding: entry.finding,
+        error: `cannot read source file: ${err instanceof Error ? err.message : String(err)}`,
+      });
+      continue;
+    }
+
+    // Content-hash check: only the first time we touch the file in this
+    // run (subsequent reverts in the same file mutate it from the cached
+    // source; we cannot re-verify against the snapshot hash). The hash
+    // gate guards against external edits between apply and revert.
+    if (!sourceCache.has(entry.diff.file)) {
+      const actual = hashContent(source);
+      if (actual !== entry.postApplySha1) {
+        outcomes.push({
+          kind: 'skipped-unsafe',
+          finding: entry.finding,
+          reason: 'file changed externally since apply (content hash mismatch)',
+        });
+        // Mark as touched so we don't re-hash on subsequent entries for
+        // the same file (every entry for this file will skip).
+        sourceCache.set(entry.diff.file, source);
+        continue;
+      }
+      sourceCache.set(entry.diff.file, source);
+    }
+
+    const result = applyInverse(source, entry.diff);
+    if (!result.ok) {
+      outcomes.push({
+        kind: 'skipped-unsafe',
+        finding: entry.finding,
+        reason: result.reason,
+      });
+      continue;
+    }
+
+    if (!dryRun) {
+      try {
+        fs.writeFileSync(entry.diff.file, result.newSource, 'utf-8');
+      } catch (err) {
+        outcomes.push({
+          kind: 'failed',
+          finding: entry.finding,
+          error: `cannot write source file: ${err instanceof Error ? err.message : String(err)}`,
+        });
+        continue;
+      }
+    }
+    sourceCache.set(entry.diff.file, result.newSource);
+    filesModified.add(entry.diff.file);
+    outcomes.push({ kind: 'applied', finding: entry.finding, diff: result.invertedDiff });
+  }
+
+  return aggregateOutput(outcomes, {
+    mode,
+    dryRun,
+    tokensLoaded: false,
+    durationMs: Date.now() - startedAt,
+    filesModified: filesModified.size,
+    revert: true,
   });
 }
 
@@ -209,6 +329,7 @@ function aggregateOutput(
     tokensLoaded: boolean;
     durationMs: number;
     filesModified: number;
+    revert?: boolean;
   }
 ): AlignDesignSystemOutput {
   const codesApplied = new Set<string>();
@@ -249,6 +370,7 @@ function aggregateOutput(
       mode: meta.mode,
       dryRun: meta.dryRun,
       tokensLoaded: meta.tokensLoaded,
+      ...(meta.revert === true ? { revert: true as const } : {}),
     },
   };
 }
