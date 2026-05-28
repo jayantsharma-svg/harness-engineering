@@ -6,7 +6,16 @@ See [`docs/changes/local-model-lifecycle-manager/proposal.md`](../../docs/change
 
 ## Status
 
-**Phase 0 — scaffolding only.** No business logic yet. Hardware detection, ranking, pool management, Ollama installer, proposal engine, and scheduler ship in subsequent phases.
+**Phase 2a — HuggingFace client + cache + frozen benchmark snapshot.**
+
+Public surface so far:
+
+- `HardwareDetector` / `detectHardware` (Phase 1) — Apple Silicon, NVIDIA, CPU profiles with fallback warnings.
+- `HuggingFaceClient` (Phase 2a) — typed wrapper over `/api/models` and `/api/models/:repo` with stable error codes and an injected `fetcher` DI seam.
+- `HuggingFaceCache` (Phase 2a) — in-memory + atomically-persisted on-disk cache (TTL 24h) for HF responses.
+- `loadFrozenSnapshot` (Phase 2a) — bundled benchmark snapshot loader the orchestrator falls back to when live sources are unreachable (S4).
+
+VRAM / speed math, evidence + recency grading, live benchmark sources, the merge algorithm, the `RankedModel` orchestrator, the pool manager, the Ollama installer, the proposal engine, the scheduler, and the HTTP / CLI / dashboard surfaces ship in Phases 2b–9 per the spec.
 
 ## Goals (recap)
 
