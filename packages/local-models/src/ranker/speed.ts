@@ -191,6 +191,53 @@ function effectivePartialOffloadBandwidth(
 }
 
 /**
+ * Resolve `(rawBandwidthGbps, confidence)` for the estimator, applying the
+ * partial-offload, CPU-fallback, and unknown-quant rules and emitting their
+ * structured notes. Keeps `estimateTokPerSec` itself short by factoring out
+ * the dispatch tree.
+ */
+function resolveBandwidthAndConfidence(args: {
+  shape: ModelShape;
+  hardware: HardwareProfile;
+  backend: SpeedBackend;
+  quantNote: SpeedNote | null;
+  partialOffload: PartialOffload | undefined;
+  notes: SpeedNote[];
+}): { rawBandwidthGbps: number; confidence: SpeedConfidence } {
+  const { shape, hardware, backend, quantNote, partialOffload, notes } = args;
+  if (
+    partialOffload &&
+    hardware.platform === 'nvidia' &&
+    partialOffload.layersOffloaded < shape.layers
+  ) {
+    const rawBandwidthGbps = effectivePartialOffloadBandwidth(
+      hardware.bandwidthGbps,
+      partialOffload.dramBandwidthGbps,
+      partialOffload.layersOffloaded,
+      shape.layers
+    );
+    notes.push({
+      code: 'speed_partial_offload',
+      message:
+        `${partialOffload.layersOffloaded}/${shape.layers} layers in VRAM; ` +
+        `non-resident layers stream through DRAM (${partialOffload.dramBandwidthGbps} GB/s)`,
+    });
+    return { rawBandwidthGbps, confidence: 'low' };
+  }
+  if (backend === 'cpu') {
+    notes.push({
+      code: 'speed_cpu_fallback',
+      message: 'CPU-only inference; throughput is bandwidth-limited by system DRAM',
+    });
+    return { rawBandwidthGbps: hardware.bandwidthGbps, confidence: 'low' };
+  }
+  return {
+    rawBandwidthGbps: hardware.bandwidthGbps,
+    confidence: quantNote ? 'medium' : 'high',
+  };
+}
+
+/**
  * Top-level speed estimate. See module-level docstring for the math.
  *
  * The returned `confidence` is `'high'` when every input is known + the model
@@ -208,38 +255,14 @@ export function estimateTokPerSec(args: SpeedEstimateArgs): SpeedEstimate {
   const notes: SpeedNote[] = [];
   if (quantNote) notes.push(quantNote);
 
-  let rawBandwidthGbps = hardware.bandwidthGbps;
-  let confidence: SpeedConfidence;
-
-  if (
-    partialOffload &&
-    hardware.platform === 'nvidia' &&
-    partialOffload.layersOffloaded < shape.layers
-  ) {
-    rawBandwidthGbps = effectivePartialOffloadBandwidth(
-      hardware.bandwidthGbps,
-      partialOffload.dramBandwidthGbps,
-      partialOffload.layersOffloaded,
-      shape.layers
-    );
-    confidence = 'low';
-    notes.push({
-      code: 'speed_partial_offload',
-      message:
-        `${partialOffload.layersOffloaded}/${shape.layers} layers in VRAM; ` +
-        `non-resident layers stream through DRAM (${partialOffload.dramBandwidthGbps} GB/s)`,
-    });
-  } else if (backend === 'cpu') {
-    confidence = 'low';
-    notes.push({
-      code: 'speed_cpu_fallback',
-      message: 'CPU-only inference; throughput is bandwidth-limited by system DRAM',
-    });
-  } else if (quantNote) {
-    confidence = 'medium';
-  } else {
-    confidence = 'high';
-  }
+  const { rawBandwidthGbps, confidence } = resolveBandwidthAndConfidence({
+    shape,
+    hardware,
+    backend,
+    quantNote,
+    partialOffload,
+    notes,
+  });
 
   const effectiveBandwidthGbps = rawBandwidthGbps * backendEfficiency * quantFactor;
   const bytesPerToken = computeBytesPerToken(shape, bits);
