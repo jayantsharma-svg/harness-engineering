@@ -107,9 +107,17 @@ function stripQuantSuffix(model: string): string {
  */
 function baseModelForm(model: string): string {
   let working = stripQuantSuffix(model);
-  for (const suffix of VARIANT_SUFFIXES) {
-    if (working.toLowerCase().endsWith(suffix.toLowerCase())) {
-      working = working.slice(0, working.length - suffix.length);
+  // Loop until a full pass strips nothing. Stacked variant labels like
+  // `Mistral-7B-Instruct-Chat` need a second pass — the first iteration
+  // strips `-Chat`, exposing `-Instruct` underneath for the next pass.
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const suffix of VARIANT_SUFFIXES) {
+      if (working.toLowerCase().endsWith(suffix.toLowerCase())) {
+        working = working.slice(0, working.length - suffix.length);
+        changed = true;
+      }
     }
   }
   working = working.replace(SIZE_SUFFIX_PATTERN, '');

@@ -221,7 +221,18 @@ export const openLlmLeaderboardSource: BenchmarkSource = {
 
     const evidence: BenchmarkEvidence = 'direct';
     for (const entry of payload.models) {
-      for (const [benchmark, value] of Object.entries(entry.scores)) {
+      const scoreEntries = Object.entries(entry.scores);
+      if (scoreEntries.length === 0) {
+        // Empty scores object passes the structural guard vacuously; without
+        // a warning the caller can't tell "empty payload" from "healthy
+        // empty model row". Surface it so degraded upstream stays visible.
+        warnings.push({
+          code: 'schema_invalid',
+          message: `Model "${entry.model}" returned no benchmark scores`,
+        });
+        continue;
+      }
+      for (const [benchmark, value] of scoreEntries) {
         observations.push({
           source: openLlmLeaderboardSource.id,
           benchmark,
@@ -276,9 +287,21 @@ export const huggingFacePopularitySource: BenchmarkSource = {
     }));
     const maxComposite = composites.reduce((m, c) => (c.composite > m ? c.composite : m), 0);
 
+    if (maxComposite === 0) {
+      // Every repo reported zero downloads and zero likes — either the API
+      // returned an empty slice or every result is brand new. Emitting
+      // zero-value observations would dilute parallel-source contributions
+      // in the merge; surface the degraded state and emit nothing instead.
+      warnings.push({
+        code: 'schema_invalid',
+        message: 'HF popularity payload contained no non-zero downloads or likes',
+      });
+      return { source: huggingFacePopularitySource.id, observations, warnings, fetchedAt };
+    }
+
     const evidence: BenchmarkEvidence = 'interpolated';
     for (const entry of composites) {
-      const value = maxComposite > 0 ? (entry.composite / maxComposite) * 100 : 0;
+      const value = (entry.composite / maxComposite) * 100;
       observations.push({
         source: huggingFacePopularitySource.id,
         benchmark: 'hf-popularity',

@@ -133,6 +133,29 @@ describe('mergeBenchmarks — confidence labels (OT9)', () => {
     expect(result.confidence).toBe('high');
   });
 
+  it('does NOT return high when a fresh direct contribution is zero-weighted via sourceWeights', () => {
+    // hasFreshDirect previously checked only evidence + recencyWeight, so a
+    // caller passing { 'open-llm-leaderboard': 0 } got `confidence: 'high'`
+    // alongside `score: 0`. The label has to track the contribution that
+    // actually counts.
+    const result = mergeBenchmarks({
+      observations: [
+        {
+          source: 'open-llm-leaderboard',
+          benchmark: 'mmlu',
+          value: 80,
+          evidence: 'direct',
+          observedAt: SNAPSHOT_DATE,
+        },
+      ],
+      target: TARGET,
+      snapshotDate: SNAPSHOT_DATE,
+      sourceWeights: { 'open-llm-leaderboard': 0 },
+    });
+    expect(result.score).toBe(0);
+    expect(result.confidence).not.toBe('high');
+  });
+
   it('returns medium when only base/variant evidence contributed with non-trivial weight', () => {
     const result = mergeBenchmarks({
       observations: [

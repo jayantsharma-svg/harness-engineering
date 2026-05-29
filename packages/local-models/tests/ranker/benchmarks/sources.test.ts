@@ -110,6 +110,27 @@ describe('openLlmLeaderboardSource — degraded paths (OT5)', () => {
     expect(result.warnings[0]?.code).toBe('schema_invalid');
     expect(result.observations).toEqual([]);
   });
+
+  it('surfaces schema_invalid per model when scores object is empty', async () => {
+    // Empty `scores: {}` passes the structural guard vacuously. Without a
+    // per-model warning the operator can't tell "API returned an empty
+    // model row" from "model was rebuilt with zero benchmarks today".
+    const payload = {
+      models: [
+        { model: 'Qwen/Qwen3-32B-GGUF', scores: {} },
+        { model: 'meta-llama/Llama-3-70B', scores: { mmlu: 84.0 } },
+      ],
+    };
+    const result = await openLlmLeaderboardSource.fetch({
+      fetcher: jsonFetcher(payload),
+      now: NOW,
+    });
+    expect(result.observations).toHaveLength(1);
+    expect(result.observations[0]?.benchmark).toBe('mmlu');
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings[0]?.code).toBe('schema_invalid');
+    expect(result.warnings[0]?.message).toContain('Qwen/Qwen3-32B-GGUF');
+  });
 });
 
 describe('huggingFacePopularitySource — happy path (OT6)', () => {
@@ -145,12 +166,15 @@ describe('huggingFacePopularitySource — happy path (OT6)', () => {
     expect(actualValues[2]!).toBeCloseTo(100, 6);
   });
 
-  it('emits zero values cleanly when every entry has zero downloads/likes', async () => {
+  it('surfaces schema_invalid and emits nothing when every entry has zero downloads/likes', async () => {
+    // Emitting zero-value observations would silently dilute parallel-source
+    // contributions in the merge. The adapter degrades to a warning instead.
     const result = await huggingFacePopularitySource.fetch({
       fetcher: jsonFetcher([{ id: 'a/zero', downloads: 0, likes: 0 }]),
       now: NOW,
     });
-    expect(result.observations[0]?.value).toBe(0);
+    expect(result.observations).toEqual([]);
+    expect(result.warnings[0]?.code).toBe('schema_invalid');
   });
 
   it('exposes its URL constant', () => {

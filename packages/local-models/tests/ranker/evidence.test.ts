@@ -58,6 +58,19 @@ describe('gradeEvidence — degraded matches (OT2)', () => {
     expect(result.confidence).toBe(EVIDENCE_CONFIDENCE.base);
   });
 
+  it('returns base after stripping stacked variant suffixes (Instruct-Chat)', () => {
+    // A single suffix pass left `-Instruct` behind once `-Chat` was stripped,
+    // returning interpolated instead of base. Verify the loop revisits.
+    const result = gradeEvidence({
+      observationModel: 'mistralai/Mistral-7B-Instruct-Chat',
+      observationQuant: 'Q4_K_M',
+      targetModel: 'mistralai/Mistral-32B-GGUF',
+      targetQuant: 'Q4_K_M',
+    });
+    expect(result.grade).toBe('base');
+    expect(result.confidence).toBe(EVIDENCE_CONFIDENCE.base);
+  });
+
   it('returns interpolated when the families differ entirely', () => {
     const result = gradeEvidence({
       observationModel: 'meta-llama/Llama-3-70B-Instruct',

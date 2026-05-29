@@ -124,18 +124,12 @@ export interface MergedScore {
 
 /**
  * Normalise a source-native value to the shared `[0, 1]` space the merge's
- * mean operates on. Phase 2c sources already emit on `[0, 100]`; the default
- * branch covers any future adapter that hasn't been formally registered.
+ * mean operates on. Phase 2c sources already emit on `[0, 100]`, so the
+ * helper is a clamp-and-divide. New adapters that report on a different scale
+ * should add a per-source branch here.
  */
-function normaliseValue(value: number, source: string): number {
-  const clamped = Math.max(0, Math.min(100, value));
-  switch (source) {
-    case 'open-llm-leaderboard':
-    case 'hf-popularity':
-      return clamped / 100;
-    default:
-      return clamped / 100;
-  }
+function normaliseValue(value: number): number {
+  return Math.max(0, Math.min(100, value)) / 100;
 }
 
 /**
@@ -162,7 +156,7 @@ export function mergeBenchmarks(input: MergeInput): MergedScore {
     });
     const sourceWeight = weights[observation.source] ?? DEFAULT_UNKNOWN_SOURCE_WEIGHT;
     const combinedWeight = evidenceConfidence * recency.weight * sourceWeight;
-    const normalisedValue = normaliseValue(observation.value, observation.source);
+    const normalisedValue = normaliseValue(observation.value);
     const weightedValue = normalisedValue * combinedWeight;
 
     contributions.push({
@@ -189,8 +183,15 @@ export function mergeBenchmarks(input: MergeInput): MergedScore {
 
 /** Derive the deterministic confidence label per the rules in the module docstring. */
 function deriveConfidence(contributions: ScoredObservation[]): 'high' | 'medium' | 'low' {
+  // `direct` + fresh isn't enough on its own — the contribution also has to
+  // actually count. Caller-supplied `sourceWeights: { 'open-llm-leaderboard': 0 }`
+  // would otherwise label a zero-weight direct as 'high' while the merged
+  // score sits at 0.
   const hasFreshDirect = contributions.some(
-    (c) => c.observation.evidence === 'direct' && c.recencyWeight >= HIGH_CONFIDENCE_RECENCY_FLOOR
+    (c) =>
+      c.observation.evidence === 'direct' &&
+      c.recencyWeight >= HIGH_CONFIDENCE_RECENCY_FLOOR &&
+      c.combinedWeight >= LOW_CONFIDENCE_WEIGHT_FLOOR
   );
   if (hasFreshDirect) return 'high';
 
