@@ -1,0 +1,21 @@
+[
+  {
+    "id": "Qwen/Qwen3-32B-GGUF",
+    "modelId": "Qwen/Qwen3-32B-GGUF",
+    "downloads": 184523,
+    "likes": 412,
+    "lastModified": "2026-05-15T18:22:11.000Z",
+    "tags": ["gguf", "text-generation", "qwen3"],
+    "license": "apache-2.0",
+    "author": "Qwen"
+  },
+  {
+    "id": "Qwen/Qwen3-14B-GGUF",
+    "downloads": 92110,
+    "likes": 271,
+    "lastModified": "2026-05-04T08:11:04.000Z",
+    "tags": ["gguf", "text-generation", "qwen3"],
+    "license": "apache-2.0",
+    "author": "Qwen"
+  }
+]

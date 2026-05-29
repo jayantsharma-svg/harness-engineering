@@ -1,0 +1,15 @@
+{
+  "id": "Qwen/Qwen3-32B-GGUF",
+  "downloads": 184523,
+  "likes": 412,
+  "lastModified": "2026-05-15T18:22:11.000Z",
+  "tags": ["gguf", "text-generation", "qwen3"],
+  "license": "apache-2.0",
+  "author": "Qwen",
+  "siblings": [
+    { "rfilename": "Qwen3-32B-Q4_K_M.gguf" },
+    { "rfilename": "Qwen3-32B-Q5_K_M.gguf" },
+    { "rfilename": "Qwen3-32B-Q8_0.gguf" },
+    { "rfilename": "README.md" }
+  ]
+}
