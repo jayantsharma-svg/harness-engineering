@@ -87,7 +87,10 @@ export function applyRecencyDecay(input: RecencyInput): RecencyDecay {
     ageMonths = Math.max(0, (snapshot - observed) / MS_PER_MONTH);
   }
 
-  const baseWeight = Math.exp(-ageMonths / HALFLIFE_MONTHS);
+  // True halflife: weight halves every HALFLIFE_MONTHS. The 2^-x form is
+  // preferred over Math.exp(-x) because the constant names a *half*-life, and
+  // dashboards / docs will explain decay in those terms.
+  const baseWeight = Math.pow(0.5, ageMonths / HALFLIFE_MONTHS);
 
   const lineagePenaltyApplied =
     input.lineagePosition !== undefined && input.lineagePosition > 0
