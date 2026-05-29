@@ -76,9 +76,10 @@ describe('estimateVram — unknown quant (OT4)', () => {
   it('surfaces a quant_unknown warning and uses the conservative fallback', () => {
     const e = estimateVram({ sizeB: 32, quant: 'not-a-quant' });
     expect(e.quantWarning).toBe('quant_unknown');
-    // The conservative fallback is 8 bits/weight (Q8-ish), so 32B → 32 GB weights.
+    // The conservative fallback is 8 bits/weight (Q8-ish). 32B × 8 bits ÷ 8
+    // bits/byte × 1e9 params ÷ 2^30 bytes/GiB ≈ 29.80 GiB.
     expect(e.quantBitsPerWeight).toBe(8);
-    expect(e.weightsGb).toBeCloseTo(32, APPROX_EPSILON);
+    expect(e.weightsGb).toBeCloseTo(29.8, 1);
     expect(e.quant).toBe('not-a-quant');
   });
 

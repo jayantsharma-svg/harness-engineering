@@ -31,6 +31,12 @@ import type { HardwareProfile } from '../hardware/types.js';
 import { normalizeQuantId, type NormalizedQuant } from './quants.js';
 import type { VramEstimate } from './vram.js';
 
+/** Bytes per gibibyte — kept here so `activeWeightsGb` stays in the same unit as `VramEstimate.weightsGb`. */
+const BYTES_PER_GIB = 1024 ** 3;
+
+/** Params in one billion — mirrors `vram.ts` so weight math stays unit-consistent. */
+const PARAMS_PER_BILLION = 1_000_000_000;
+
 /** Local-runtime targets the speed estimator differentiates. */
 export type SpeedBackend = 'ollama' | 'llama-cpp' | 'mlx' | 'vllm' | 'cpu';
 
@@ -50,9 +56,12 @@ export const BACKEND_EFFICIENCY: Readonly<Record<SpeedBackend, number>> = {
 
 /**
  * Conservative DDR5-desktop floor used as the CPU side of the partial-offload
- * blend. Real CPU bandwidth ranges from ~50 GB/s (DDR5 desktop) to ~400 GB/s
- * (server EPYC); we pick the desktop floor because it matches the dominant
- * operator profile and keeps the partial-offload penalty conservative.
+ * blend on GPU platforms. Real CPU bandwidth ranges from ~50 GB/s (DDR5
+ * desktop) to ~400 GB/s (server EPYC); we pick the desktop floor because
+ * spillover from VRAM goes over PCIe and a generous CPU bandwidth doesn't
+ * help once the bottleneck is the PCIe lane. CPU-only platforms bypass the
+ * floor and use `hardware.bandwidthGbps` directly (the detector already biases
+ * conservatively for unmapped CPUs).
  */
 export const CPU_BANDWIDTH_FLOOR_GBPS = 60;
 
@@ -137,7 +146,12 @@ export function estimateSpeed(input: SpeedEstimateInput): SpeedEstimate {
   const backend = input.backend ?? defaultBackend(input.hardware.platform);
   const quantInfo: NormalizedQuant = normalizeQuantId(input.quant);
   const activeParamsB = input.activeB ?? input.sizeB;
-  const activeWeightsGb = (activeParamsB * quantInfo.bitsPerWeight) / 8;
+  // GiB to match `VramEstimate.weightsGb`. The denominator of the t/s formula
+  // is bandwidth (GB/s, decimal) ÷ active weight footprint (GiB, binary); the
+  // ~7% unit mismatch shows up as a constant bias in the realised efficiency
+  // multiplier, so we calibrate `BACKEND_EFFICIENCY` against this convention.
+  const activeWeightsGb =
+    (activeParamsB * PARAMS_PER_BILLION * quantInfo.bitsPerWeight) / 8 / BYTES_PER_GIB;
 
   // Won't-fit even with full RAM spillover: short-circuit. The ranker can
   // still display this candidate; it just won't recommend installing it.
@@ -155,14 +169,15 @@ export function estimateSpeed(input: SpeedEstimateInput): SpeedEstimate {
 
   const partialOffloadFraction = computePartialOffloadFraction(input.hardware, input.vramEstimate);
 
-  // Blended bandwidth: GPU bandwidth weighted by the share that fits, CPU
-  // floor weighted by the share that spills. On CPU-only platforms this
-  // collapses to `CPU_BANDWIDTH_FLOOR_GBPS` (driven by the hardware profile's
-  // own bandwidth report would let an EPYC host hit a higher number, but the
-  // efficiency multiplier already accounts for that).
+  // CPU-only platform: skip the PCIe floor blend. `hardware.bandwidthGbps`
+  // already reflects detected DRAM bandwidth (`cpu.ts`'s family table), so
+  // honouring it lets an EPYC server score above a laptop. The floor is a
+  // GPU-spillover concept; it does not apply when there is no GPU.
   const effectiveBandwidthGbps =
-    input.hardware.bandwidthGbps * (1 - partialOffloadFraction) +
-    CPU_BANDWIDTH_FLOOR_GBPS * partialOffloadFraction;
+    input.hardware.platform === 'cpu'
+      ? input.hardware.bandwidthGbps
+      : input.hardware.bandwidthGbps * (1 - partialOffloadFraction) +
+        CPU_BANDWIDTH_FLOOR_GBPS * partialOffloadFraction;
 
   const efficiency = BACKEND_EFFICIENCY[backend];
   // `activeWeightsGb` is positive by construction (sizeB and bitsPerWeight

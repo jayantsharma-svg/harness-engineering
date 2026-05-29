@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { HardwareProfile } from '../../src/hardware/types.js';
-import { estimateSpeed } from '../../src/ranker/speed.js';
+import { BACKEND_EFFICIENCY, estimateSpeed } from '../../src/ranker/speed.js';
 import { estimateVram } from '../../src/ranker/vram.js';
 
 const M3_MAX_36GB: HardwareProfile = {

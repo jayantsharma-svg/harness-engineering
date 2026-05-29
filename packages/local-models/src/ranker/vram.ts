@@ -9,10 +9,18 @@
  * `vramEstimate.totalGb ≤ hardware.vramGb`; the speed estimator in `./speed.ts`
  * derives the partial-offload fraction from the same totals.
  *
+ * All footprints are reported in **gibibytes** (`2^30` bytes) so they compare
+ * directly against `HardwareProfile.vramGb` / `ramGb`, which Phase 1's
+ * detectors (`hardware/cpu.ts`, `hardware/nvidia.ts`, `hardware/macos.ts`) all
+ * compute with `BYTES_PER_GIB = 1024 ** 3`. Mixing the decimal and binary
+ * conventions inside the package would silently corrupt the fitness gate; we
+ * pay the ~7% disagreement with vendor "marketing GB" once, at the boundary
+ * where the operator reads the dashboard, not in the math.
+ *
  * The math is intentionally first-order:
- *  - weights  = sizeB · bitsPerWeight ÷ 8
+ *  - weights  = sizeB · 1e9 · bitsPerWeight ÷ 8 ÷ `BYTES_PER_GIB`
  *  - kv cache = sizeB · `KV_CACHE_BYTES_PER_TOKEN_PER_BILLION_PARAMS_FP16`
- *               · `kvQuantMultiplier` · contextTokens ÷ 1e9
+ *               · `kvQuantMultiplier` · contextTokens ÷ `BYTES_PER_GIB`
  *  - actGb    = `ACTIVATIONS_GB`
  *  - ovGb     = `FRAMEWORK_OVERHEAD_GB`
  *
@@ -27,8 +35,11 @@
 
 import { normalizeQuantId, type NormalizedQuant } from './quants.js';
 
-/** Bytes per GB. We use the decimal definition because every consumer reports footprints in marketing GB. */
-const BYTES_PER_GB = 1_000_000_000;
+/** Bytes per gibibyte — the binary definition Phase 1's detectors use for `vramGb` / `ramGb`. */
+const BYTES_PER_GIB = 1024 ** 3;
+
+/** Params in one billion. Used to lift `sizeB` (billions) into raw byte counts. */
+const PARAMS_PER_BILLION = 1_000_000_000;
 
 /**
  * KV-cache bytes per token per billion params at FP16. Tuned so 30B at 4 K
@@ -117,10 +128,10 @@ export function estimateVram(input: VramEstimateInput): VramEstimate {
   const kvCacheQuant: KvCacheQuant = input.kvCacheQuant ?? 'fp16';
   const quantInfo: NormalizedQuant = normalizeQuantId(input.quant);
 
-  // Weights — billion params × bits/weight ÷ 8 bits/byte ÷ 1e9 bytes/GB
-  // collapses to `sizeB × bitsPerWeight ÷ 8` for GB. MoE: all weights live in
-  // memory (active params do not change the footprint).
-  const weightsGb = (input.sizeB * quantInfo.bitsPerWeight) / 8;
+  // Weights — billion params × bits/weight ÷ 8 bits/byte ÷ 2^30 bytes/GiB.
+  // MoE: all weights live in memory (active params do not change the footprint).
+  const weightsBytes = (input.sizeB * PARAMS_PER_BILLION * quantInfo.bitsPerWeight) / 8;
+  const weightsGb = weightsBytes / BYTES_PER_GIB;
 
   // KV cache — scales linearly with both `sizeB` (proxy for layers × heads)
   // and `contextTokens`. The kvQuant multiplier captures runtime kv-cache
@@ -129,7 +140,7 @@ export function estimateVram(input: VramEstimateInput): VramEstimate {
     input.sizeB *
     KV_CACHE_BYTES_PER_TOKEN_PER_BILLION_PARAMS_FP16 *
     KV_QUANT_MULTIPLIER[kvCacheQuant];
-  const kvCacheGb = (contextTokens * kvCacheBytesPerToken) / BYTES_PER_GB;
+  const kvCacheGb = (contextTokens * kvCacheBytesPerToken) / BYTES_PER_GIB;
 
   const totalGb = weightsGb + kvCacheGb + ACTIVATIONS_GB + FRAMEWORK_OVERHEAD_GB;
 
