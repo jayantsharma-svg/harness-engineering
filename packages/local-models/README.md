@@ -6,7 +6,7 @@ See [`docs/changes/local-model-lifecycle-manager/proposal.md`](../../docs/change
 
 ## Status
 
-**Phase 2c — Evidence + recency + benchmark sources/merge.**
+**Phase 3a — Pool state + eviction planner.**
 
 Public surface so far:
 
@@ -21,8 +21,10 @@ Public surface so far:
 - `applyRecencyDecay` (Phase 2c) — exponential age decay (halflife 9 months) plus an optional lineage step penalty (`× 0.6` per generation behind the target). Weights clamp at `MIN_RECENCY_WEIGHT = 0.05`.
 - `openLlmLeaderboardSource` / `huggingFacePopularitySource` (Phase 2c) — two seed adapters behind the `BenchmarkSource` interface. Both take an injected `Fetcher` so CI never touches the network; every failure path surfaces as a structured `SourceWarning` rather than throwing.
 - `mergeBenchmarks` (Phase 2c) — folds evidence × recency × source weight into a single `{ score (0–100), confidence: 'high' | 'medium' | 'low', contributions }` per candidate. Empty input short-circuits to `confidence: 'low'`; never throws.
+- `PoolStateStore` (Phase 3a) — atomic on-disk persistence of `PoolState` to `~/.harness/local-models/pool.json` (tmp + rename, O2). Versioned schema with graceful degradation to `EmptyPoolState()` on missing / malformed / version-mismatched files. Single mutation path (`update`) always recomputes derived `diskUsedGb` from the entry sum.
+- `planEviction` (Phase 3a) — pure lowest-score-LRU planner. Sorts pool entries by `(currentScore, lastUsedAt, installedAt)` ascending (treating `lastUsedAt: null` as oldest) and accumulates evictions until the requested `freeBudgetGb` is met or the pool is exhausted.
 
-The `RankedModel` orchestrator and parity fixtures land in Phase 2d. Pool manager, Ollama installer, proposal engine, scheduler, and HTTP / CLI / dashboard surfaces ship in Phases 3–9 per the spec.
+The `RankedModel` orchestrator and parity fixtures land in Phase 2d. The full `PoolManager` orchestrator, Ollama installer, proposal engine, scheduler, and HTTP / CLI / dashboard surfaces ship in Phases 3b–9 per the spec.
 
 ## Goals (recap)
 

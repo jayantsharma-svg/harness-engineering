@@ -1,0 +1,93 @@
+/**
+ * Pool — runtime types.
+ *
+ * Phase 3a stub. Mirrors the runtime shapes defined in
+ * `docs/changes/local-model-lifecycle-manager/proposal.md` (lines 140–157)
+ * verbatim so later phases (3b installer + manager, 4 resolver, 5b proposals,
+ * 6 scheduler) consume them through the package barrel without re-modeling.
+ *
+ * The persisted shape is intentionally minimal: only the fields the proposal
+ * defines on `PoolEntry` / `PoolState` survive a crash + reload cycle.
+ * Transient status (e.g. `pendingEviction`, `pendingInstall`) lives on a
+ * separate runtime record introduced in Phase 3b alongside the install state
+ * machine, so a crash mid-pull cannot leave a stale flag pinned on disk.
+ *
+ * @see docs/changes/local-model-lifecycle-manager/proposal.md (Phase 3, lines 431–443)
+ */
+
+/**
+ * A single installed Ollama model whose lifecycle the orchestrator is
+ * managing. Steady-state shape only — transient install/evict status is
+ * tracked separately so the on-disk record stays stable across restarts.
+ */
+export interface PoolEntry {
+  /** Ollama model identifier, e.g. `'qwen3:32b'`. Unique within a pool. */
+  ollamaName: string;
+  /** Source repo on HuggingFace, e.g. `'Qwen/Qwen3-32B-GGUF'`. */
+  hfRepoId: string;
+  /** Disk footprint reported by `/api/show` at install time, in GB. */
+  sizeOnDiskGb: number;
+  /** ISO-8601 timestamp recorded when the install completed. */
+  installedAt: string;
+  /**
+   * ISO-8601 timestamp of the most recent dispatch that resolved to this
+   * entry. `null` while the resolver has never picked it up — the eviction
+   * planner ranks `null` oldest so unused fresh installs evict first when
+   * scores tie.
+   */
+  lastUsedAt: string | null;
+  /** Most-recent ranker score (0–100). Eviction's primary sort key. */
+  currentScore: number;
+}
+
+/**
+ * The full pool record persisted to `~/.harness/local-models/pool.json`.
+ * `diskUsedGb` is derived data — `PoolStateStore.update` recomputes it from
+ * the entry sum on every mutation so callers cannot drift the two apart.
+ */
+export interface PoolState {
+  /** Hard ceiling on cumulative `sizeOnDiskGb` across `entries`. */
+  diskBudgetGb: number;
+  /** Sum of `entries.sizeOnDiskGb`. Derived; never set by callers. */
+  diskUsedGb: number;
+  entries: PoolEntry[];
+  /** Operator-approved HuggingFace orgs. Empty array ⇒ no installs allowed. */
+  allowedOrgs: string[];
+  /**
+   * Optional family allowlist within `allowedOrgs`. Empty array ⇒ all
+   * families under the allowed orgs are permitted.
+   */
+  allowedFamilies: string[];
+  /** ISO-8601 timestamp of the last successful refresh; `null` before first tick. */
+  lastRefreshAt: string | null;
+}
+
+/**
+ * Factory for the all-zero / all-empty state. Used by `PoolStateStore.load`
+ * when the on-disk file is missing, malformed, or schema-mismatched.
+ */
+export function EmptyPoolState(): PoolState {
+  return {
+    diskBudgetGb: 0,
+    diskUsedGb: 0,
+    entries: [],
+    allowedOrgs: [],
+    allowedFamilies: [],
+    lastRefreshAt: null,
+  };
+}
+
+/** Alias kept for readability at call sites that talk about candidates. */
+export type EvictionCandidate = PoolEntry;
+
+/**
+ * The eviction planner's reply. `evict` is ordered lowest-score first;
+ * `freedGb` is the cumulative `sizeOnDiskGb` of `evict`; `remainingNeededGb`
+ * is what's left to free if the pool couldn't satisfy the request. The
+ * caller decides whether `remainingNeededGb > 0` is an error.
+ */
+export interface EvictionPlan {
+  evict: PoolEntry[];
+  freedGb: number;
+  remainingNeededGb: number;
+}
