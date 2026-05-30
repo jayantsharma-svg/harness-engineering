@@ -1129,14 +1129,15 @@ last_manual_edit: 2026-05-24T15:27:04.258Z
 
 ### Local Model Lifecycle Manager (LMLM)
 
-- **Status:** planned
+- **Status:** in-progress
 - **Spec:** docs/changes/local-model-lifecycle-manager/proposal.md
 - **Summary:** Hardware-aware local model recommender, pool-bounded autonomy with proposal loop, Ollama-first install, dashboard + CLI surfaces. Approved by Chad 2026-05-24.
 - **Blockers:** —
 - **Plan:** —
-- **Assignee:** —
+- **Assignee:** orchestrator-5c895000
 - **Priority:** —
 - **External-ID:** github:Intense-Visions/harness-engineering#386
+- **Updated-At:** 2026-05-29T21:50:50.314Z
 
 ### Granular Task→Backend Routing
 
