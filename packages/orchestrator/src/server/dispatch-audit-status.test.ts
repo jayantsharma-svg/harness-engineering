@@ -1,9 +1,25 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, readFileSync, rmSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, mkdirSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import http from 'node:http';
 import { OrchestratorServer } from './http';
+
+// Poll until the audit log exists with at least one non-empty line. The
+// AuditLogger appends asynchronously after res.on('finish'); a fixed
+// setTimeout flakes on slow runners (notably Windows), where the wait
+// expires before the append lands and readFileSync sees an empty file.
+async function waitForAuditLine(path: string, timeoutMs = 2000): Promise<string[]> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    if (existsSync(path) && statSync(path).size > 0) {
+      const lines = readFileSync(path, 'utf-8').trim().split('\n');
+      if (lines.length > 0 && lines[lines.length - 1]) return lines;
+    }
+    await new Promise((r) => setTimeout(r, 10));
+  }
+  throw new Error(`Audit log at ${path} never received a complete line within ${timeoutMs}ms`);
+}
 
 class FakeOrchestrator {
   getSnapshot() {
@@ -61,9 +77,11 @@ describe('dispatchAuthedRequest audit captures wire-final status', () => {
       );
     });
   });
-  afterEach(() => {
-    (server as unknown as { httpServer: http.Server }).httpServer.close();
-    rmSync(dir, { recursive: true, force: true });
+  afterEach(async () => {
+    await new Promise<void>((resolve) => {
+      (server as unknown as { httpServer: http.Server }).httpServer.close(() => resolve());
+    });
+    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
     delete process.env['HARNESS_TOKENS_PATH'];
     delete process.env['HARNESS_AUDIT_PATH'];
   });
@@ -83,11 +101,8 @@ describe('dispatchAuthedRequest audit captures wire-final status', () => {
     // with a 400, so inline audit (pre-fix) would record 200.
     const res = await req('/api/v1/auth/token', 'POST', 'not-json');
     expect(res.status).toBe(400);
-    // Allow res.on('finish') to flush + the AuditLogger append to land.
-    await new Promise((r) => setTimeout(r, 50));
-    const log = readFileSync(join(dir, 'audit.log'), 'utf-8').trim().split('\n');
-    const lastLine = log[log.length - 1] ?? '';
-    const last = JSON.parse(lastLine) as { status: number; route: string };
+    const log = await waitForAuditLine(join(dir, 'audit.log'));
+    const last = JSON.parse(log[log.length - 1] ?? '') as { status: number; route: string };
     expect(last.status).toBe(400);
     expect(last.route).toBe('/api/v1/auth/token');
   });
@@ -98,10 +113,8 @@ describe('dispatchAuthedRequest audit captures wire-final status', () => {
     // other handler matches. The dispatch loop emits a wire-final 404 inline.
     const res = await req('/api/streams/does-not-exist');
     expect(res.status).toBe(404);
-    await new Promise((r) => setTimeout(r, 50));
-    const log = readFileSync(join(dir, 'audit.log'), 'utf-8').trim().split('\n');
-    const lastLine = log[log.length - 1] ?? '';
-    const last = JSON.parse(lastLine) as { status: number; route: string };
+    const log = await waitForAuditLine(join(dir, 'audit.log'));
+    const last = JSON.parse(log[log.length - 1] ?? '') as { status: number; route: string };
     expect(last.status).toBe(404);
     expect(last.route).toBe('/api/streams/does-not-exist');
   });

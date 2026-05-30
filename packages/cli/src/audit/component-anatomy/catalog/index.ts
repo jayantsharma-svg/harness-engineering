@@ -32,6 +32,7 @@ import { dialogConvention } from './conventions/dialog.js';
 import { emptyStateConvention } from './conventions/empty-state.js';
 import { inputConvention } from './conventions/input.js';
 import { selectConvention } from './conventions/select.js';
+import { switchConvention } from './conventions/switch.js';
 
 /**
  * Built-in convention catalog. Phase 1 shipped Button; Phase 2 catalog
@@ -48,6 +49,7 @@ const builtinConventions: ConventionRule[] = [
   emptyStateConvention,
   inputConvention,
   selectConvention,
+  switchConvention,
 ];
 
 const conventionByType = new Map<string, ConventionRule>(

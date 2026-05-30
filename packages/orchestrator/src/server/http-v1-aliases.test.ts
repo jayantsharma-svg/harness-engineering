@@ -80,9 +80,11 @@ describe('v1 alias coverage + Deprecation header', () => {
       );
     });
   });
-  afterEach(() => {
-    (server as unknown as { httpServer: http.Server }).httpServer.close();
-    rmSync(dir, { recursive: true, force: true });
+  afterEach(async () => {
+    await new Promise<void>((resolve) => {
+      (server as unknown as { httpServer: http.Server }).httpServer.close(() => resolve());
+    });
+    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
     delete process.env['HARNESS_TOKENS_PATH'];
     delete process.env['HARNESS_AUDIT_PATH'];
   });
@@ -162,9 +164,15 @@ describe('v1 bridge primitives — HTTP integration through dispatchAuthedReques
     port = bridgePort;
   });
 
-  afterEach(() => {
-    (bridgeServer as unknown as { httpServer: http.Server }).httpServer.close();
-    rmSync(bridgeDir, { recursive: true, force: true });
+  afterEach(async () => {
+    await new Promise<void>((resolve) => {
+      (bridgeServer as unknown as { httpServer: http.Server }).httpServer.close(() => resolve());
+    });
+    // maxRetries handles the residual race where the orchestrator's audit
+    // writer flushes a final entry between rmSync's directory scan and the
+    // rmdir syscall. Reproduces consistently on Linux tmpfs; macOS passes
+    // because of different fs-flush timing.
+    rmSync(bridgeDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
     delete process.env['HARNESS_TOKENS_PATH'];
     delete process.env['HARNESS_AUDIT_PATH'];
   });
