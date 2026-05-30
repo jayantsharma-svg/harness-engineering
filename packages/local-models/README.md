@@ -6,7 +6,7 @@ See [`docs/changes/local-model-lifecycle-manager/proposal.md`](../../docs/change
 
 ## Status
 
-**Phase 2b — VRAM + speed math.**
+**Phase 3a — Pool state + eviction planner.**
 
 Public surface so far:
 
@@ -17,8 +17,10 @@ Public surface so far:
 - `normalizeQuantId` / `QUANT_BITS_PER_WEIGHT` (Phase 2b) — canonical GGUF + MLX quant table with case-insensitive alias resolution and a conservative fallback for unknown ids.
 - `estimateVram` (Phase 2b) — four-term VRAM decomposition (weights + KV cache + activations + framework overhead) for any `(sizeB, activeB?, quant, contextTokens, kvCacheQuant)` tuple. MoE keeps all weights resident; `activeB` is echoed for the speed estimator.
 - `estimateSpeed` (Phase 2b) — bandwidth-bound token throughput projection with backend-efficiency multipliers, MoE active-params handling, partial-offload blending toward a CPU floor, and a hard-zero short-circuit for won't-fit candidates. Never throws.
+- `PoolStateStore` (Phase 3a) — atomic on-disk persistence of `PoolState` to `~/.harness/local-models/pool.json` (tmp + rename, O2). Versioned schema with graceful degradation to `EmptyPoolState()` on missing / malformed / version-mismatched files. Single mutation path (`update`) always recomputes derived `diskUsedGb` from the entry sum.
+- `planEviction` (Phase 3a) — pure lowest-score-LRU planner. Sorts pool entries by `(currentScore, lastUsedAt, installedAt)` ascending (treating `lastUsedAt: null` as oldest) and accumulates evictions until the requested `freeBudgetGb` is met or the pool is exhausted.
 
-Evidence + recency grading, live benchmark sources, the merge algorithm, the `RankedModel` orchestrator, the pool manager, the Ollama installer, the proposal engine, the scheduler, and the HTTP / CLI / dashboard surfaces ship in Phases 2c–9 per the spec.
+Evidence + recency grading, live benchmark sources, the merge algorithm, the `RankedModel` orchestrator, the Ollama installer, the `PoolManager` orchestrator, the resolver integration, the proposal engine, the scheduler, and the HTTP / CLI / dashboard surfaces ship in Phases 2c–9 per the spec.
 
 ## Goals (recap)
 
