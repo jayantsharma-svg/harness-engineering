@@ -11,9 +11,11 @@
 //         stagger-timing      polish x small
 //      This locks the catalog's tier-vs-impact independence — adding a
 //      new pattern that conflates the two would surface here.
-//   2. SEED_EXEMPLARS exposes the three Phase 2 exemplars across three
-//      component types (EmptyState, LoadingState, CommandPalette) so
-//      BENCHMARK fans out across more than one type from v1.
+//   2. SEED_EXEMPLARS exposes the five seed exemplars across five
+//      component types (EmptyState, LoadingState, CommandPalette,
+//      ErrorState, Modal) so BENCHMARK fans out across every canonical
+//      v1 component type from the seed (per the CRAFT-B001..B005 anchor
+//      reservations in finding-codes.md).
 //   3. Every entry carries the ADR 0020 provenance fields (id, version,
 //      status, authoredAt, contributors[], source.ref).
 //   4. End-to-end: a fixture that matches the skeleton pattern's
@@ -26,7 +28,11 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { SEED_PATTERNS } from '../../../src/design-craft/catalog/patterns/index.js';
-import { SEED_EXEMPLARS } from '../../../src/design-craft/catalog/exemplars/index.js';
+import {
+  SEED_EXEMPLARS,
+  vercelErrorStateExemplar,
+} from '../../../src/design-craft/catalog/exemplars/index.js';
+import { runBenchmark } from '../../../src/design-craft/phases/benchmark.js';
 import { MockLlmProvider } from '../../../src/design-craft/llm/provider.js';
 import { handleDesignCraft } from '../../../src/mcp/tools/design-craft.js';
 
@@ -78,9 +84,20 @@ describe('design-craft Phase 2 catalog seed — patterns', () => {
 });
 
 describe('design-craft Phase 2 catalog seed — exemplars', () => {
-  it('SEED_EXEMPLARS spans three component types', () => {
+  it('SEED_EXEMPLARS spans the five anchor component types in stable order', () => {
     const types = SEED_EXEMPLARS.map((e) => e.componentType);
-    expect(types).toEqual(['EmptyState', 'LoadingState', 'CommandPalette']);
+    expect(types).toEqual(['EmptyState', 'LoadingState', 'CommandPalette', 'ErrorState', 'Modal']);
+  });
+
+  it('SEED_EXEMPLARS aligns with the CRAFT-B001..B005 anchor identifiers in finding-codes.md', () => {
+    const ids = SEED_EXEMPLARS.map((e) => e.id);
+    expect(ids).toEqual([
+      'exemplar-linear-empty-list',
+      'exemplar-stripe-loading-state',
+      'exemplar-raycast-command-palette',
+      'exemplar-vercel-error-state',
+      'exemplar-linear-issue-modal',
+    ]);
   });
 
   it('every exemplar carries the ADR 0020 provenance fields and a complete radarReference', () => {
@@ -165,5 +182,88 @@ describe('design-craft skeleton pattern wired end-to-end', () => {
     expect(p002?.before).toContain('Spinner');
 
     fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+});
+
+const ERROR_STATE_SOURCE = `
+// Fixture: a deploy-error surface that follows the four-part anatomy.
+export function DeployError(props: { message: string; logUrl: string }) {
+  return (
+    <section>
+      <h2>Build failed</h2>
+      <p>{props.message}</p>
+      <a href={props.logUrl}>View build log</a>
+    </section>
+  );
+}
+`;
+
+const ERROR_STATE_RADAR_RESPONSE = [
+  '```json',
+  JSON.stringify(
+    {
+      philosophicalCoherence: {
+        score: 80,
+        confidence: 'medium',
+        notes:
+          'Voice is calm and recovery-led; misses the diagnostic-recess layering of the exemplar.',
+      },
+      hierarchy: {
+        score: 85,
+        confidence: 'high',
+        notes: 'Headline -> body -> action reads in order; no competing focal point.',
+      },
+      craftExecution: {
+        score: 70,
+        confidence: 'medium',
+        notes: 'Typography roles unset; default link styling on the recovery action.',
+      },
+      function: {
+        score: 90,
+        confidence: 'high',
+        notes: 'Names the failure and offers the canonical recovery; fit-for-purpose.',
+      },
+      innovation: {
+        score: 55,
+        confidence: 'medium',
+        notes: 'Conventional shape; no signature move beyond the four-part anatomy.',
+      },
+      gaps: [
+        'No collapsed diagnostics layer — log link is the only escalation path.',
+        'Recovery action rendered as a plain link rather than a tuned CTA.',
+      ],
+    },
+    null,
+    2
+  ),
+  '```',
+].join('\n');
+
+describe('design-craft Vercel error-state exemplar wired end-to-end', () => {
+  it('scores an ErrorState target against the CRAFT-B004 exemplar', async () => {
+    const provider = new MockLlmProvider([
+      { promptIncludes: 'DeployError', response: ERROR_STATE_RADAR_RESPONSE },
+    ]);
+
+    const [score] = await runBenchmark({
+      targets: [
+        {
+          file: 'fixtures/DeployError.tsx',
+          component: 'DeployError',
+          source: ERROR_STATE_SOURCE,
+          componentType: 'ErrorState',
+        },
+      ],
+      exemplars: [vercelErrorStateExemplar],
+      provider,
+    });
+
+    expect(score).toBeTruthy();
+    expect(score?.exemplars).toEqual(['exemplar-vercel-error-state']);
+    // Mean of 80/85/70/90/55 = 76
+    expect(score?.overall.score).toBe(76);
+    // Min confidence of medium/high/medium/high/medium = medium
+    expect(score?.overall.confidence).toBe('medium');
+    expect(score?.gaps[0]).toContain('diagnostics');
   });
 });
