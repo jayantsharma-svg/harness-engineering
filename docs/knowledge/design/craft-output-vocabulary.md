@@ -13,7 +13,7 @@ The **craft output vocabulary** is the shared finding and scoring shape used by 
 The existing `severity: 'error' | 'warn' | 'info'` vocabulary fits rule-based skills because rule outputs are binary. For craft-domain LLM-judgment outputs (see [[llm-judgment-skills]]) the standard severity vocabulary fails three ways:
 
 1. **Craft findings are not binary** — "the body-text leading is slightly tight" is not "an error." Forcing it into `warn` is adversarial; forcing it into `info` buries it.
-2. **Importance is two-dimensional** — a hierarchy collapse and a spring-physics polish opportunity sit at different *tiers* of craft AND have different *impact*. Collapsing both into single severity loses reviewer-actionable signal.
+2. **Importance is two-dimensional** — a hierarchy collapse and a spring-physics polish opportunity sit at different _tiers_ of craft AND have different _impact_. Collapsing both into single severity loses reviewer-actionable signal.
 3. **LLM confidence is real** — a 95%-confident "no primary action" deserves different treatment from a 40%-confident "illustration might feel off-brand."
 
 ## Per-finding: the 3-axis model
@@ -24,21 +24,21 @@ Every CRITIQUE and POLISH finding (`CRAFT-C*`, `CRAFT-P*`) carries three orthogo
 
 Where on the craft maturity ladder does the finding sit?
 
-| Tier            | Meaning                                                                                                                                                | Reviewer treatment                                              |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------- |
-| `foundational`  | Design fails a baseline craft expectation (no hierarchy, no primary action, illegible contrast, disorienting motion).                                  | Near-mandatory to address before shipping.                      |
-| `polish`        | Design meets baseline but misses a refinement competent execution would include (cubic-bezier vs spring motion, tight body leading, generic illustration). | Bulk of the elevation work.                                     |
-| `aspirational`  | Design is competent and refined but could reach beyond (signature motion language, brand-distinctive illustration, custom micro-interaction).             | Ceiling-raising — take when budget allows, skip without shame.  |
+| Tier           | Meaning                                                                                                                                                    | Reviewer treatment                                             |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `foundational` | Design fails a baseline craft expectation (no hierarchy, no primary action, illegible contrast, disorienting motion).                                      | Near-mandatory to address before shipping.                     |
+| `polish`       | Design meets baseline but misses a refinement competent execution would include (cubic-bezier vs spring motion, tight body leading, generic illustration). | Bulk of the elevation work.                                    |
+| `aspirational` | Design is competent and refined but could reach beyond (signature motion language, brand-distinctive illustration, custom micro-interaction).              | Ceiling-raising — take when budget allows, skip without shame. |
 
 ### Axis 2 — `impact: 'small' | 'medium' | 'large'`
 
 The blast radius — how much does fixing it move the needle?
 
-| Impact   | Meaning                                                                                          | Reviewer treatment                  |
-| -------- | ------------------------------------------------------------------------------------------------ | ----------------------------------- |
-| `large`  | Addressing changes how the design *reads* at a glance.                                          | Front of the work queue.            |
-| `medium` | Noticeably improves the experience but does not change the design's character.                  | Most polish-tier findings sit here. |
-| `small`  | Refinement detail.                                                                               | Batch into "polish passes."         |
+| Impact   | Meaning                                                                        | Reviewer treatment                  |
+| -------- | ------------------------------------------------------------------------------ | ----------------------------------- |
+| `large`  | Addressing changes how the design _reads_ at a glance.                         | Front of the work queue.            |
+| `medium` | Noticeably improves the experience but does not change the design's character. | Most polish-tier findings sit here. |
+| `small`  | Refinement detail.                                                             | Batch into "polish passes."         |
 
 ### Axis 3 — `confidence: 'high' | 'medium' | 'low'`
 
@@ -66,11 +66,11 @@ Each dimension carries `{ score: 0-100, confidence, notes }`. The skill emits an
 
 ## Phase / output mapping
 
-| Phase     | Finding code family | Output model      | Cardinality              |
-| --------- | ------------------- | ----------------- | ------------------------ |
-| CRITIQUE  | `CRAFT-C*`          | 3-axis            | Many findings per audit. |
-| POLISH    | `CRAFT-P*`          | 3-axis + before/after | Many findings per audit. |
-| BENCHMARK | `CRAFT-B*`          | 5-dim radar       | One score per benchmarked component, multiple per audit. |
+| Phase     | Finding code family | Output model          | Cardinality                                              |
+| --------- | ------------------- | --------------------- | -------------------------------------------------------- |
+| CRITIQUE  | `CRAFT-C*`          | 3-axis                | Many findings per audit.                                 |
+| POLISH    | `CRAFT-P*`          | 3-axis + before/after | Many findings per audit.                                 |
+| BENCHMARK | `CRAFT-B*`          | 5-dim radar           | One score per benchmarked component, multiple per audit. |
 
 Both vocabularies co-exist in a single `DesignCraftOutput` because they answer different questions (per-issue vs holistic).
 

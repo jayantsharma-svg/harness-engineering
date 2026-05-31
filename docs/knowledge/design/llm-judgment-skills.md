@@ -23,22 +23,22 @@ LLM-judgment skills break four assumptions that rule-based infrastructure relies
 
 LLM-judgment skills MUST satisfy all four (per ADR 0018):
 
-| Property                                  | Requirement                                                                                                                                                                                                                                |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **1. Confidence as first-class output**   | Every finding carries `confidence: 'high' \| 'medium' \| 'low'`, emitted by the LLM (not derived post-hoc). Low-confidence findings are surfaced with visual distinction (italic, `(low confidence:)` prefix) and excluded from enforcement by default. |
-| **2. Deterministic skeleton wraps judgment** | Stable `code` (e.g. `CRAFT-C001`), `cite` block (catalog id, never an LLM hallucination), `target` block (`file` / `line` / `component`), `derived` block (priority computed deterministically), and `summary.runId` for fixpoint detection. |
-| **3. Explicit mode selection**            | Skills with both text and vision modes expose `mode: 'fast' \| 'deep'` (or analogous) as top-level input. Default is the cheaper mode. No auto-escalation. Cost tracking exposed via `summary.llmCalls.{provider, model, count, costUsd}`.    |
-| **4. Provider integration via intelligence** | Skills wrap `packages/intelligence/` rather than calling provider SDKs directly — centralizes cost accounting, vision-vs-text variant selection, provider fallback, and mock-injection for CI tests.                                            |
+| Property                                     | Requirement                                                                                                                                                                                                                                             |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1. Confidence as first-class output**      | Every finding carries `confidence: 'high' \| 'medium' \| 'low'`, emitted by the LLM (not derived post-hoc). Low-confidence findings are surfaced with visual distinction (italic, `(low confidence:)` prefix) and excluded from enforcement by default. |
+| **2. Deterministic skeleton wraps judgment** | Stable `code` (e.g. `CRAFT-C001`), `cite` block (catalog id, never an LLM hallucination), `target` block (`file` / `line` / `component`), `derived` block (priority computed deterministically), and `summary.runId` for fixpoint detection.            |
+| **3. Explicit mode selection**               | Skills with both text and vision modes expose `mode: 'fast' \| 'deep'` (or analogous) as top-level input. Default is the cheaper mode. No auto-escalation. Cost tracking exposed via `summary.llmCalls.{provider, model, count, costUsd}`.              |
+| **4. Provider integration via intelligence** | Skills wrap `packages/intelligence/` rather than calling provider SDKs directly — centralizes cost accounting, vision-vs-text variant selection, provider fallback, and mock-injection for CI tests.                                                    |
 
 A fifth property — **soft dependency with progressive upgrade** — applies to LLM-judgment skills that benefit from upstream declared intent. See [[detect-and-offer]] and ADR 0021.
 
 ## Confidence semantics
 
-| Value     | Meaning                                                                              | Treatment                                                                |
-| --------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
-| `high`    | Model is confident; finding is well-supported by rubric + evidence.                  | Treat as thoughtful peer assertion. May feed enforcement gates.          |
-| `medium`  | Model sees the issue but acknowledges alternative readings.                          | Treat as discussion item. Surface in main output.                        |
-| `low`     | Model is unsure; finding may not survive human inspection.                           | Investigation candidate, NOT enforcement. Visually distinguished. Excluded from gates by default. |
+| Value    | Meaning                                                             | Treatment                                                                                         |
+| -------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `high`   | Model is confident; finding is well-supported by rubric + evidence. | Treat as thoughtful peer assertion. May feed enforcement gates.                                   |
+| `medium` | Model sees the issue but acknowledges alternative readings.         | Treat as discussion item. Surface in main output.                                                 |
+| `low`    | Model is unsure; finding may not survive human inspection.          | Investigation candidate, NOT enforcement. Visually distinguished. Excluded from gates by default. |
 
 LLMs are demonstrably more honest when asked to self-report confidence than when their outputs are post-filtered. Dropping low-confidence findings hides cases where the model genuinely does not know — exactly the signal a human reviewer needs.
 
@@ -46,10 +46,10 @@ LLMs are demonstrably more honest when asked to self-report confidence than when
 
 Mode selection is **explicit and opt-in**, not heuristic-driven:
 
-| Mode    | Calls            | Cost           | Use case                                                                 |
-| ------- | ---------------- | -------------- | ------------------------------------------------------------------------ |
-| `fast`  | text-LLM only    | cents / call   | Default. Routine CI, autopilot, in-editor critique, fast iteration loops. |
-| `deep`  | text + vision    | dimes / call   | Designer-led ceiling-raising; release-quality elevation; preflight reviews. |
+| Mode   | Calls         | Cost         | Use case                                                                    |
+| ------ | ------------- | ------------ | --------------------------------------------------------------------------- |
+| `fast` | text-LLM only | cents / call | Default. Routine CI, autopilot, in-editor critique, fast iteration loops.   |
+| `deep` | text + vision | dimes / call | Designer-led ceiling-raising; release-quality elevation; preflight reviews. |
 
 Cost tracking is mandatory: `summary.llmCalls.costUsd` must accumulate per-call records so operators can budget LLM spend without per-skill bespoke accounting.
 

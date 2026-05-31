@@ -25,12 +25,12 @@ A B'-pattern skill MUST satisfy all four (per ADR 0021):
 
 The skill defines an explicit set of precondition checks. Each is a deterministic boolean predicate over project state. For `harness-design-craft` (in `resolvers/preconditions.ts`):
 
-| Precondition                  | Check                                                          |
-| ----------------------------- | -------------------------------------------------------------- |
-| `designMdExists`              | `design-system/DESIGN.md` present.                             |
-| `aestheticIntentDeclared`     | DESIGN.md has Aesthetic Direction section populated.           |
-| `tokensExist`                 | `design-system/tokens.json` present.                           |
-| `componentRegistryPopulated`  | DESIGN.md has Component Registry section (for vision targets). |
+| Precondition                 | Check                                                          |
+| ---------------------------- | -------------------------------------------------------------- |
+| `designMdExists`             | `design-system/DESIGN.md` present.                             |
+| `aestheticIntentDeclared`    | DESIGN.md has Aesthetic Direction section populated.           |
+| `tokensExist`                | `design-system/tokens.json` present.                           |
+| `componentRegistryPopulated` | DESIGN.md has Component Registry section (for vision targets). |
 
 Each is checked at invocation time. The result is recorded on `summary.preconditions` so the user can see what was detected even when no offer was made.
 
@@ -42,11 +42,11 @@ When one or more preconditions are missing AND `autoCapture` allows offering, th
 
 ```ts
 {
-  message: string;  // human-readable: what is missing + what the upgrade unlocks
+  message: string; // human-readable: what is missing + what the upgrade unlocks
   options: Array<{
     id: string;
-    label: string;            // user-facing
-    chainedSkill?: string;    // upstream skill to chain to
+    label: string; // user-facing
+    chainedSkill?: string; // upstream skill to chain to
     chainedPhases?: string[]; // specific phases (e.g. ['intent', 'direction'])
   }>;
 }
@@ -54,12 +54,12 @@ When one or more preconditions are missing AND `autoCapture` allows offering, th
 
 The standard option set is:
 
-| Option         | Behavior                                                                                          |
-| -------------- | ------------------------------------------------------------------------------------------------- |
-| `yes-now`      | Chain to the upstream skill immediately, then re-enter this skill.                                 |
-| `yes-later`    | Record the preference. Do not chain now. Subsequent invocations re-prompt (until configured off). |
-| `no-thanks`    | Proceed with fallback mode. Do not re-prompt this session.                                         |
-| `skip-always`  | Set `autoCapture: 'skip'` in config. Never prompt again.                                           |
+| Option        | Behavior                                                                                          |
+| ------------- | ------------------------------------------------------------------------------------------------- |
+| `yes-now`     | Chain to the upstream skill immediately, then re-enter this skill.                                |
+| `yes-later`   | Record the preference. Do not chain now. Subsequent invocations re-prompt (until configured off). |
+| `no-thanks`   | Proceed with fallback mode. Do not re-prompt this session.                                        |
+| `skip-always` | Set `autoCapture: 'skip'` in config. Never prompt again.                                          |
 
 Skills MAY add domain-specific options (e.g. `harness-design-craft` adds `intent-only` to chain only the INTENT phase, not DIRECTION).
 
@@ -100,11 +100,11 @@ The original skill MUST be idempotent on re-entry. Re-running precondition detec
 
 Every B'-pattern skill MUST expose a config knob (default name `autoCapture`) with three values:
 
-| Value            | Behavior                                                                                            | Use case                                         |
-| ---------------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
-| `prompt` (default) | Detect missing preconditions and emit the offer payload for user choice.                            | Interactive use (CLI, IDE).                      |
-| `auto`           | Detect missing preconditions and automatically chain to the upstream skill without prompting.       | Headless / autopilot use where prompting blocks. |
-| `skip`           | Detect missing preconditions but do NOT offer or chain. Proceed with fallback silently.             | CI gates that must not prompt or auto-invoke.    |
+| Value              | Behavior                                                                                      | Use case                                         |
+| ------------------ | --------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| `prompt` (default) | Detect missing preconditions and emit the offer payload for user choice.                      | Interactive use (CLI, IDE).                      |
+| `auto`             | Detect missing preconditions and automatically chain to the upstream skill without prompting. | Headless / autopilot use where prompting blocks. |
+| `skip`             | Detect missing preconditions but do NOT offer or chain. Proceed with fallback silently.       | CI gates that must not prompt or auto-invoke.    |
 
 The knob lives at `harness.config.json.<skill>.autoCapture` and is overridable per-invocation via the skill's MCP input.
 
