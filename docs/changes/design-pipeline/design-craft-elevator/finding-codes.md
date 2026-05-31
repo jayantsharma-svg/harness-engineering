@@ -35,7 +35,8 @@
   - [CRAFT-P001 — Spring Physics Micro-interaction](#craft-p001--spring-physics-micro-interaction)
   - [CRAFT-P002 — Skeleton (Content-Matched)](#craft-p002--skeleton-content-matched)
   - [CRAFT-P003 — Stagger Timing](#craft-p003--stagger-timing)
-  - [CRAFT-P004–P005 — RESERVED (Phase 2 motion / typography)](#craft-p004p005--reserved-phase-2-motion--typography)
+  - [CRAFT-P004 — Page Transition Crossfade](#craft-p004--page-transition-crossfade)
+  - [CRAFT-P005 — Fluid Type Scale](#craft-p005--fluid-type-scale)
   - [CRAFT-P006 — Progressive Corner Rounding](#craft-p006--progressive-corner-rounding)
   - [CRAFT-P007 — Focus Ring Craft](#craft-p007--focus-ring-craft)
   - [CRAFT-P008–P015 — RESERVED (Phase 2 seed completion)](#craft-p008p015--reserved-phase-2-seed-completion)
@@ -43,7 +44,8 @@
 - [CRAFT-B\* — Benchmark identifiers](#craft-b--benchmark-identifiers)
   - [Benchmark-identifier semantics](#benchmark-identifier-semantics)
   - [CRAFT-B001–B005 — anchor benchmark identifiers (seed exemplar set)](#craft-b001b005--anchor-benchmark-identifiers-seed-exemplar-set)
-  - [CRAFT-B006–B100 — RESERVED (catalog growth)](#craft-b006b100--reserved-catalog-growth)
+  - [CRAFT-B006–B050 — RESERVED (seed exemplar set growth)](#craft-b006b050--reserved-seed-exemplar-set-growth)
+  - [CRAFT-B051–B100 — RESERVED (post-seed growth)](#craft-b051b100--reserved-post-seed-growth)
 - [Exemplar references (used by BENCHMARK runs)](#exemplar-references-used-by-benchmark-runs)
 - [Reserved-code authoring convention](#reserved-code-authoring-convention)
 - [Cross-references](#cross-references)
@@ -83,7 +85,7 @@ The range allocation below is the **authoritative reservation** that Phase 1–4
 | ----------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `P001`      | Phase 2 (PR 431) | Shipped (spring-physics — wired into `SEED_PATTERNS`).                                                                                                                                                                  |
 | `P002–P003` | Phase 2          | Shipped (skeleton-content-matched, stagger-timing — wired into `SEED_PATTERNS` from Phase 0 spike artifacts).                                                                                                           |
-| `P004–P005` | Phase 2          | Reserved for the motion / typography sub-categories shipped in parallel (codes claimed in the matching parallel increment so the namespace stays gap-free even when sub-categories ship out-of-band).                   |
+| `P004–P005` | Phase 2          | Shipped (page-transition-crossfade closes the motion sub-category to 3; fluid-type-scale opens the typography sub-category — adds the first foundational-tier polish pattern to the seed).                              |
 | `P006–P007` | Phase 2 (this)   | Shipped (progressive-corner-rounding opens the layout sub-category; focus-ring-craft opens the interaction sub-category — adds the second foundational-tier polish pattern to the seed alongside `CRAFT-P004`).         |
 | `P008–P015` | Phase 2          | Reserved for seed catalog completion (success criterion #8 lists 15 patterns — 3 motion + 3 skeleton + 3 typography + 3 interaction + 3 layout; 2 skeleton + 2 typography + 2 more interaction + 2 more layout remain). |
 | `P016–P075` | Post-v1          | Reserved for the H growth trajectory (target: 75 patterns in 12–24 months).                                                                                                                                             |
@@ -91,13 +93,13 @@ The range allocation below is the **authoritative reservation** that Phase 1–4
 
 **CRAFT-B (benchmark identifiers):**
 
-| Range       | Phase landed     | Status (v1)                                                                                                         |
-| ----------- | ---------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `B001`      | Phase 2 (PR 431) | Shipped (linear-empty-list — wired into `SEED_EXEMPLARS`).                                                          |
-| `B002–B003` | Phase 2 (this)   | Shipped (stripe-loading-state, raycast-command-palette — wired into `SEED_EXEMPLARS` from Phase 0 spike artifacts). |
-| `B004–B005` | Phase 0          | Anchor identifiers reserved for the 2 reserved early v1 exemplars.                                                  |
-| `B006–B050` | Phase 1–2        | Reserved for seed exemplar set (success criterion #9 lists 50 exemplars across 5 types).                            |
-| `B051–B100` | Post-v1          | Reserved for catalog growth (target: 400 exemplars in 12–24 months).                                                |
+| Range       | Phase landed     | Status (v1)                                                                                                                                                                                                  |
+| ----------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `B001`      | Phase 2 (PR 431) | Shipped (linear-empty-list — wired into `SEED_EXEMPLARS`).                                                                                                                                                   |
+| `B002–B003` | Phase 2          | Shipped (stripe-loading-state, raycast-command-palette — wired into `SEED_EXEMPLARS` from Phase 0 spike artifacts).                                                                                          |
+| `B004–B005` | Phase 2 (this)   | Shipped (vercel-error-state, linear-issue-modal — completes the early v1 anchor set so BENCHMARK covers all five canonical componentTypes: EmptyState / LoadingState / CommandPalette / ErrorState / Modal). |
+| `B006–B050` | Phase 1–2        | Reserved for seed exemplar set growth (success criterion #9 lists 50 exemplars across 5 types — horizontal growth from the five anchors above).                                                              |
+| `B051–B100` | Post-v1          | Reserved for catalog growth (target: 400 exemplars in 12–24 months).                                                                                                                                         |
 
 Beyond 100 in any family, the type system continues to accept the format, but no allocation rules apply — those codes belong to future versions and require an explicit allocation update.
 
@@ -187,15 +189,16 @@ Every `CRAFT-C*` and `CRAFT-P*` finding includes a `derived.priority: number` fi
 
 Each catalog entry's `source.ref` field cites a published authority. The seed prefixes:
 
-| Prefix                      | Authority                                                                          |
-| --------------------------- | ---------------------------------------------------------------------------------- |
-| `huashu-design#`            | huashu-design (REFERENCES.md #4) — the seed source for the 5-dim radar model.      |
-| `vercel-geist#`             | Vercel's Geist design system — public, comprehensive, frequently cited.            |
-| `emil-design-eng#`          | emilkowalski/skill (REFERENCES.md) — the working reference on motion design craft. |
-| `linear-app`                | Linear product surface — exemplar source for restrained empty/loading states.      |
-| `stripe-checkout`           | Stripe checkout surface — exemplar source for production-quality skeletons.        |
-| `raycast-app`               | Raycast product surface — exemplar source for keyboard-driven density.             |
-| `design-component-anatomy/` | Internal harness knowledge skill (shared with sub-project #2's audit).             |
+| Prefix                      | Authority                                                                                                        |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `huashu-design#`            | huashu-design (REFERENCES.md #4) — the seed source for the 5-dim radar model.                                    |
+| `vercel-geist#`             | Vercel's Geist design system — public, comprehensive, frequently cited.                                          |
+| `emil-design-eng#`          | emilkowalski/skill (REFERENCES.md) — the working reference on motion design craft.                               |
+| `linear-app`                | Linear product surface — exemplar source for restrained empty/loading states + issue-detail Modal anchor.        |
+| `stripe-checkout`           | Stripe checkout surface — exemplar source for production-quality skeletons.                                      |
+| `raycast-app`               | Raycast product surface — exemplar source for keyboard-driven density.                                           |
+| `vercel-geist#error-state`  | Vercel deploy/build error surface — exemplar source for the ErrorState anchor (calm-and-forensic over alarming). |
+| `design-component-anatomy/` | Internal harness knowledge skill (shared with sub-project #2's audit).                                           |
 
 New prefixes added during catalog growth must be recorded in this table AND in the contribution-format schema validator.
 
@@ -793,11 +796,143 @@ transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 - Introduces a third novel `kind` value (`jsx-pattern`) — schema remains open-ended on `kind`.
 - The `after` block cross-references `pattern-spring-physics` (`CRAFT-P001`). The schema does not currently model pattern-to-pattern dependencies; Phase 0 spike flagged this for future consideration.
 
-### CRAFT-P004–P005 — RESERVED (Phase 2 motion / typography)
+### CRAFT-P004 — Page Transition Crossfade
 
-`P004` and `P005` are reserved for the two patterns shipping in the parallel Phase 2 motion / typography increment (page-transition-crossfade closes the motion sub-category to 3; fluid-type-scale opens the typography sub-category). The codes are reserved here so the namespace stays gap-free even when sub-categories ship out-of-band.
+**Catalog entry id:** `pattern-page-transition-crossfade`
 
-> **`P004` and `P005` are RESERVED until the parallel increment lands.** See [Reserved-code authoring convention](#reserved-code-authoring-convention).
+**Tier / impact:** `tier: foundational`, `impact: medium`. The first foundational-tier pattern in the polish seed — the absence of a route transition is felt as a craft defect (the SPA feels "snappy" but cheap), so the tier reads as foundational even though the move itself is a finishing touch.
+
+**Applicable to** (pattern-match discriminators from `applicableTo`):
+
+- `{ kind: 'jsx-pattern', match: 'AnimatePresence' }`
+- `{ kind: 'identifier', match: 'usePathname' }`
+- `{ kind: 'identifier', match: 'useRouter' }`
+- `{ kind: 'css-property', match: 'view-transition-name' }`
+
+**Source citation:** `vercel-geist#page-transition` — <https://vercel.com/geist/motion>
+
+**Trigger condition `when`:**
+
+> Route changes swap the current page for the next with no visual continuity. The eye reads the change as a hard reload — even on a SPA — because the only signal is "old DOM gone, new DOM here." This breaks the illusion that the user is navigating one continuous surface and makes the product feel like a stack of disconnected pages.
+
+**Suggestion `suggest`:**
+
+> Wrap the route outlet in a brief opacity crossfade. Recommended timing:
+>
+> - Outgoing page: ~80ms fade-out, ease-out
+> - Incoming page: ~120ms fade-in, ease-out, starting after the outgoing fade resolves (total transition budget ~200ms)
+>
+> Pair with the native CSS view-transitions API where browser support allows; fall back to AnimatePresence (framer-motion) or a CSS class-swap with a transition. Always pair with `prefers-reduced-motion`: skip the fade and swap instantly when the user has motion-sensitivity preferences set. Avoid combining the crossfade with simultaneous content motion (stagger, spring entrances) on the incoming page — the crossfade is the route signal; content-level motion comes after.
+
+**Before (positive — finding emitted):**
+
+```tsx
+// Next.js app router — Layout.tsx (no transition between routes)
+export default function Layout({ children }: { children: ReactNode }) {
+  return <main>{children}</main>;
+}
+```
+
+**After (suggestion content):**
+
+```tsx
+// Using framer-motion AnimatePresence + the route pathname as key
+import { AnimatePresence, motion } from 'framer-motion';
+import { usePathname } from 'next/navigation';
+
+export default function Layout({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.main
+        key={pathname}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.12, ease: 'easeOut' }}
+      >
+        {children}
+      </motion.main>
+    </AnimatePresence>
+  );
+}
+```
+
+**Schema notes:**
+
+- `tier: foundational` × `impact: medium` is a new tier × impact cell for the polish seed — joins `CRAFT-P001` (polish × medium), `CRAFT-P002` (polish × large), `CRAFT-P003` (polish × small), and `CRAFT-P005` (polish × large) in proving the catalogue's tier × impact independence (Phase 0 review observation O3).
+- Closes the v1 motion sub-category at 3 patterns (P001 spring-physics, P003 stagger-timing, P004 page-transition-crossfade) per success criterion #8.
+- Pairs naturally with `CRAFT-C003` (Motion Quality) — many CRITIQUE motion findings on missing route transitions will recommend this POLISH pattern.
+
+### CRAFT-P005 — Fluid Type Scale
+
+**Catalog entry id:** `pattern-fluid-type-scale`
+
+**Tier / impact:** `tier: polish`, `impact: large`. Fluid type elevates every page with typographic hierarchy, so impact reads as large even though the tier stays `polish` (a project with a fixed type scale is not broken, just unrefined).
+
+**Applicable to** (pattern-match discriminators from `applicableTo`):
+
+- `{ kind: 'css-property', match: 'font-size' }`
+- `{ kind: 'tailwind-class', match: 'text-' }`
+- `{ kind: 'identifier', match: 'fontSize' }`
+- `{ kind: 'css-at-rule', match: 'media' }`
+
+**Source citation:** `vercel-geist#typography` — <https://vercel.com/geist/typography>
+
+**Trigger condition `when`:**
+
+> Typographic scale is defined as a fixed sequence of font-size values (e.g., 14 / 16 / 18 / 24 / 32) and breakpoint-stepped via media queries or Tailwind responsive variants (text-sm md:text-base lg:text-lg). Between breakpoints the type "jumps" — a 1280px viewport gets the desktop size, a 1279px viewport gets the tablet size, with no interpolation. Headlines feel undersized on wide screens and oversized on narrow ones.
+
+**Suggestion `suggest`:**
+
+> Replace stepped sizes with a fluid clamp() scale that interpolates between min and max across a calibrated viewport range. Formula:
+>
+> ```
+> font-size: clamp(<min>, <preferred>, <max>);
+> ```
+>
+> where `<preferred>` is a linear combination of `vi` (viewport inline) and `rem` calibrated to hit `<min>` at your narrow audience viewport (e.g., 360px) and `<max>` at your wide audience viewport (e.g., 1280px).
+>
+> Use a utility (e.g., utopia.fyi, the Geist `fluid()` helper, or a CSS variable per scale step) so the formula is calculated, not guessed. Pair with `text-wrap: balance` on headings and `text-wrap: pretty` on body for the matching wrap-quality move.
+
+**Before (positive — finding emitted):**
+
+```css
+/* CSS — fixed scale, breakpoint-stepped */
+.title {
+  font-size: 1.5rem;
+}
+@media (min-width: 768px) {
+  .title {
+    font-size: 2rem;
+  }
+}
+@media (min-width: 1280px) {
+  .title {
+    font-size: 2.5rem;
+  }
+}
+```
+
+**After (suggestion content):**
+
+```css
+/* CSS — fluid scale calibrated for 360px–1280px audience */
+.title {
+  /* clamp(min, preferred, max) — preferred interpolates linearly */
+  font-size: clamp(1.5rem, 0.93rem + 1.79vi, 2.5rem);
+  text-wrap: balance;
+}
+
+/* Tailwind v4 equivalent using arbitrary value */
+/* <h1 className="text-[clamp(1.5rem,0.93rem+1.79vi,2.5rem)] text-balance"> */
+```
+
+**Schema notes:**
+
+- Introduces two novel `kind` values (`tailwind-class`, `css-at-rule`) relative to the prior four patterns. Phase 0 review observation O2 confirms schema remains open on `kind`.
+- Opens the typography sub-category of the polish seed — P008 + P010 will land in subsequent slices to complete the 3-typography target per success criterion #8.
+- Pairs naturally with `CRAFT-C002` (Typography Craft) — CRITIQUE findings on typographic scale frequently recommend this POLISH pattern as the elevation move.
 
 ### CRAFT-P006 — Progressive Corner Rounding
 
@@ -923,14 +1058,14 @@ button:focus-visible {
 
 **Schema notes:**
 
-- Opens the interaction sub-category of the v1 seed at `tier: foundational` × `impact: large`. Together with the future motion / typography parallel-increment `CRAFT-P004` (foundational × medium), the seed now reaches the foundational tier from two distinct sub-categories — proving the catalog's tier × sub-category independence.
+- Opens the interaction sub-category of the v1 seed at `tier: foundational` × `impact: large`. Together with `CRAFT-P004` page-transition-crossfade (foundational × medium), the seed now reaches the foundational tier from two distinct sub-categories — proving the catalog's tier × sub-category independence.
 - Introduces a fifth `applicableTo.kind` value (`css-pseudo-class`). Schema remains intentionally open on `kind` (Phase 0 review O7).
 - Pairs naturally with `CRAFT-C009` (Interaction Craft) — many interaction critiques will flag the OS-default-looking focus state symptomatically; this pattern is the concrete elevation.
 - Composes with `harness-accessibility` (WCAG 2.4.7) rather than overlapping it: the a11y verifier asserts a focus indicator exists at all; this pattern asserts the indicator reads as part of the product.
 
 ### CRAFT-P008–P015 — RESERVED (Phase 2 seed completion)
 
-Success criterion #8 ships **15 polish patterns** in the H seed (3 motion + 3 skeleton + 3 typography + 3 interaction + 3 layout). Phase 0 + Phase 2 increments have so far defined 5 (motion: spring-physics + stagger-timing; skeleton: content-matched; layout: progressive-corner-rounding; interaction: focus-ring-craft) plus 2 parallel-increment reservations (P004 motion crossfade; P005 typography fluid scale). The remaining 8 patterns in the seed are authored during the remaining Phase 2 Stream B increments.
+Success criterion #8 ships **15 polish patterns** in the H seed (3 motion + 3 skeleton + 3 typography + 3 interaction + 3 layout). Phase 0 + Phase 2 increments have so far shipped 7: motion is complete at 3 (P001 spring-physics, P003 stagger-timing, P004 page-transition-crossfade), and the remaining four sub-categories are each opened by a single pattern (P002 skeleton-content-matched, P005 fluid-type-scale, P006 progressive-corner-rounding, P007 focus-ring-craft). The remaining 8 patterns in the seed are authored during the remaining Phase 2 Stream B increments.
 
 Probable bucket assignments within the band (revised after the layout / interaction opens in this increment):
 
@@ -941,9 +1076,9 @@ Probable bucket assignments within the band (revised after the layout / interact
 | `P012–P013` | Interaction | 2 more interaction patterns to complete the 3-interaction bucket (P007 already focus-ring-craft).  |
 | `P014–P015` | Layout      | 2 more layout patterns to complete the 3-layout bucket (P006 already progressive-corner-rounding). |
 
-The bucket boundaries are guidance only — Phase 2 Stream B authors may rebalance if a category requires more entries than its band reserves.
+The bucket boundaries are guidance only — subsequent slices may rebalance if a category requires more entries than its band reserves.
 
-> **All codes in P008–P015 are RESERVED — to be defined during Phase 2 catalog work.** See [Reserved-code authoring convention](#reserved-code-authoring-convention).
+> **All codes in P008–P015 are RESERVED — to be defined during subsequent Phase 2 catalog work.** See [Reserved-code authoring convention](#reserved-code-authoring-convention).
 
 ### CRAFT-P016–P100 — RESERVED (post-seed growth)
 
@@ -972,25 +1107,33 @@ The radar dimensions are documented in [5-dimension radar (CRAFT-B)](#5-dimensio
 
 The Phase 0 spike produced 3 exemplars and 1 worked benchmark specimen. The anchor `CRAFT-B*` reservations align with the Phase 0 exemplar set so any subsequent BENCHMARK run on these target/exemplar pairs reuses the same code:
 
-| Code         | Anchor exemplar (citation target)                                               | componentType  | Source citation                                                       |
-| ------------ | ------------------------------------------------------------------------------- | -------------- | --------------------------------------------------------------------- |
-| `CRAFT-B001` | `exemplar-linear-empty-list`                                                    | EmptyState     | `linear-app` — <https://linear.app/method>                            |
-| `CRAFT-B002` | `exemplar-stripe-loading-state`                                                 | LoadingState   | `stripe-checkout` — <https://docs.stripe.com/elements/appearance-api> |
-| `CRAFT-B003` | `exemplar-raycast-command-palette`                                              | CommandPalette | `raycast-app` — <https://www.raycast.com>                             |
-| `CRAFT-B004` | Reserved — early v1 ErrorState exemplar (Phase 1 Stream B authors will land it) | ErrorState     | RESERVED                                                              |
-| `CRAFT-B005` | Reserved — early v1 Modal exemplar (Phase 1 Stream B authors will land it)      | Modal          | RESERVED                                                              |
+| Code         | Anchor exemplar (citation target)  | componentType  | Source citation                                                       |
+| ------------ | ---------------------------------- | -------------- | --------------------------------------------------------------------- |
+| `CRAFT-B001` | `exemplar-linear-empty-list`       | EmptyState     | `linear-app` — <https://linear.app/method>                            |
+| `CRAFT-B002` | `exemplar-stripe-loading-state`    | LoadingState   | `stripe-checkout` — <https://docs.stripe.com/elements/appearance-api> |
+| `CRAFT-B003` | `exemplar-raycast-command-palette` | CommandPalette | `raycast-app` — <https://www.raycast.com>                             |
+| `CRAFT-B004` | `exemplar-vercel-error-state`      | ErrorState     | `vercel-geist#error-state` — <https://vercel.com/geist/introduction>  |
+| `CRAFT-B005` | `exemplar-linear-issue-modal`      | Modal          | `linear-app#issue-modal` — <https://linear.app/method>                |
 
 Phase 0 spike `benchmark-specimens/empty-state-vs-linear.md` is the canonical worked example for `CRAFT-B001`: a hypothetical `MyEmptyState` component scored against `exemplar-linear-empty-list`. The specimen output (overall 64, per-dimension scores 65/70/55/80/50, five gaps narratives) demonstrates the full BenchmarkScore shape and confirms the 3-axis × 5-dim schemas hold together.
 
 Per Phase 0 review observation O4, `componentType` (e.g., `CommandPalette`) is a free string — the v1 seed need not ship every exemplar's component-type, but the schema accepts arbitrary types. Raycast's CommandPalette is retained informally as a v2 candidate; the `CRAFT-B003` anchor code remains reserved for its eventual BENCHMARK target so subsequent benchmark runs reuse this identifier.
 
-### CRAFT-B006–B100 — RESERVED (catalog growth)
+`CRAFT-B004` (`exemplar-vercel-error-state`) and `CRAFT-B005` (`exemplar-linear-issue-modal`) close the early v1 anchor set — together with B001–B003 they cover every canonical component type the spec calls out for the 50-exemplar seed (EmptyState / LoadingState / ErrorState / Modal / Button + the informal CommandPalette anchor). Button remains unclaimed; the next exemplar-widen increment will introduce it under `CRAFT-B006` and complete the five canonical anchors.
 
-Codes B006–B050 are reserved for the seed exemplar set (success criterion #9 — 50 exemplars across 5 component types). Each seed exemplar that becomes a BENCHMARK reference target claims the next free `CRAFT-B*` code in landing order during Phase 1 Stream B and Phase 2 Stream B.
+### CRAFT-B006–B050 — RESERVED (seed exemplar set growth)
+
+Codes B006–B050 are reserved for the seed exemplar set's horizontal growth (success criterion #9 — 50 exemplars across 5 component types). Each seed exemplar that becomes a BENCHMARK reference target claims the next free `CRAFT-B*` code in landing order during Phase 1 Stream B and Phase 2 Stream B.
+
+The next slot (`CRAFT-B006`) is unallocated and intended for the first Button anchor exemplar (the only canonical componentType not yet seeded). Subsequent slots fill in per-type as additional exemplars promote to BENCHMARK-target status.
+
+> **All codes in B006–B050 are RESERVED — to be defined as benchmark-target exemplars are landed during seed growth.** See [Reserved-code authoring convention](#reserved-code-authoring-convention).
+
+### CRAFT-B051–B100 — RESERVED (post-seed growth)
 
 Codes B051–B100 are reserved for the H growth trajectory (target: 400 exemplars in 12–24 months). Most exemplars will never be BENCHMARK targets themselves — they accumulate `citationCount` via being cited in other benchmark runs' `exemplars` field. A `CRAFT-B*` code is allocated only when the exemplar becomes a comparison target in its own right.
 
-> **All codes in B006–B100 are RESERVED — to be defined as benchmark-target exemplars are landed.** See [Reserved-code authoring convention](#reserved-code-authoring-convention).
+> **All codes in B051–B100 are RESERVED — to be defined as post-seed benchmark targets land.** See [Reserved-code authoring convention](#reserved-code-authoring-convention).
 
 ---
 
@@ -1021,6 +1164,22 @@ For convenient lookup, the Phase 0 exemplars cited by `CRAFT-B*` anchor identifi
 - **Source citation:** `raycast-app`
 - **Radar reference:** philosophicalCoherence 95, hierarchy 92, craftExecution 95, function 98, innovation 88
 - **Why exemplar:** Canonical reference for keyboard-driven density done right. Proves that "stunning" is not synonymous with "minimal whitespace" but with "every choice intentional."
+
+### `exemplar-vercel-error-state` (referenced by `CRAFT-B004`)
+
+- **Component type:** ErrorState
+- **URL:** <https://vercel.com/docs/deployments/troubleshoot-a-build>
+- **Source citation:** `vercel-geist#error-state` — <https://vercel.com/geist/introduction>
+- **Radar reference:** philosophicalCoherence 92, hierarchy 93, craftExecution 91, function 96, innovation 78
+- **Why exemplar:** Demonstrates the four-part anatomy of a high-craft error surface — name the failure specifically, lead with the recovery action, keep diagnostics available but recessed, communicate severity with typography/color tokens rather than full-bleed red panels. Composes naturally with `CRAFT-C001` (hierarchy), `CRAFT-C006` (restraint), and `CRAFT-C008` (copy voice).
+
+### `exemplar-linear-issue-modal` (referenced by `CRAFT-B005`)
+
+- **Component type:** Modal
+- **URL:** <https://linear.app/method>
+- **Source citation:** `linear-app#issue-modal`
+- **Radar reference:** philosophicalCoherence 94, hierarchy 93, craftExecution 93, function 95, innovation 82
+- **Why exemplar:** Proof point that a Modal can carry significant content density without losing focus — one focal region (not three competing ones), flat surface (no nested cards-in-cards), restrained dimmer (not theatrical blackout), tuned spring motion paired with instant keyboard response, optimistic inline mutations (no blocking spinners). Composes naturally with `CRAFT-C001` (hierarchy), `CRAFT-C006` (restraint), and `CRAFT-C009` (interaction craft).
 
 ---
 
