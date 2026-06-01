@@ -3,18 +3,21 @@
 // Phase 2 catalog increment guard tests.
 //
 // Coverage:
-//   1. SEED_PATTERNS exposes the five Phase 2 patterns in code order
-//      (CRAFT-P001 .. P005) with the right tier x impact pairs asserted
+//   1. SEED_PATTERNS exposes the seven Phase 2 patterns in code order
+//      (CRAFT-P001 .. P007) with the right tier x impact pairs asserted
 //      from the proposal:
-//         spring-physics             polish x medium
-//         skeleton-content-matched   polish x large
-//         stagger-timing             polish x small
-//         page-transition-crossfade  foundational x medium
-//         fluid-type-scale           polish x large
+//         spring-physics              polish x medium
+//         skeleton-content-matched    polish x large
+//         stagger-timing              polish x small
+//         page-transition-crossfade   foundational x medium
+//         fluid-type-scale            polish x large
+//         progressive-corner-rounding polish x small
+//         focus-ring-craft            foundational x large
 //      This locks the catalog's tier-vs-impact independence — adding a
 //      new pattern that conflates the two would surface here. P004 is
 //      the first foundational-tier polish pattern in the seed; P005
-//      opens the typography sub-category.
+//      opens the typography sub-category; P006 opens the layout
+//      sub-category; P007 opens the interaction sub-category.
 //   2. SEED_EXEMPLARS exposes the five seed exemplars across five
 //      component types (EmptyState, LoadingState, CommandPalette,
 //      ErrorState, Modal) so BENCHMARK fans out across every canonical
@@ -44,7 +47,7 @@ import { MockLlmProvider } from '../../../src/design-craft/llm/provider.js';
 import { handleDesignCraft } from '../../../src/mcp/tools/design-craft.js';
 
 describe('design-craft Phase 2 catalog seed — patterns', () => {
-  it('SEED_PATTERNS contains the five Phase 2 patterns in stable order', () => {
+  it('SEED_PATTERNS contains the seven Phase 2 patterns in stable order', () => {
     const ids = SEED_PATTERNS.map((p) => p.id);
     expect(ids).toEqual([
       'pattern-spring-physics',
@@ -52,6 +55,8 @@ describe('design-craft Phase 2 catalog seed — patterns', () => {
       'pattern-stagger-timing',
       'pattern-page-transition-crossfade',
       'pattern-fluid-type-scale',
+      'pattern-progressive-corner-rounding',
+      'pattern-focus-ring-craft',
     ]);
   });
 
@@ -84,6 +89,18 @@ describe('design-craft Phase 2 catalog seed — patterns', () => {
     expect(byId.get('pattern-fluid-type-scale')?.findingTemplate).toMatchObject({
       code: 'CRAFT-P005',
       tier: 'polish',
+      impact: 'large',
+      phase: 'polish',
+    });
+    expect(byId.get('pattern-progressive-corner-rounding')?.findingTemplate).toMatchObject({
+      code: 'CRAFT-P006',
+      tier: 'polish',
+      impact: 'small',
+      phase: 'polish',
+    });
+    expect(byId.get('pattern-focus-ring-craft')?.findingTemplate).toMatchObject({
+      code: 'CRAFT-P007',
+      tier: 'foundational',
       impact: 'large',
       phase: 'polish',
     });
