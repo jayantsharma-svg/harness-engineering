@@ -86,11 +86,11 @@ Counters are exposed via a stable export (for design-craft: `getCatalogStats()`)
 
 Every entry's `version: number` increments on substantive change. Every entry's `status` field is one of:
 
-| Status        | Meaning                                                                                                                            | Default catalog load                                                             |
-| ------------- | ---------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| `stable`      | Vetted, in active use.                                                                                                             | Yes.                                                                             |
-| `draft`       | Proposed, under review.                                                                                                            | Only when `catalog.includeDraft: true`.                                          |
-| `deprecated`  | Superseded or proven harmful. Retained for historical citation resolution. Carries `deprecatedAt` and optional `replacedBy: <id>`. | No — but citations in historical reports MUST still resolve (with annotation). |
+| Status       | Meaning                                                                                                                            | Default catalog load                                                           |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `stable`     | Vetted, in active use.                                                                                                             | Yes.                                                                           |
+| `draft`      | Proposed, under review.                                                                                                            | Only when `catalog.includeDraft: true`.                                        |
+| `deprecated` | Superseded or proven harmful. Retained for historical citation resolution. Carries `deprecatedAt` and optional `replacedBy: <id>`. | No — but citations in historical reports MUST still resolve (with annotation). |
 
 The historical-citation requirement is mandatory for the convergence verifier (sub-project #4) to compare findings across runs without false fixpoints.
 
@@ -98,17 +98,17 @@ The historical-citation requirement is mandatory for the convergence verifier (s
 
 For `harness-design-craft`, the seed-plus-growth model targets (per [`growth-trajectory.md`](../../changes/design-pipeline/design-craft-elevator/growth-trajectory.md)):
 
-| Horizon       | Rubrics | Patterns | Exemplars |
-| ------------- | ------- | -------- | --------- |
-| v1 (week 4)   | 10      | 15       | 50        |
-| 6 months      | ~15     | 35       | 150       |
-| 12-24 months  | 20      | 75       | 400       |
+| Horizon      | Rubrics | Patterns | Exemplars |
+| ------------ | ------- | -------- | --------- |
+| v1 (week 4)  | 10      | 15       | 50        |
+| 6 months     | ~15     | 35       | 150       |
+| 12-24 months | 20      | 75       | 400       |
 
 Rubrics plateau as craft dimensions stabilize; patterns and exemplars continue growing via signal + community contribution. These are projections, not commitments.
 
 ## What the pattern does NOT mandate
 
-- The seed size — that is domain-specific. The pattern requires *justifying* the seed size in the spec.
+- The seed size — that is domain-specific. The pattern requires _justifying_ the seed size in the spec.
 - The catalog file layout — YAML, JSON, or hybrid is the skill's choice. The contribution validator enforces the schema regardless.
 - The signal threshold N — defaults to 5 for design-craft but is configurable per skill.
 - The dashboard rendering of catalog stats — skills may surface per-entry breakdowns, aggregate counters, or both.
