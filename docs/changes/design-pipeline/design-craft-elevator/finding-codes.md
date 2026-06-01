@@ -37,7 +37,9 @@
   - [CRAFT-P003 — Stagger Timing](#craft-p003--stagger-timing)
   - [CRAFT-P004 — Page Transition Crossfade](#craft-p004--page-transition-crossfade)
   - [CRAFT-P005 — Fluid Type Scale](#craft-p005--fluid-type-scale)
-  - [CRAFT-P006–P015 — RESERVED (Phase 1 / Phase 2 seed)](#craft-p006p015--reserved-phase-1--phase-2-seed)
+  - [CRAFT-P006 — Progressive Corner Rounding](#craft-p006--progressive-corner-rounding)
+  - [CRAFT-P007 — Focus Ring Craft](#craft-p007--focus-ring-craft)
+  - [CRAFT-P008–P015 — RESERVED (Phase 2 seed completion)](#craft-p008p015--reserved-phase-2-seed-completion)
   - [CRAFT-P016–P100 — RESERVED (post-seed growth)](#craft-p016p100--reserved-post-seed-growth)
 - [CRAFT-B\* — Benchmark identifiers](#craft-b--benchmark-identifiers)
   - [Benchmark-identifier semantics](#benchmark-identifier-semantics)
@@ -79,14 +81,15 @@ The range allocation below is the **authoritative reservation** that Phase 1–4
 
 **CRAFT-P (polish patterns):**
 
-| Range       | Phase landed     | Status (v1)                                                                                                                                                                                                   |
-| ----------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `P001`      | Phase 2 (PR 431) | Shipped (spring-physics — wired into `SEED_PATTERNS`).                                                                                                                                                        |
-| `P002–P003` | Phase 2          | Shipped (skeleton-content-matched, stagger-timing — wired into `SEED_PATTERNS` from Phase 0 spike artifacts).                                                                                                 |
-| `P004–P005` | Phase 2 (this)   | Shipped (page-transition-crossfade closes the motion sub-category to 3; fluid-type-scale opens the typography sub-category — adds the first foundational-tier polish pattern to the seed).                    |
-| `P006–P015` | Phase 2          | Reserved for seed catalog completion (success criterion #8 lists 15 patterns — 3 motion + 3 skeleton + 3 typography + 3 interaction + 3 layout; 2 skeleton + 2 typography + 3 interaction + 3 layout remain). |
-| `P016–P075` | Post-v1          | Reserved for the H growth trajectory (target: 75 patterns in 12–24 months).                                                                                                                                   |
-| `P076–P100` | Long-term        | Reserved for community contribution + signal-loop proposals.                                                                                                                                                  |
+| Range       | Phase landed     | Status (v1)                                                                                                                                                                                                             |
+| ----------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `P001`      | Phase 2 (PR 431) | Shipped (spring-physics — wired into `SEED_PATTERNS`).                                                                                                                                                                  |
+| `P002–P003` | Phase 2          | Shipped (skeleton-content-matched, stagger-timing — wired into `SEED_PATTERNS` from Phase 0 spike artifacts).                                                                                                           |
+| `P004–P005` | Phase 2          | Shipped (page-transition-crossfade closes the motion sub-category to 3; fluid-type-scale opens the typography sub-category — adds the first foundational-tier polish pattern to the seed).                              |
+| `P006–P007` | Phase 2 (this)   | Shipped (progressive-corner-rounding opens the layout sub-category; focus-ring-craft opens the interaction sub-category — adds the second foundational-tier polish pattern to the seed alongside `CRAFT-P004`).         |
+| `P008–P015` | Phase 2          | Reserved for seed catalog completion (success criterion #8 lists 15 patterns — 3 motion + 3 skeleton + 3 typography + 3 interaction + 3 layout; 2 skeleton + 2 typography + 2 more interaction + 2 more layout remain). |
+| `P016–P075` | Post-v1          | Reserved for the H growth trajectory (target: 75 patterns in 12–24 months).                                                                                                                                             |
+| `P076–P100` | Long-term        | Reserved for community contribution + signal-loop proposals.                                                                                                                                                            |
 
 **CRAFT-B (benchmark identifiers):**
 
@@ -932,22 +935,151 @@ export default function Layout({ children }: { children: ReactNode }) {
 - Opens the typography sub-category of the polish seed — P008 + P010 will land in subsequent slices to complete the 3-typography target per success criterion #8.
 - Pairs naturally with `CRAFT-C002` (Typography Craft) — CRITIQUE findings on typographic scale frequently recommend this POLISH pattern as the elevation move.
 
-### CRAFT-P006–P015 — RESERVED (Phase 1 / Phase 2 seed)
+### CRAFT-P006 — Progressive Corner Rounding
 
-Success criterion #8 ships **15 polish patterns** in the H seed (3 motion + 3 skeleton + 3 typography + 3 interaction + 3 layout). Five are now shipped: P001 spring-physics (motion), P002 skeleton-content-matched (skeleton), P003 stagger-timing (motion), P004 page-transition-crossfade (motion — closes the motion sub-category to 3), P005 fluid-type-scale (typography — opens the typography sub-category). The remaining 10 patterns must be authored across subsequent Phase 2 increments.
+**Catalog entry id:** `pattern-progressive-corner-rounding`
 
-Probable bucket assignments within the band:
+**Tier / impact:** `tier: polish`, `impact: small`. Progressive rounding is a craft elevator that compounds across every nested surface in the product — easy to ship and easy to dismiss in isolation, which is exactly the profile of a small-impact polish move. The LLM may upgrade impact when a target nests many rounded surfaces (a settings panel, a card-in-card layout) where the violation reads across the whole region rather than at one corner.
 
-| Sub-band    | Category    | Patterns to define                                                                                                                       |
-| ----------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `P006–P007` | Skeleton    | 2 more skeleton patterns to complete the 3-skeleton bucket (P002 already content-matched; P006/P007 = skeleton-pulse, skeleton-shimmer?) |
-| `P008–P009` | Typography  | 2 more typography polish patterns (modular-scale-step, tabular-numerals, display-tracking, etc.)                                         |
-| `P010–P012` | Interaction | 3 interaction polish patterns (hover-state-overlay, focus-ring craft, drag-affordance, etc.)                                             |
-| `P013–P015` | Layout      | 3 layout polish patterns (density rhythm, vertical rhythm, gestalt grouping, etc.)                                                       |
+**Applicable to** (pattern-match discriminators from `applicableTo`):
+
+- `{ kind: 'css-property', match: 'border-radius' }`
+- `{ kind: 'jsx-attribute', match: 'borderRadius' }`
+- `{ kind: 'css-variable', match: '--radius' }`
+
+**Source citation:** `emil-design-eng#progressive-rounding` — <https://github.com/emilkowalski/skill/blob/main/skills/emil-design-eng/SKILL.md>
+
+**Trigger condition `when`:**
+
+> A rounded child sits inside a rounded parent with the same (or larger) corner radius as the parent. The eye reads a visible halo between the two corner arcs because they fail to share a common centre. Common failure mode: a `rounded-xl` card containing a `rounded-xl` inner panel; the inner corner protrudes past the outer one.
+
+**Suggestion `suggest`:**
+
+> Compute the child radius as `parentRadius - gap`, where `gap` is the padding between the parent edge and the child edge. The resulting corners are concentric — the inner curve tracks the outer curve and the eye reads one nested shape, not two unrelated rounded rectangles.
+>
+> When the gap exceeds the parent radius the child should be square (`borderRadius: 0`); a positive radius below the gap is worse than no rounding because it telegraphs the mismatch.
+>
+> Pair with a single radius scale (`--radius-sm`, `--radius-md`, `--radius-lg`) so the chain stays consistent as the design system grows.
+
+**Before (positive — finding emitted):**
+
+```tsx
+<div className="p-3 rounded-xl bg-surface-1">
+  <div className="p-3 rounded-xl bg-surface-2">
+    {/* inner corner protrudes past the outer corner */}
+  </div>
+</div>
+```
+
+**After (suggestion content):**
+
+```tsx
+// Outer radius 12px, padding 12px → inner radius 0
+// (gap equals parent radius — square the child).
+<div className="p-3 rounded-xl bg-surface-1">
+  <div className="p-3 rounded-none bg-surface-2">
+    {/* corners are concentric (or square when gap >= radius) */}
+  </div>
+</div>;
+
+// Or, when padding is smaller than the parent radius:
+// outer 12px, padding 4px → inner 8px.
+<div style={{ padding: 4, borderRadius: 12 }}>
+  <div style={{ borderRadius: 8 }} />
+</div>;
+```
+
+**Schema notes:**
+
+- Opens the layout sub-category of the v1 seed at `tier: polish` × `impact: small` — matches `CRAFT-P003` (stagger-timing) on the polish × small cell and confirms the cell is reachable across multiple sub-categories.
+- Introduces a fourth `applicableTo.kind` value (`css-variable`) alongside `css-property`, `jsx-attribute`, `component-name`, `jsx-text`, `jsx-pattern`, `css-selector`, and `animation-property` from earlier patterns. Schema remains intentionally open on `kind` (Phase 0 review O7).
+- Pairs naturally with `CRAFT-C005` (Density & Rhythm) — many rhythm critiques on nested cards will recommend this pattern as the concrete elevation move.
+
+### CRAFT-P007 — Focus Ring Craft
+
+**Catalog entry id:** `pattern-focus-ring-craft`
+
+**Tier / impact:** `tier: foundational`, `impact: large`. Keyboard focus visibility is non-negotiable (WCAG 2.4.7 Level AA) so a missing or invisible ring is a foundational defect, not a polish nicety. The pattern still lives in the CRAFT-P namespace because the elevation move — accent token + offset + halo — is judgment-bound, not enforceable by `:focus-visible { outline: 0 }` greps alone.
+
+**Applicable to** (pattern-match discriminators from `applicableTo`):
+
+- `{ kind: 'css-property', match: 'outline' }`
+- `{ kind: 'css-property', match: 'box-shadow' }`
+- `{ kind: 'css-pseudo-class', match: ':focus' }`
+- `{ kind: 'css-pseudo-class', match: ':focus-visible' }`
+- `{ kind: 'jsx-attribute', match: 'focusVisibleRing' }`
+
+**Source citation:** `emil-design-eng#focus-ring` — <https://github.com/emilkowalski/skill/blob/main/skills/emil-design-eng/SKILL.md>
+
+**Trigger condition `when`:**
+
+> Focus styling is missing (`outline: none` without a replacement), relies on the browser default (1–2px solid ring that ignores brand tokens), or uses the same accent as the resting state (no visible transition on focus). Keyboard users either see nothing or see a ring that reads as a leftover from the OS, not part of the product.
+
+**Suggestion `suggest`:**
+
+> Build the ring from three layers:
+>
+> 1. A 2–3px solid stroke in the brand accent token (`--color-accent-focus`), NOT the default browser blue.
+> 2. An offset of 2–3px (`outline-offset` or a second box-shadow layer) so the ring floats off the element instead of cropping its corners.
+> 3. A soft halo (8–12px box-shadow at 20–30% opacity of the accent) so the ring reads on busy or low-contrast backgrounds.
+>
+> Always pair with `:focus-visible` (not bare `:focus`) so pointer users do not see the ring on click. Respect `prefers-reduced-motion` by skipping the spring/scale on focus-in and crossfading the ring opacity instead.
+>
+> Never ship `outline: 0` (or `outline: none`) without a replacement — the bare reset is the single most common craft + a11y regression.
+
+**Before (positive — finding emitted):**
+
+```css
+button:focus {
+  outline: none;
+}
+
+/* or, worse: */
+button:focus {
+  outline: 1px solid Highlight;
+}
+```
+
+**After (suggestion content):**
+
+```css
+button:focus-visible {
+  outline: 2px solid var(--color-accent-focus);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 6px rgb(from var(--color-accent-focus) r g b / 0.24);
+  transition: box-shadow 120ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button:focus-visible {
+    transition: none;
+  }
+}
+```
+
+**Schema notes:**
+
+- Opens the interaction sub-category of the v1 seed at `tier: foundational` × `impact: large`. Together with `CRAFT-P004` page-transition-crossfade (foundational × medium), the seed now reaches the foundational tier from two distinct sub-categories — proving the catalog's tier × sub-category independence.
+- Introduces a fifth `applicableTo.kind` value (`css-pseudo-class`). Schema remains intentionally open on `kind` (Phase 0 review O7).
+- Pairs naturally with `CRAFT-C009` (Interaction Craft) — many interaction critiques will flag the OS-default-looking focus state symptomatically; this pattern is the concrete elevation.
+- Composes with `harness-accessibility` (WCAG 2.4.7) rather than overlapping it: the a11y verifier asserts a focus indicator exists at all; this pattern asserts the indicator reads as part of the product.
+
+### CRAFT-P008–P015 — RESERVED (Phase 2 seed completion)
+
+Success criterion #8 ships **15 polish patterns** in the H seed (3 motion + 3 skeleton + 3 typography + 3 interaction + 3 layout). Phase 0 + Phase 2 increments have so far shipped 7: motion is complete at 3 (P001 spring-physics, P003 stagger-timing, P004 page-transition-crossfade), and the remaining four sub-categories are each opened by a single pattern (P002 skeleton-content-matched, P005 fluid-type-scale, P006 progressive-corner-rounding, P007 focus-ring-craft). The remaining 8 patterns in the seed are authored during the remaining Phase 2 Stream B increments.
+
+Probable bucket assignments within the band (revised after the layout / interaction opens in this increment):
+
+| Sub-band    | Category    | Patterns to define                                                                                 |
+| ----------- | ----------- | -------------------------------------------------------------------------------------------------- |
+| `P008–P009` | Skeleton    | 2 more skeleton patterns to complete the 3-skeleton bucket (P002 already content-matched).         |
+| `P010–P011` | Typography  | 2 more typography patterns to complete the 3-typography bucket (P005 already fluid-type-scale).    |
+| `P012–P013` | Interaction | 2 more interaction patterns to complete the 3-interaction bucket (P007 already focus-ring-craft).  |
+| `P014–P015` | Layout      | 2 more layout patterns to complete the 3-layout bucket (P006 already progressive-corner-rounding). |
 
 The bucket boundaries are guidance only — subsequent slices may rebalance if a category requires more entries than its band reserves.
 
-> **All codes in P006–P015 are RESERVED — to be defined during subsequent Phase 2 catalog work.** See [Reserved-code authoring convention](#reserved-code-authoring-convention).
+> **All codes in P008–P015 are RESERVED — to be defined during subsequent Phase 2 catalog work.** See [Reserved-code authoring convention](#reserved-code-authoring-convention).
 
 ### CRAFT-P016–P100 — RESERVED (post-seed growth)
 
