@@ -1166,7 +1166,7 @@ last_manual_edit: 2026-06-02T13:32:41.296Z
 
 - **Status:** in-progress
 - **Spec:** docs/changes/compound-engineering-adoption/strategic-anchor/proposal.md
-- **Summary:** Add STRATEGY.md upstream anchor and harness-ideate pre-brainstorm phase. Wires into initialize-harness-project, harness-brainstorming, and harness-roadmap-pilot as grounding sources.
+- **Summary:** Phases 1-6 shipped (schema, harness-strategy skill, init wiring, harness-ideate skill, brainstorming + roadmap-pilot grounding). Phases 7 (BusinessKnowledgeIngestor strategy domain) and 8 (ADRs + AGENTS.md "Strategic Anchor" section) outstanding.
 - **Blockers:** —
 - **Plan:** —
 - **Assignee:** orchestrator-5c895000

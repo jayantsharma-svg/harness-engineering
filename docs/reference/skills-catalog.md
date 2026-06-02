@@ -2,7 +2,7 @@
 
 # Skills Catalog
 
-754 skills across 3 tiers. Tier 1 and 2 skills are registered as slash commands. Tier 3 skills are discoverable via the `search_skills` MCP tool. See the [Features Overview](../guides/features-overview.md) for narrative documentation.
+755 skills across 3 tiers. Tier 1 and 2 skills are registered as slash commands. Tier 3 skills are discoverable via the `search_skills` MCP tool. See the [Features Overview](../guides/features-overview.md) for narrative documentation.
 
 ## Tier 1 — Workflow (14 skills)
 
@@ -141,7 +141,7 @@ Scaffold or migrate a test-suite project (API, E2E/UI, or shared library) with t
 - **Cognitive mode:** constructive-architect
 - **Depends on:** initialize-harness-project
 
-## Tier 2 — Maintenance (37 skills)
+## Tier 2 — Maintenance (38 skills)
 
 ### align-design-system
 
@@ -304,6 +304,15 @@ Identify structural risk hotspots via co-change and churn analysis
 - **Platforms:** claude-code, gemini-cli, cursor, codex
 - **Type:** rigid
 - **Cognitive mode:** analytical-reporter
+
+### harness-ideate
+
+Pre-brainstorm ideation phase. Generates N candidate ideas grounded in STRATEGY.md (when present), critiques each against its strongest objection, ranks by (impact × confidence) ÷ effort with a bounded strategy-alignment tiebreaker, and writes a single ranked Markdown artifact to docs/ideation/<slug>-YYYY-MM-DD.md. Produces ranked ideation — never specs, plans, or code. harness-brainstorming consumes the output.
+
+- **Triggers:** manual
+- **Platforms:** claude-code, gemini-cli, cursor, codex
+- **Type:** rigid
+- **Cognitive mode:** divergent-generator
 
 ### harness-impact-analysis
 
