@@ -34,16 +34,14 @@
 
 2. **Resolve the count.** Default to 10 if `--count` is unset. Clamp silently to `[5, 25]` (`<5` is too few to rank meaningfully; `>25` loses signal). Proceed with the clamped value.
 
-3. **Read `STRATEGY.md` (grounding).** Use a Node one-liner to import `validateStrategy` from `@harness-engineering/core`:
-
-   ```bash
-   node -e "import('@harness-engineering/core').then(m => m.validateStrategy(process.cwd()).then(r => console.log(JSON.stringify(r))))"
-   ```
+3. **Read `STRATEGY.md` (grounding).** Call `read_strategy({ path: process.cwd() })` on the harness MCP server — it returns `{ present, valid, doc?, error? }` and runs validation + parsing inside the server so the project does not need `@harness-engineering/core` installed.
 
    Three cases:
-   - **Absent (`{ present: false }`):** print one line — `STRATEGY.md not present — ranking will use impact × confidence ÷ effort only; no strategy-alignment tiebreaker`. Continue.
-   - **Present and valid:** parse via `parseStrategyDoc` + `asStrategyDoc` and capture the `Target problem`, `Our approach`, `Who it's for`, and `Tracks` section bodies. These four sections drive the strategy-alignment tiebreaker in Phase 4.
-   - **Present but invalid:** print the validation error verbatim and continue without strategy grounding. Do NOT block; this skill is not the place to repair `STRATEGY.md`. Suggest `/harness:strategy` as a follow-up.
+   - **`{ present: false }`:** print one line — `STRATEGY.md not present — ranking will use impact × confidence ÷ effort only; no strategy-alignment tiebreaker`. Continue.
+   - **`{ present: true, valid: true, doc }`:** capture `doc.sections` for `Target problem`, `Our approach`, `Who it's for`, and `Tracks`. These four sections drive the strategy-alignment tiebreaker in Phase 4.
+   - **`{ present: true, valid: false, error }`:** print `error` verbatim and continue without strategy grounding. Do NOT block; this skill is not the place to repair `STRATEGY.md`. Suggest `/harness:strategy` as a follow-up.
+
+   Fallback for environments without the MCP server: `node -e "import('@harness-engineering/core').then(m => m.validateStrategy(process.cwd()).then(r => console.log(JSON.stringify(r))))"` — only works when `@harness-engineering/core` is resolvable from the project's `node_modules`.
 
 4. **Confirm the topic.** Before generating, surface a 2-line summary:
 
@@ -194,10 +192,10 @@ Sort by final score descending. Stable on ties (preserve generation order so the
 
 ## Harness Integration
 
-- **`@harness-engineering/core` consumed by this skill:**
-  - `validateStrategy(cwd)` — Phase 1 routing oracle (mirrors `harness-strategy` Phase 0).
-  - `parseStrategyDoc(raw)` + `asStrategyDoc(parsed)` — Phase 1 grounding parse.
-  - `StrategyDocSchema`, `REQUIRED_STRATEGY_SECTIONS` — type contracts.
+- **Harness MCP tools consumed by this skill** (canonical execution path — no project-local `@harness-engineering/core` required):
+  - `read_strategy({ path })` — Phase 1 grounding oracle. Returns `{ present, valid, doc?, error? }` (the server runs `validateStrategy` + `parseStrategyDoc` + `asStrategyDoc` internally).
+- **`@harness-engineering/core`** (only directly relevant when the MCP server is unavailable):
+  - `validateStrategy(cwd)`, `parseStrategyDoc(raw)` + `asStrategyDoc(parsed)`, `StrategyDocSchema`, `REQUIRED_STRATEGY_SECTIONS`.
 - **Boundary with `harness-strategy`** — strategy WRITES `STRATEGY.md`; ideate READS it. Ideate never modifies `STRATEGY.md` and never offers to repair an invalid one (suggest `/harness:strategy` and continue without grounding).
 - **Boundary with `harness-brainstorming`** — ideate produces a ranked artifact at `docs/ideation/`; brainstorming produces a spec at `docs/changes/<feature>/proposal.md`. They have non-overlapping output locations (Decision 5 of the strategic-anchor proposal). Ideate's artifact may be cited as an input in a brainstorming spec; brainstorming's spec is NEVER auto-derived from ideate's artifact.
 - **Boundary with `harness-roadmap-pilot`** — ideate generates fresh candidates; roadmap-pilot prioritizes existing roadmap entries. If a user wants ranking-only over the existing roadmap, that is roadmap-pilot, not ideate.
@@ -252,7 +250,7 @@ Phase 5:
 
 ### Example: Without STRATEGY.md (no grounding, 5 candidates)
 
-- Phase 1: `validateStrategy` returns `{ present: false }`. Strategy grounding disabled; skill prints the one-line note and continues.
+- Phase 1: `read_strategy` returns `{ present: false }`. Strategy grounding disabled; skill prints the one-line note and continues.
 - Phase 2: 5 candidates generated. No track-alignment guidance applies; coverage of complexity surface remains a rule.
 - Phase 4: ranking uses `(impact × confidence) ÷ effort` only. No tiebreaker bonus is added.
 - Phase 5: artifact frontmatter has `strategy_grounded: false` and `strategy_path: null`. Handoff still routes the user to brainstorming.

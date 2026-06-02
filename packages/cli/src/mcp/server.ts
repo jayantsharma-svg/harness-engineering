@@ -195,6 +195,32 @@ import { testCraftDefinition, handleTestCraft } from './tools/test-craft.js';
 import { knowledgeCraftDefinition, handleKnowledgeCraft } from './tools/knowledge-craft.js';
 // craft-pipeline #10: security-craft LLM-judgment skill (AST-driven signal detection, conservative confidence).
 import { securityCraftDefinition, handleSecurityCraft } from './tools/security-craft.js';
+// strategic-anchor: STRATEGY.md read/validate/write tools so skills don't have
+// to shell out to `node -e "import('@harness-engineering/core')..."` from a cwd
+// that may not have core installed.
+import {
+  validateStrategyDefinition,
+  handleValidateStrategy,
+  readStrategyDefinition,
+  handleReadStrategy,
+  writeStrategyDefinition,
+  handleWriteStrategy,
+} from './tools/strategy.js';
+// pulse config writer + STRATEGY.md seed extractor wrapped as MCP tools.
+import {
+  writePulseConfigDefinition,
+  handleWritePulseConfig,
+  seedPulseFromStrategyDefinition,
+  handleSeedPulseFromStrategy,
+} from './tools/pulse.js';
+// compound lock acquire/release exposed as MCP tools (the SKILL.md previously
+// shelled out to acquireCompoundLock from core).
+import {
+  acquireCompoundLockDefinition,
+  handleAcquireCompoundLock,
+  releaseCompoundLockDefinition,
+  handleReleaseCompoundLock,
+} from './tools/compound.js';
 
 // Re-exported from ./tool-types so tool files can import the type without
 // pulling in server.ts (which would create a cycle). See ./tool-types.ts.
@@ -289,6 +315,13 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
   testCraftDefinition,
   knowledgeCraftDefinition,
   securityCraftDefinition,
+  validateStrategyDefinition,
+  readStrategyDefinition,
+  writeStrategyDefinition,
+  writePulseConfigDefinition,
+  seedPulseFromStrategyDefinition,
+  acquireCompoundLockDefinition,
+  releaseCompoundLockDefinition,
 ].map((def) => ({ ...def, trustedOutput: true }));
 const TOOL_HANDLERS: Record<string, ToolHandler> = {
   validate_project: handleValidateProject as ToolHandler,
@@ -372,6 +405,13 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
   test_craft: handleTestCraft as unknown as ToolHandler,
   knowledge_craft: handleKnowledgeCraft as unknown as ToolHandler,
   security_craft: handleSecurityCraft as unknown as ToolHandler,
+  validate_strategy: handleValidateStrategy as unknown as ToolHandler,
+  read_strategy: handleReadStrategy as unknown as ToolHandler,
+  write_strategy: handleWriteStrategy as unknown as ToolHandler,
+  write_pulse_config: handleWritePulseConfig as unknown as ToolHandler,
+  seed_pulse_from_strategy: handleSeedPulseFromStrategy as unknown as ToolHandler,
+  acquire_compound_lock: handleAcquireCompoundLock as unknown as ToolHandler,
+  release_compound_lock: handleReleaseCompoundLock as unknown as ToolHandler,
 };
 
 const RESOURCE_DEFINITIONS = [

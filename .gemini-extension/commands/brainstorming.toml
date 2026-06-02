@@ -55,13 +55,14 @@ When no arguments are provided (standalone invocation), the skill operates exact
 
 ### Phase 1: EXPLORE -- Gather Context
 
-0a. **Read STRATEGY.md if present at repo root (upstream grounding).** Strategy is the durable product anchor that ranks above feature-level context — read it first so the rest of EXPLORE can cross-reference. Use a Node one-liner that calls `validateStrategy` from `@harness-engineering/core`, then (when valid) `parseStrategyDoc` + `asStrategyDoc`:
+0a. **Read STRATEGY.md if present at repo root (upstream grounding).** Strategy is the durable product anchor that ranks above feature-level context — read it first so the rest of EXPLORE can cross-reference. Call `read_strategy({ path: "<project-root>" })` on the harness MCP server — it returns `{ present, valid, doc?, error? }` and runs validation + parsing inside the server so the project does not need `@harness-engineering/core` installed.
+
+    Fallback for environments without the MCP server (only works when core is resolvable from the project):
 
     ```bash
     node -e "import('@harness-engineering/core').then(async m => {
       const v = await m.validateStrategy(process.cwd());
-      if (!v.present) { console.log(JSON.stringify({ grounded: false, reason: 'absent' })); return; }
-      if (!v.valid) { console.log(JSON.stringify({ grounded: false, reason: 'invalid', error: v.error })); return; }
+      if (!v.ok || !v.value.present) { console.log(JSON.stringify({ grounded: false, reason: 'absent' })); return; }
       const raw = require('fs').readFileSync('STRATEGY.md', 'utf-8');
       console.log(JSON.stringify({ grounded: true, doc: m.asStrategyDoc(m.parseStrategyDoc(raw)) }));
     })"
@@ -351,7 +352,7 @@ Technical claims about existing code, architecture, or tradeoffs MUST cite evide
 
 - **`harness validate`** -- Run after writing the spec. Verifies project health and spec placement.
 - **`harness check-docs`** -- Verify spec does not conflict with existing docs.
-- **`STRATEGY.md` grounding (Phase 1 step 0a)** -- When present at repo root and valid, loaded via `validateStrategy` + `parseStrategyDoc` + `asStrategyDoc` from `@harness-engineering/core`. Soft-fails when absent or invalid; cites strategy sections in the spec's evidence annotations when present. Boundary with `harness-strategy`: brainstorming READS; `harness-strategy` WRITES. Never modify `STRATEGY.md` from this skill.
+- **`STRATEGY.md` grounding (Phase 1 step 0a)** -- When present at repo root and valid, loaded via the `read_strategy` MCP tool (which the harness MCP server backs with `validateStrategy` + `parseStrategyDoc` + `asStrategyDoc` from `@harness-engineering/core` — projects do not need core installed). Soft-fails when absent or invalid; cites strategy sections in the spec's evidence annotations when present. Boundary with `harness-strategy`: brainstorming READS; `harness-strategy` WRITES. Never modify `STRATEGY.md` from this skill.
 - **Spec location** -- `docs/changes/<feature>/proposal.md`.
 - **Handoff** -- Once approved, invoke harness-planning to create the implementation plan.
 - **Session directory** — When session slug is known, handoff goes to `.harness/sessions/<slug>/handoff.json`. The session directory structure is: `handoff.json`, `state.json`, `artifacts.json` (registry of spec/plan paths and file lists). Do not write to `.harness/handoff.json` in session context.
