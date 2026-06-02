@@ -34,7 +34,7 @@ describe('harness models probe', () => {
   }
 
   it('errors when no config and no --endpoint is given', async () => {
-    const result = await runModelsProbe({});
+    const result = await runModelsProbe({ configPath: path.join(tmp, 'missing.json') });
     expect(result.status).toBe('error');
   });
 
