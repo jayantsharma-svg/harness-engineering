@@ -24,7 +24,7 @@ agent:
     local:
       type: pi
       endpoint: http://localhost:1234/v1
-      model: gemma-4-e4b
+      model: [google/gemma-4-e4b]
       # model: [gemma-4-e4b, qwen3:8b, deepseek-coder-v2]
   # Routing — controls WHICH backend handles each use case.
   routing:

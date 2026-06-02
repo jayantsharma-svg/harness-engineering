@@ -4,7 +4,7 @@ version: 1
 created: 2026-03-21
 updated: 2026-05-27
 last_synced: 2026-05-23T20:39:30.138Z
-last_manual_edit: 2026-05-24T15:27:04.258Z
+last_manual_edit: 2026-06-01T21:44:12.683Z
 ---
 
 # Roadmap
@@ -1134,7 +1134,7 @@ last_manual_edit: 2026-05-24T15:27:04.258Z
 - **Summary:** Hardware-aware local model recommender, pool-bounded autonomy with proposal loop, Ollama-first install, dashboard + CLI surfaces. Approved by Chad 2026-05-24.
 - **Blockers:** —
 - **Plan:** —
-- **Assignee:** orchestrator-5c895000
+- **Assignee:** @chadjw
 - **Priority:** —
 - **External-ID:** github:Intense-Visions/harness-engineering#386
 - **Updated-At:** 2026-05-29T21:50:50.314Z
@@ -1149,6 +1149,50 @@ last_manual_edit: 2026-05-24T15:27:04.258Z
 - **Assignee:** —
 - **Priority:** —
 - **External-ID:** github:Intense-Visions/harness-engineering#391
+
+### Central Telemetry Collection
+
+- **Status:** planned
+- **Spec:** docs/changes/central-telemetry/proposal.md
+- **Summary:** Anonymous product analytics via PostHog HTTP API with granular opt-in identity and zero vendor dependencies
+- **Blockers:** —
+- **Plan:** —
+- **Assignee:** —
+- **Priority:** —
+- **External-ID:** github:Intense-Visions/harness-engineering#138
+
+### Compound Engineering Adoption: Strategic Anchor
+
+- **Status:** planned
+- **Spec:** docs/changes/compound-engineering-adoption/strategic-anchor/proposal.md
+- **Summary:** Add STRATEGY.md upstream anchor and harness-ideate pre-brainstorm phase. Wires into initialize-harness-project, harness-brainstorming, and harness-roadmap-pilot as grounding sources.
+- **Blockers:** —
+- **Plan:** —
+- **Assignee:** —
+- **Priority:** —
+- **External-ID:** github:Intense-Visions/harness-engineering#262
+
+### Compound Engineering Adoption: Feedback Loops
+
+- **Status:** planned
+- **Spec:** docs/changes/compound-engineering-adoption/feedback-loops/proposal.md
+- **Summary:** Add harness-pulse and harness-compound skills with two new report-only maintenance tasks (product-pulse daily, compound-candidates weekly). Closes the read-side and post-mortem capture gaps. Deprecates .harness/learnings.md.
+- **Blockers:** —
+- **Plan:** docs/changes/compound-engineering-adoption/feedback-loops/plans/2026-05-05-feedback-loops-phase-1-schema-foundations-plan.md, docs/changes/compound-engineering-adoption/feedback-loops/plans/2026-05-05-feedback-loops-phase-2-harness-compound-skill-plan.md, docs/changes/compound-engineering-adoption/feedback-loops/plans/2026-05-05-feedback-loops-phase-3-harness-pulse-skill-interview-plan.md, docs/changes/compound-engineering-adoption/feedback-loops/plans/2026-05-05-feedback-loops-phase-4-pulse-run-cli-plan.md, docs/changes/compound-engineering-adoption/feedback-loops/plans/2026-05-05-feedback-loops-phase-5-compound-scan-candidates-cli-plan.md, docs/changes/compound-engineering-adoption/feedback-loops/plans/2026-05-05-feedback-loops-phase-6-maintenance-task-registration-plan.md, docs/changes/compound-engineering-adoption/feedback-loops/plans/2026-05-05-feedback-loops-phase-7-orchestrator-cross-skill-integration-plan.md, docs/changes/compound-engineering-adoption/feedback-loops/plans/2026-05-05-feedback-loops-phase-8-documentation-and-adrs-plan.md
+- **Assignee:** —
+- **Priority:** —
+- **External-ID:** github:Intense-Visions/harness-engineering#263
+
+### Compound Engineering Adoption: Review Depth
+
+- **Status:** planned
+- **Spec:** docs/changes/compound-engineering-adoption/review-depth/proposal.md
+- **Summary:** Add adversarial reviewer + framework-persona reviewers (typescript-strict, frontend-races) + Quick/Standard/Deep depth calibration in harness-code-review. Standardizes anchored confidence rubric and unified findings schema across all review personas.
+- **Blockers:** —
+- **Plan:** —
+- **Assignee:** —
+- **Priority:** —
+- **External-ID:** github:Intense-Visions/harness-engineering#264
 
 ## Hermes Adoption
 
@@ -1980,7 +2024,7 @@ last_manual_edit: 2026-05-24T15:27:04.258Z
 - **Summary:** Audit skill detecting missing required anatomy parts (label, helper text, error state, loading state, empty state). Rules sourced from design-component-anatomy reference content. Lowest-ambiguity sub-project. Needs documented overlap-resolution with harness-accessibility (no double-counting label-missing findings).
 - **Blockers:** —
 - **Plan:** docs/changes/design-pipeline/audit-component-anatomy/plans/2026-05-23-audit-component-anatomy-plan.md
-- **Assignee:** orchestrator-5c895000
+- **Assignee:** @chadjw
 - **Priority:** —
 - **External-ID:** github:Intense-Visions/harness-engineering#355
 - **Updated-At:** 2026-05-30T19:57:15.090Z
@@ -2020,15 +2064,15 @@ last_manual_edit: 2026-05-24T15:27:04.258Z
 
 ### design-pipeline sub-project #6: design-craft-elevator
 
-- **Status:** in-progress
+- **Status:** done
 - **Spec:** docs/changes/design-pipeline/design-craft-elevator/proposal.md
 - **Summary:** CEILING-RAISING counterpart to sub-projects #1-#4 (which are floor-raising / consistency-engine work). LLM-judgment-based craft elevator that produces stunning, professional-tier output — not just consistent output. Three distinct capability classes, each requiring different infrastructure than the rule-based audits: (a) aesthetic critique — LLM passes with curated rubrics that flag muddy hierarchy, nested cards, low-contrast accents, generic spinners where skeletons belong; pattern-mirrors REFERENCES.md tier-1 #2 (impeccable.style /impeccable polish commands) and #4 (alchaincyf/huashu-design 5-dimension critique with radar output). (b) Polish pattern library — vocabulary of high-craft moves to APPLY (not enforce): spring physics with named constants, stagger timing, easing curves per gesture, skeleton-matches-content-shape, progressive corner rounding; pattern-mirrors REFERENCES.md tier-1 #3 (emilkowalski/skill emil-design-eng SKILL.md). (c) Exemplar-driven targets — curated reference corpus of "this is the bar" anchors per component type (Linear empty list, Stripe loading state, Raycast command palette, Vercel error page); enables visual/LLM-evaluated proximity-to-exemplar scoring. Fundamentally different infrastructure from #1-#4: LLM passes (not AST/tree-sitter queries), pattern application (not constraint enforcement), exemplar corpus (not rule catalog). Composes into #5 orchestrator alongside the floor-raising audits. See docs/changes/design-pipeline/REFERENCES.md tier-1 entries #2, #3, #4 for direct prior art.
 - **Blockers:** —
 - **Plan:** docs/changes/design-pipeline/design-craft-elevator/plans/2026-05-23-design-craft-elevator-plan.md
-- **Assignee:** orchestrator-5c895000
+- **Assignee:** @chadjw
 - **Priority:** —
 - **External-ID:** github:Intense-Visions/harness-engineering#371
-- **Updated-At:** 2026-05-31T12:25:01.804Z
+- **Updated-At:** 2026-06-01T02:05:29.562Z
 
 ### harness:craft-pipeline orchestrator
 
