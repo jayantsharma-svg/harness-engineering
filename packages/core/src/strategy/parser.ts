@@ -45,14 +45,7 @@ function coerceFrontmatter(raw: unknown): unknown {
   return out;
 }
 
-export function parseStrategyDoc(raw: string): ParsedStrategyDoc {
-  const parsed = matter(raw);
-  const body = parsed.content;
-  const frontmatter = coerceFrontmatter(parsed.data);
-
-  const sections: StrategySection[] = [];
-  const unknownSectionNames: string[] = [];
-
+function findH2Matches(body: string): H2Match[] {
   const h2Re = /^##[ \t]+(.+?)[ \t]*$/gm;
   const matches: H2Match[] = [];
   let m: RegExpExecArray | null;
@@ -63,25 +56,41 @@ export function parseStrategyDoc(raw: string): ParsedStrategyDoc {
       bodyStart: m.index + m[0].length,
     });
   }
+  return matches;
+}
 
+interface SectionsAccumulator {
+  sections: StrategySection[];
+  unknownSectionNames: string[];
+}
+
+function accumulateSection(acc: SectionsAccumulator, name: string, body: string): void {
+  if (KNOWN_SECTION_NAMES.has(name)) {
+    acc.sections.push({ name: name as StrategySectionName, body });
+  } else {
+    acc.unknownSectionNames.push(name);
+  }
+}
+
+function buildSections(body: string, matches: H2Match[]): SectionsAccumulator {
+  const acc: SectionsAccumulator = { sections: [], unknownSectionNames: [] };
   for (let i = 0; i < matches.length; i++) {
     const current = matches[i];
     if (current === undefined) continue;
-    const next = matches[i + 1];
-    const sliceEnd = next?.headingStart ?? body.length;
+    const sliceEnd = matches[i + 1]?.headingStart ?? body.length;
     const sectionBody = body.slice(current.bodyStart, sliceEnd).trim();
-    if (KNOWN_SECTION_NAMES.has(current.name)) {
-      sections.push({ name: current.name as StrategySectionName, body: sectionBody });
-    } else {
-      unknownSectionNames.push(current.name);
-    }
+    accumulateSection(acc, current.name, sectionBody);
   }
+  return acc;
+}
 
-  return {
-    frontmatter,
-    sections,
-    unknownSectionNames,
-  };
+export function parseStrategyDoc(raw: string): ParsedStrategyDoc {
+  const parsed = matter(raw);
+  const body = parsed.content;
+  const frontmatter = coerceFrontmatter(parsed.data);
+  const matches = findH2Matches(body);
+  const { sections, unknownSectionNames } = buildSections(body, matches);
+  return { frontmatter, sections, unknownSectionNames };
 }
 
 /**
