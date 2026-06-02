@@ -110,6 +110,14 @@ Run all validation checks on a harness engineering project
 
 **CLI equivalent:** [`harness validate`](cli-commands.md#harness-validate)
 
+### `validate_strategy`
+
+Validate STRATEGY.md at the project root. Returns { present, valid, error? }. Soft-fails (valid: true) when absent — STRATEGY.md is an optional anchor, not a hard requirement.
+
+**Parameters:**
+
+- `path` (string, required) — Project root directory
+
 ## Code Navigation
 
 ### `code_outline`
@@ -352,6 +360,15 @@ Generate native slash commands for Claude Code and Gemini CLI from harness skill
 
 ## Other
 
+### `acquire_compound_lock`
+
+Acquire a per-category compound lock at .harness/locks/compound-<category>.lock under the project root. Returns { acquired, token, lockPath } on success or { acquired: false, error, holderPid, lockPath } on contention. The returned token must be passed to release_compound_lock when the write completes. Categories must be one of the documented bug-track/knowledge-track categories.
+
+**Parameters:**
+
+- `path` (string, required) — Project root directory
+- `category` (string, required) — Solution category (e.g., 'build-errors', 'architecture-patterns'). See packages/core/src/solutions/schema.ts for the full list.
+
 ### `advise_skills`
 
 Content-based skill recommendations for a spec or feature description. Returns tiered matches with purpose and timing guidance.
@@ -558,6 +575,14 @@ Finalize a naming_craft in-session run by submitting the calling agent's respons
 - `runId` (string, required) — runId returned by the naming_craft collect call
 - `responses` (array, required) — Per-prompt responses. `raw` is the fenced JSON block the calling agent produced.
 
+### `read_strategy`
+
+Read and parse STRATEGY.md at the project root. Returns { present, valid, doc?, error? } where doc is the parsed StrategyDoc when present and valid. Combines validate_strategy + parseStrategyDoc + asStrategyDoc in one call.
+
+**Parameters:**
+
+- `path` (string, required) — Project root directory
+
 ### `recommend_skills`
 
 Recommend skills based on codebase health. Returns sequenced workflow with urgency markers.
@@ -568,6 +593,14 @@ Recommend skills based on codebase health. Returns sequenced workflow with urgen
 - `noCache` (boolean, optional) — Force fresh health snapshot even if cache is fresh
 - `top` (number, optional) — Max recommendations to return (default 5)
 - `recentFiles` (array, optional) — Recently edited files for knowledge skill path-matching
+
+### `release_compound_lock`
+
+Release a previously-acquired compound lock by its token. Returns { released: true } when the token matches a live handle; { released: false, error } otherwise. Idempotent: calling twice with the same token is not an error after the first release.
+
+**Parameters:**
+
+- `token` (string, required) — Token returned by acquire_compound_lock
 
 ### `request_peer_review`
 
@@ -591,6 +624,14 @@ LLM-judgment critique of security posture (TS/JS source). Sixth non-design craft
 - `packages` (array, optional) — Restrict to specific packages under packages/
 - `maxFiles` (number, optional) — Cap source-file count (default: 100)
 - `maxSignalsPerFile` (number, optional) — Cap per-file signal critique (default: 10)
+
+### `seed_pulse_from_strategy`
+
+Read STRATEGY.md at the project root and extract pulse-config seed values: product `name` and `## Key metrics` bullet items. Returns `{ name, keyMetrics, warnings }`. Defensive: every failure mode degrades to a non-empty warnings array rather than throwing.
+
+**Parameters:**
+
+- `path` (string, required) — Project root directory
 
 ### `spec_craft`
 
@@ -645,6 +686,27 @@ Trigger a maintenance task ad-hoc via POST /api/v1/jobs/maintenance. Requires tr
 
 - `taskId` (string, required) — Registered maintenance task identifier (e.g. cleanup-sessions)
 - `params` (object, optional) — Optional task-specific parameters
+
+### `write_pulse_config`
+
+Write a `pulse:` block into harness.config.json at the project root, preserving every other top-level key. Validates against PulseConfigSchema first; does not touch disk on schema failure. Writes harness.config.json.bak on first call only. Atomic via temp-file + rename.
+
+**Parameters:**
+
+- `path` (string, required) — Project root directory
+- `config` (object, required) — PulseConfig to persist (must match PulseConfigSchema)
+- `configPath` (string, optional) — Override path to harness.config.json. Defaults to &lt;project-root>/harness.config.json. Pass an absolute path or a path relative to the project root.
+- `skipBackup` (boolean, optional) — When true, do not write harness.config.json.bak (default: false)
+
+### `write_strategy`
+
+Write a StrategyDoc to STRATEGY.md at the project root. Validates against StrategyDocSchema first; does not touch disk on schema failure. Writes STRATEGY.md.bak on first overwrite (idempotent). Atomic via temp-file + rename.
+
+**Parameters:**
+
+- `path` (string, required) — Project root directory
+- `doc` (object, required) — StrategyDoc to persist (must match StrategyDocSchema)
+- `skipBackup` (boolean, optional) — When true, do not write STRATEGY.md.bak (default: false)
 
 ## Queries & Search
 
