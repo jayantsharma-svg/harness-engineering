@@ -1,6 +1,6 @@
 ---
 name: harness:ideate
-description: Pre-brainstorm ideation phase. Generates N candidate ideas grounded in STRATEGY.md (when present), critiques each against its strongest objection, ranks by (impact × confidence) ÷ effort with a bounded strategy-alignment tiebreaker, and writes a single ranked Markdown artifact to docs/ideation/<slug>-YYYY-MM-DD.md. Produces ranked ideation — never specs, plans, or code. harness-brainstorming consumes the output.
+description: Pre-brainstorm ideation phase. Generates N candidate ideas grounded in STRATEGY.md (when present), critiques each against its strongest objection, ranks by (impact × confidence) ÷ effort with a bounded strategy-alignment tiebreaker, and writes a single ranked Markdown artifact to docs/ideation/[slug]-YYYY-MM-DD.md. Produces ranked ideation — never specs, plans, or code. harness-brainstorming consumes the output.
 argument-hint: '[--focus <focus>] [--count <count>]'
 allowed-tools:
   - Bash
@@ -20,7 +20,7 @@ State: persistent (files: docs/ideation/)
 </context>
 
 <objective>
-Pre-brainstorm ideation phase. Generates N candidate ideas grounded in STRATEGY.md (when present), critiques each against its strongest objection, ranks by (impact × confidence) ÷ effort with a bounded strategy-alignment tiebreaker, and writes a single ranked Markdown artifact to docs/ideation/<slug>-YYYY-MM-DD.md. Produces ranked ideation — never specs, plans, or code. harness-brainstorming consumes the output.
+Pre-brainstorm ideation phase. Generates N candidate ideas grounded in STRATEGY.md (when present), critiques each against its strongest objection, ranks by (impact × confidence) ÷ effort with a bounded strategy-alignment tiebreaker, and writes a single ranked Markdown artifact to docs/ideation/[slug]-YYYY-MM-DD.md. Produces ranked ideation — never specs, plans, or code. harness-brainstorming consumes the output.
 
 Phases:
 
@@ -28,7 +28,7 @@ Phases:
 - generate: Produce N candidate ideas with per-idea fields (premise, persona, complexity, key risk, impact, confidence, effort).
 - critique: For each idea identify the strongest objection; user picks which objections to answer.
 - rank: Score by (impact × confidence) ÷ effort using a 1/2/3 mapping for low/medium/high; apply strategy-alignment as a bounded tiebreaker bonus when STRATEGY.md is present.
-- write: Persist the ranked artifact to docs/ideation/<slug>-YYYY-MM-DD.md (kebab-case slug ≤30 chars, 6-char hash suffix on collision).
+- write: Persist the ranked artifact to docs/ideation/[slug]-YYYY-MM-DD.md (kebab-case slug ≤30 chars, 6-char hash suffix on collision).
   </objective>
 
 <execution_context>
