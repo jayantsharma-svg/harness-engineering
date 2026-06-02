@@ -44,4 +44,13 @@ describe('harness-test-advisor SKILL.md surfaces Coverage Audit mode', () => {
     const whenToUse = body.split('## Prerequisites')[0] ?? '';
     expect(whenToUse).toMatch(/Coverage Audit/);
   });
+
+  const AUDIT_PHASES = ['INVENTORY', 'QUALITY REVIEW', 'GAP REPORT'];
+
+  it.each(PLATFORMS)('%s SKILL.md declares the three Coverage Audit phases', (platform) => {
+    const body = readSkillMd(platform);
+    for (const phase of AUDIT_PHASES) {
+      expect(body, `missing Coverage Audit phase "${phase}" in ${platform}`).toContain(phase);
+    }
+  });
 });
