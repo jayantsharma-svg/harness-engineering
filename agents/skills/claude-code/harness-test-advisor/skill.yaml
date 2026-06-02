@@ -1,6 +1,6 @@
 name: harness-test-advisor
 version: "1.0.0"
-description: Graph-based test selection — answers "what tests should I run?"
+description: Graph-based test selection and project-wide coverage audit — answers "what tests should I run?" or "what's untested?"
 stability: static
 cognitive_mode: advisory-guide
 triggers:

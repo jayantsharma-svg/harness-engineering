@@ -36,6 +36,14 @@ describe('harness-test-advisor Coverage Audit metadata', () => {
     const argNames = meta.cli.args.map((a) => a.name);
     expect(argNames).toContain('audit');
   });
+
+  it.each(PLATFORMS)(
+    '%s skill.yaml description advertises coverage audit alongside selection',
+    (platform) => {
+      const meta = readSkillYaml(platform) as { description: string };
+      expect(meta.description).toMatch(/coverage/i);
+    }
+  );
 });
 
 describe('harness-test-advisor SKILL.md surfaces Coverage Audit mode', () => {
