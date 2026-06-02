@@ -4,7 +4,7 @@ version: 1
 created: 2026-03-21
 updated: 2026-05-27
 last_synced: 2026-05-23T20:39:30.138Z
-last_manual_edit: 2026-06-01T21:44:12.683Z
+last_manual_edit: 2026-06-02T13:16:00.326Z
 ---
 
 # Roadmap
@@ -1163,14 +1163,15 @@ last_manual_edit: 2026-06-01T21:44:12.683Z
 
 ### Compound Engineering Adoption: Strategic Anchor
 
-- **Status:** planned
+- **Status:** in-progress
 - **Spec:** docs/changes/compound-engineering-adoption/strategic-anchor/proposal.md
 - **Summary:** Add STRATEGY.md upstream anchor and harness-ideate pre-brainstorm phase. Wires into initialize-harness-project, harness-brainstorming, and harness-roadmap-pilot as grounding sources.
 - **Blockers:** —
 - **Plan:** —
-- **Assignee:** —
+- **Assignee:** orchestrator-5c895000
 - **Priority:** —
 - **External-ID:** github:Intense-Visions/harness-engineering#262
+- **Updated-At:** 2026-06-02T13:20:11.009Z
 
 ### Compound Engineering Adoption: Feedback Loops
 
@@ -2032,11 +2033,11 @@ last_manual_edit: 2026-06-01T21:44:12.683Z
 ### design-pipeline sub-project #3: audit-brand-compliance
 
 - **Status:** planned
-- **Spec:** —
+- **Spec:** docs/changes/design-pipeline/audit-brand-compliance/proposal.md
 - **Summary:** Audit skill for semantic token misuse, brand voice violations in copy, and asset misuse. Highest-ambiguity sub-project. Blocked on brand-guidelines source-of-truth decision (sub-project #0): extend DESIGN.md schema with structured brand rules, or add a brand-guidelines authoring skill. Overlaps with #1 — raw token bypass goes to #1, semantic misuse to this.
 - **Blockers:** —
 - **Plan:** —
-- **Assignee:** —
+- **Assignee:** @chadjw
 - **Priority:** —
 - **External-ID:** github:Intense-Visions/harness-engineering#356
 
@@ -2268,3 +2269,4 @@ last_manual_edit: 2026-06-01T21:44:12.683Z
 | Hermes Phase 0.1: Reference Slack Bridge                         | @cwarner | assigned | 2026-05-15 |
 | design-pipeline sub-project #2: audit-component-anatomy          | @chadjw  | assigned | 2026-05-23 |
 | design-pipeline sub-project #0: brand-guidelines source-of-truth | @chadjw  | assigned | 2026-05-23 |
+| design-pipeline sub-project #3: audit-brand-compliance           | @chadjw  | assigned | 2026-06-02 |
