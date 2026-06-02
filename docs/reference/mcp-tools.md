@@ -362,7 +362,7 @@ Generate native slash commands for Claude Code and Gemini CLI from harness skill
 
 ### `acquire_compound_lock`
 
-Acquire a per-category compound lock at .harness/locks/compound-<category>.lock under the project root. Returns { acquired, token, lockPath } on success or { acquired: false, error, holderPid, lockPath } on contention. The returned token must be passed to release_compound_lock when the write completes. Categories must be one of the documented bug-track/knowledge-track categories.
+Acquire a per-category compound lock at `.harness/locks/compound-<category>.lock` under the project root. Returns `{ acquired, token, lockPath }` on success or `{ acquired: false, error, holderPid, lockPath }` on contention. The returned token must be passed to release_compound_lock when the write completes. Categories must be one of the documented bug-track/knowledge-track categories.
 
 **Parameters:**
 
