@@ -35,6 +35,12 @@ export { validatePulseConfig } from './pulse';
 export type { PulseConfigValidation } from './pulse';
 
 /**
+ * STRATEGY.md validation — validates the repo-root strategic anchor when present.
+ */
+export { validateStrategy } from './strategy';
+export type { StrategyValidation } from './strategy';
+
+/**
  * Solutions directory validation — walks `docs/solutions/<track>/<category>/*.md` and
  * validates each frontmatter against `SolutionDocFrontmatterSchema`.
  */
