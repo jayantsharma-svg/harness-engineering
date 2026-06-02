@@ -53,4 +53,17 @@ describe('harness-test-advisor SKILL.md surfaces Coverage Audit mode', () => {
       expect(body, `missing Coverage Audit phase "${phase}" in ${platform}`).toContain(phase);
     }
   });
+
+  const CANARY_SKILLS = [
+    'canary:canary-review-test',
+    'canary:canary-write-test',
+    'canary:canary-pick-framework',
+  ];
+
+  it.each(PLATFORMS)('%s SKILL.md routes audit follow-ups to canary plugin skills', (platform) => {
+    const body = readSkillMd(platform);
+    for (const skill of CANARY_SKILLS) {
+      expect(body, `missing canary skill reference "${skill}" in ${platform}`).toContain(skill);
+    }
+  });
 });
