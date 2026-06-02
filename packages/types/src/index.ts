@@ -194,6 +194,17 @@ export type {
   SolutionDocFrontmatter,
 } from './solutions';
 
+// --- Strategy (STRATEGY.md upstream anchor) ---
+export { REQUIRED_STRATEGY_SECTIONS, OPTIONAL_STRATEGY_SECTIONS } from './strategy';
+export type {
+  StrategyFrontmatter,
+  StrategySection,
+  StrategyDoc,
+  StrategySectionName,
+  RequiredStrategySection,
+  OptionalStrategySection,
+} from './strategy';
+
 // --- Maintenance ---
 export type {
   MaintenanceConfig,

@@ -234,6 +234,11 @@ export * from './pulse';
 export * from './solutions';
 
 /**
+ * Strategy module — STRATEGY.md schema, parser, and exports.
+ */
+export * from './strategy';
+
+/**
  * Skill proposals module (Hermes Phase 4) — `.harness/proposals/` storage,
  * usage derivation, and `emit_skill_proposal` payload helpers.
  */

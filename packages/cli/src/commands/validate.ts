@@ -8,6 +8,7 @@ import {
   validateKnowledgeMap,
   validatePulseConfig,
   validateSolutionsDir,
+  validateStrategy,
   validateRoadmapMode,
 } from '@harness-engineering/core';
 import { resolveConfig } from '../config/loader';
@@ -37,6 +38,7 @@ interface ValidateResult {
     knowledgeMap: boolean;
     agentConfigs?: boolean;
     pulseConfig?: boolean;
+    strategyConfig?: boolean;
     solutionsDir?: boolean;
     roadmapMode?: boolean;
     componentAnatomy?: boolean;
@@ -136,6 +138,24 @@ export async function runValidate(
       message: pulseResult.error.message,
       ...(pulseResult.error.suggestions?.[0] !== undefined && {
         suggestion: pulseResult.error.suggestions[0],
+      }),
+    });
+  }
+
+  // STRATEGY.md (optional — passes if absent; fails when present and malformed)
+  const strategyResult = await validateStrategy(cwd);
+  if (strategyResult.ok) {
+    result.checks.strategyConfig = true;
+  } else {
+    result.valid = false;
+    result.checks.strategyConfig = false;
+    result.issues.push({
+      check: 'strategyConfig',
+      file: 'STRATEGY.md',
+      severity: 'error',
+      message: strategyResult.error.message,
+      ...(strategyResult.error.suggestions?.[0] !== undefined && {
+        suggestion: strategyResult.error.suggestions[0],
       }),
     });
   }
