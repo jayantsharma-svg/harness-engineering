@@ -22,7 +22,9 @@ async function loadConnectorConfig(
  * Run the three BusinessKnowledge ingestion methods against the canonical
  * project paths (docs/knowledge, docs/solutions, STRATEGY.md) and merge the
  * results. Shared between the `--source knowledge` branch and the `--all`
- * path so both produce the same node coverage.
+ * path so both produce the same node coverage. Takes an already-constructed
+ * ingestor so the caller imports `BusinessKnowledgeIngestor` once via the
+ * top-level dynamic import bundle.
  */
 async function ingestBusinessKnowledge(
   bk: {
@@ -32,10 +34,11 @@ async function ingestBusinessKnowledge(
   },
   projectPath: string
 ): Promise<IngestResult> {
-  const knowledge = await bk.ingest(path.join(projectPath, 'docs', 'knowledge'));
-  const solutions = await bk.ingestSolutions(path.join(projectPath, 'docs', 'solutions'));
-  const strategy = await bk.ingestStrategy(path.join(projectPath, 'STRATEGY.md'));
-  return mergeResults(knowledge, solutions, strategy);
+  return mergeResults(
+    await bk.ingest(path.join(projectPath, 'docs', 'knowledge')),
+    await bk.ingestSolutions(path.join(projectPath, 'docs', 'solutions')),
+    await bk.ingestStrategy(path.join(projectPath, 'STRATEGY.md'))
+  );
 }
 
 function mergeResults(...results: IngestResult[]): IngestResult {
@@ -90,25 +93,17 @@ export async function runIngest(
     const codeResult = await new CodeIngestor(store, ingestOptions).ingest(projectPath);
     new TopologicalLinker(store).link();
     const knowledgeResult = await new KnowledgeIngestor(store).ingestAll(projectPath);
-    // Run BusinessKnowledgeIngestor against the same paths exercised by
-    // `--source knowledge` so `--all` and `--source knowledge` produce the
-    // same node coverage for docs/knowledge, docs/solutions, STRATEGY.md.
-    // Follow-up from PR #511 which fixed the `--source knowledge` branch only.
-    const bkResult = await ingestBusinessKnowledge(
-      new BusinessKnowledgeIngestor(store),
-      projectPath
-    );
+    // Follow-up from PR #511: --all now exercises BK paths too.
+    const bkInst = new BusinessKnowledgeIngestor(store);
+    const bkResult = await ingestBusinessKnowledge(bkInst, projectPath);
     const reqResult = await new RequirementIngestor(store).ingestSpecs(
       path.join(projectPath, 'docs', 'changes')
     );
     const gitResult = await new GitIngestor(store).ingest(projectPath);
-
-    // Run code signal extractors (business-signals)
     const { createExtractionRunner } = await import('@harness-engineering/graph');
     const extractedDir = path.join(projectPath, '.harness', 'knowledge', 'extracted');
     const signalsResult = await createExtractionRunner().run(projectPath, store, extractedDir);
 
-    // Also run configured external connectors via SyncManager
     const syncManager = new SyncManager(store, graphDir);
     const connectorMap: Record<string, () => GraphConnector> = {
       jira: () => new JiraConnector(),
