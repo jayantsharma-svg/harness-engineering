@@ -175,6 +175,57 @@ Specific persona we serve, not "developers" generically.
       expect(strategyFacts).toHaveLength(0);
       expect(result.verdict).not.toBe('fail');
     });
+
+    // Issue #504 Finding 3 — ADRs written by harness-architecture-advisor at
+    // docs/architecture/<topic>/ADR-*.md should flow into the pipeline as
+    // decision nodes so projects whose primary docs are ADRs no longer report
+    // empty extraction.
+    it('ingests docs/architecture/<topic>/ADR-*.md as decision nodes', async () => {
+      const archDir = path.join(tmpDir, 'docs', 'architecture', 'auth');
+      await fs.mkdir(archDir, { recursive: true });
+      await fs.writeFile(
+        path.join(archDir, 'ADR-001.md'),
+        `# ADR-001: Centralize auth in AuthService
+
+**Date:** 2026-04-27
+**Status:** Accepted
+**Deciders:** @cwarner
+
+## Decision
+
+Route all auth through AuthService.
+`,
+        'utf-8'
+      );
+
+      const runner = new KnowledgePipelineRunner(store);
+      const result = await runner.run(makeOptions());
+
+      expect(result.extraction.decisions).toBeGreaterThanOrEqual(1);
+      const node = store.getNode('decision:architecture:auth:ADR-001');
+      expect(node).not.toBeNull();
+      expect(node!.metadata.domain).toBe('auth');
+      expect(node!.metadata.source).toBe('architecture');
+    });
+
+    it('surfaces BusinessKnowledgeIngestor frontmatter errors on the result', async () => {
+      // Schema-invalid solutions doc: missing last_updated (required field).
+      const solutionsDir = path.join(tmpDir, 'docs', 'solutions', 'knowledge-track', 'conventions');
+      await fs.mkdir(solutionsDir, { recursive: true });
+      await fs.writeFile(
+        path.join(solutionsDir, 'bad.md'),
+        '---\ntrack: knowledge-track\ncategory: conventions\nmodule: x\ntags: []\nproblem_type: pattern\n---\n\n# Bad\n',
+        'utf-8'
+      );
+
+      const runner = new KnowledgePipelineRunner(store);
+      const result = await runner.run(makeOptions());
+
+      // The validation failure must reach the caller via result.errors so the
+      // CLI can render it. Previously these errors were silently discarded.
+      expect(result.errors.length).toBeGreaterThan(0);
+      expect(result.errors.join('\n')).toMatch(/bad\.md/);
+    });
   });
 
   describe('gap report', () => {

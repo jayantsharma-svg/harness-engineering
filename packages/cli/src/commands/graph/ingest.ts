@@ -18,6 +18,29 @@ async function loadConnectorConfig(
   }
 }
 
+/**
+ * Run the three BusinessKnowledge ingestion methods against the canonical
+ * project paths (docs/knowledge, docs/solutions, STRATEGY.md) and merge the
+ * results. Shared between the `--source knowledge` branch and the `--all`
+ * path so both produce the same node coverage. Takes an already-constructed
+ * ingestor so the caller imports `BusinessKnowledgeIngestor` once via the
+ * top-level dynamic import bundle.
+ */
+async function ingestBusinessKnowledge(
+  bk: {
+    ingest: (dir: string) => Promise<IngestResult>;
+    ingestSolutions: (dir: string) => Promise<IngestResult>;
+    ingestStrategy: (file: string) => Promise<IngestResult>;
+  },
+  projectPath: string
+): Promise<IngestResult> {
+  return mergeResults(
+    await bk.ingest(path.join(projectPath, 'docs', 'knowledge')),
+    await bk.ingestSolutions(path.join(projectPath, 'docs', 'solutions')),
+    await bk.ingestStrategy(path.join(projectPath, 'STRATEGY.md'))
+  );
+}
+
 function mergeResults(...results: IngestResult[]): IngestResult {
   return results.reduce(
     (acc, r) => ({
@@ -70,17 +93,17 @@ export async function runIngest(
     const codeResult = await new CodeIngestor(store, ingestOptions).ingest(projectPath);
     new TopologicalLinker(store).link();
     const knowledgeResult = await new KnowledgeIngestor(store).ingestAll(projectPath);
+    // Follow-up from PR #511: --all now exercises BK paths too.
+    const bkInst = new BusinessKnowledgeIngestor(store);
+    const bkResult = await ingestBusinessKnowledge(bkInst, projectPath);
     const reqResult = await new RequirementIngestor(store).ingestSpecs(
       path.join(projectPath, 'docs', 'changes')
     );
     const gitResult = await new GitIngestor(store).ingest(projectPath);
-
-    // Run code signal extractors (business-signals)
     const { createExtractionRunner } = await import('@harness-engineering/graph');
     const extractedDir = path.join(projectPath, '.harness', 'knowledge', 'extracted');
     const signalsResult = await createExtractionRunner().run(projectPath, store, extractedDir);
 
-    // Also run configured external connectors via SyncManager
     const syncManager = new SyncManager(store, graphDir);
     const connectorMap: Record<string, () => GraphConnector> = {
       jira: () => new JiraConnector(),
@@ -90,7 +113,6 @@ export async function runIngest(
       figma: () => new FigmaConnector(),
       miro: () => new MiroConnector(),
     };
-    // Load connector configs and register
     for (const [name, factory] of Object.entries(connectorMap)) {
       const config = await loadConnectorConfig(projectPath, name);
       syncManager.registerConnector(factory(), config);
@@ -101,6 +123,7 @@ export async function runIngest(
     const merged = mergeResults(
       codeResult,
       knowledgeResult,
+      bkResult,
       reqResult,
       gitResult,
       signalsResult,
@@ -123,11 +146,8 @@ export async function runIngest(
       // surfaced as a silent `+0 nodes` for users who probed via this command.
       // See github issue #504 Finding 1.
       const knowledge = await new KnowledgeIngestor(store).ingestAll(projectPath);
-      const bk = new BusinessKnowledgeIngestor(store);
-      const bkKnowledge = await bk.ingest(path.join(projectPath, 'docs', 'knowledge'));
-      const bkSolutions = await bk.ingestSolutions(path.join(projectPath, 'docs', 'solutions'));
-      const bkStrategy = await bk.ingestStrategy(path.join(projectPath, 'STRATEGY.md'));
-      result = mergeResults(knowledge, bkKnowledge, bkSolutions, bkStrategy);
+      const bk = await ingestBusinessKnowledge(new BusinessKnowledgeIngestor(store), projectPath);
+      result = mergeResults(knowledge, bk);
       break;
     }
     case 'git':
