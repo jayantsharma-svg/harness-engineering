@@ -68,6 +68,13 @@ docs and unfilled template placeholders (`packages/core/src/strategy/schema.ts`)
   for the underlying coherent action (this is one of the three anti-patterns
   the interview rejects).
 
+### Good and bad answers (Target problem)
+
+- **Bad (goal):** "Grow our DAU by 20% in 2026." — That is a goal. Strategy answers what bet produces the outcome.
+- **Bad (feature list):** "Add SSO, audit logs, and SCIM." — That is a backlog. Strategy answers why those, in that order, instead of others.
+- **Bad (fluff):** "Be the best context system for AI agents." — Unfalsifiable. Strategy answers what specifically is broken today.
+- **Good:** "Engineering teams accumulate undocumented constraints faster than they can write specs. The result is rework, drift, and onboarding that takes months." — Concrete diagnosis a reader can argue with.
+
 ## harness-roadmap.md / docs/roadmap.md: The Tracker
 
 Authored mechanically via `manage_roadmap` and `harness-roadmap-pilot`.
@@ -106,6 +113,16 @@ Both files feed downstream skills as grounding, but through separate paths:
   `business_fact` nodes from `STRATEGY.md` with
   `metadata.domain === 'strategy'`. The roadmap is **not** ingested into
   the knowledge graph — it's an execution-state artifact, not a fact source.
+
+### Downstream skill read matrix
+
+| Skill                        | Reads `STRATEGY.md`                                      | Reads `docs/roadmap.md`                     |
+| ---------------------------- | -------------------------------------------------------- | ------------------------------------------- |
+| `harness-strategy`           | Authoritative read/write                                 | No                                          |
+| `harness-ideate`             | Phase 1 focus context; strategy-alignment tiebreaker     | No                                          |
+| `harness-brainstorming`      | Phase 1 EXPLORE step 0a; cites in spec evidence          | No                                          |
+| `harness-roadmap-pilot`      | Phase 2 RECOMMEND step 1a; strategy-alignment tiebreaker | Authoritative read/write                    |
+| `harness-knowledge-pipeline` | Via `BusinessKnowledgeIngestor.ingestStrategy()`         | No (roadmap is not ingested as graph nodes) |
 
 ## Common Mistakes
 
