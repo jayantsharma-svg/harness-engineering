@@ -384,6 +384,28 @@ describe('runIngest', () => {
       expect(result.edgesAdded).toBe(26);
     });
 
+    it('also runs BusinessKnowledgeIngestor against docs/knowledge, docs/solutions, STRATEGY.md', async () => {
+      // Issue #504 follow-up — symmetry with `--source knowledge` (PR #511).
+      // Without this wiring, --all leaves the BK substrate (docs/knowledge,
+      // docs/solutions, STRATEGY.md) unscanned, so projects relying on --all
+      // miss their richest knowledge sources.
+      mockedReadFile.mockRejectedValue(new Error('no config'));
+
+      await runIngest('/project', '', { all: true });
+
+      expect(mockBkIngest).toHaveBeenCalled();
+      expect(mockBkIngestSolutions).toHaveBeenCalled();
+      expect(mockBkIngestStrategy).toHaveBeenCalled();
+
+      // Verify the right paths are passed.
+      const bkArgs = mockBkIngest.mock.calls[0]![0];
+      expect(String(bkArgs)).toContain(`docs${require('node:path').sep}knowledge`);
+      const solArgs = mockBkIngestSolutions.mock.calls[0]![0];
+      expect(String(solArgs)).toContain(`docs${require('node:path').sep}solutions`);
+      const stratArgs = mockBkIngestStrategy.mock.calls[0]![0];
+      expect(String(stratArgs)).toContain('STRATEGY.md');
+    });
+
     it('accumulates errors from all sources', async () => {
       mockCodeIngest.mockResolvedValue({
         nodesAdded: 1,

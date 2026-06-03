@@ -70,6 +70,14 @@ export async function runIngest(
     const codeResult = await new CodeIngestor(store, ingestOptions).ingest(projectPath);
     new TopologicalLinker(store).link();
     const knowledgeResult = await new KnowledgeIngestor(store).ingestAll(projectPath);
+    // Run BusinessKnowledgeIngestor against the same paths exercised by
+    // `--source knowledge` so `--all` and `--source knowledge` produce the
+    // same node coverage for docs/knowledge, docs/solutions, STRATEGY.md.
+    // Follow-up from PR #511 which fixed the `--source knowledge` branch only.
+    const bk = new BusinessKnowledgeIngestor(store);
+    const bkKnowledgeResult = await bk.ingest(path.join(projectPath, 'docs', 'knowledge'));
+    const bkSolutionsResult = await bk.ingestSolutions(path.join(projectPath, 'docs', 'solutions'));
+    const bkStrategyResult = await bk.ingestStrategy(path.join(projectPath, 'STRATEGY.md'));
     const reqResult = await new RequirementIngestor(store).ingestSpecs(
       path.join(projectPath, 'docs', 'changes')
     );
@@ -101,6 +109,9 @@ export async function runIngest(
     const merged = mergeResults(
       codeResult,
       knowledgeResult,
+      bkKnowledgeResult,
+      bkSolutionsResult,
+      bkStrategyResult,
       reqResult,
       gitResult,
       signalsResult,
