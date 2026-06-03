@@ -1,37 +1,72 @@
 # Strategy vs Roadmap: Operational Guidance
 
-This document gives contributors and agents concrete guidance on what belongs in
-`STRATEGY.md` versus `docs/roadmap.md`. For the architectural rationale, see
-[ADR-0035](../knowledge/decisions/0035-strategy-vs-roadmap-separation.md). For why
-strategy is interview-driven (not auto-generated), see
+This document gives contributors concrete guidance on what belongs in
+`STRATEGY.md` versus what belongs in `harness-roadmap.md` / `docs/roadmap.md`.
+For the architectural rationale, see
+[ADR-0035](../knowledge/decisions/0035-strategy-anchor-vs-roadmap-md.md).
+For why strategy is interview-driven, see
 [ADR-0036](../knowledge/decisions/0036-strategy-is-interview-driven.md).
 
-## Decision tree
+## TL;DR
+
+- `STRATEGY.md` — **why we exist** (target problem, persona, key metrics, tracks of work). Rare edits. Repo root, peer of `README.md`.
+- `harness-roadmap.md` / `docs/roadmap.md` — **what we're doing this phase** (items, owners, statuses, blockers). Frequent edits.
+
+If you find yourself updating STRATEGY.md on every sprint, you are using it
+wrong. If you find yourself describing the company's distinctive bet in
+roadmap.md, you are also using it wrong.
+
+## Decision Tree
 
 Ask, in order:
 
-1. **Does this answer change weekly?** (status, blockers, assignees, completion percent)
-   → `docs/roadmap.md`. Update via `harness-roadmap-pilot` or the `manage_roadmap` MCP tool.
+1. **Is this a fact that will still be true a year from now?**
+   → STRATEGY.md (probably).
+2. **Is this a state that changes every few days / weeks?**
+   → roadmap (always).
+3. **Is this a commitment about _direction_ (where the product is going)?**
+   → STRATEGY.md.
+4. **Is this a commitment about _execution_ (who, by when, blocked on what)?**
+   → roadmap.
 
-2. **Does this answer change monthly at most?** (target problem, who it's for, our distinctive bet, key metrics)
-   → `STRATEGY.md`. Update via `/harness:strategy` (interview-driven).
+When in doubt: a STRATEGY.md update should feel like an event worth telling
+the team about. A roadmap update is routine.
 
-3. **Is it a per-feature design decision?** (component shape, API contract, schema)
-   → Neither. Write a spec in `docs/changes/<feature>/proposal.md`, then an ADR in `docs/knowledge/decisions/`.
+## STRATEGY.md: The Anchor
 
-The simple test: **if someone reads it three months from now and the words still apply, it belongs in `STRATEGY.md`.** If it would already be stale by the next phase, it belongs in `docs/roadmap.md`.
+Sections (defined in `packages/types/src/strategy.ts`):
 
-## What `STRATEGY.md` carries
+- **Target problem** — what specifically is broken in the world.
+- **Our approach** — our distinctive bet on how to solve it.
+- **Who it's for** — specific persona, not "developers" generically.
+- **Key metrics** — what counts as winning, where it's measured.
+- **Tracks** — the small set of coherent investments we're making.
+- _Optional_: **Milestones**, **Not working on**, **Marketing**.
 
-Five required H2 sections (validated by `StrategyDocSchema`):
+Authored via `harness-strategy` skill with pushback rules
+(fluff / goal-as-strategy / feature-list-as-strategy detectors capped at
+2 rounds per section). Schema validation rejects header-only "completed"
+docs and unfilled template placeholders (`packages/core/src/strategy/schema.ts`).
 
-- **Target problem** — A concrete diagnosis of what is broken in the world. Not a goal ("grow X"), not a feature list ("add A, B, C"), not fluff ("be the best at Y").
-- **Our approach** — The distinctive bet on how to solve the problem. Why this approach, not the obvious ones?
-- **Who it's for** — A specific persona, narrow enough to disqualify the wrong users. "Developers" is too broad; "senior engineers maintaining long-lived TypeScript monorepos" is the right altitude.
-- **Key metrics** — How we measure whether the bet is paying off. Two or three metrics that are actually measurable, not aspirational.
-- **Tracks** — One-sentence current investment per track of work. Tracks are the broad categories of effort; the roadmap holds the per-phase steps within each track.
+### Belongs in STRATEGY.md
 
-Three optional H2 sections: `Milestones`, `Not working on`, `Marketing`.
+- "We exist because mid-sized engineering teams lose track of why a
+  project is being worked on once handoffs happen mid-phase."
+- "Our bet is that a small durable anchor file beats wiki pages because
+  agents can read it as grounding."
+- "Tracks: anchor adoption, downstream grounding, agent-discoverable
+  surface."
+- "Key metric: percentage of brainstorm specs that cite STRATEGY.md as
+  evidence."
+
+### Does NOT belong in STRATEGY.md
+
+- "Phase 7 ships 2026-Q2." → roadmap (or, if the date matters strategically,
+  put a single bullet under the optional `Milestones` section).
+- "Track X is blocked on Y team." → roadmap.
+- "Add feature A, B, C." → That's a feature list, not a strategy. Push back
+  for the underlying coherent action (this is one of the three anti-patterns
+  the interview rejects).
 
 ### Good and bad answers (Target problem)
 
@@ -40,16 +75,46 @@ Three optional H2 sections: `Milestones`, `Not working on`, `Marketing`.
 - **Bad (fluff):** "Be the best context system for AI agents." — Unfalsifiable. Strategy answers what specifically is broken today.
 - **Good:** "Engineering teams accumulate undocumented constraints faster than they can write specs. The result is rework, drift, and onboarding that takes months." — Concrete diagnosis a reader can argue with.
 
-## What `docs/roadmap.md` carries
+## harness-roadmap.md / docs/roadmap.md: The Tracker
 
-- Features grouped by milestone with statuses (`backlog`, `planned`, `in-progress`, `done`, `blocked`).
-- Per-feature fields: priority (P0–P3), assignee, source spec link, dependencies, completion percent.
-- Assignment history (auto-appended by `harness-roadmap-pilot`).
-- External tracker sync state (when `roadmap.tracker` is configured).
+Authored mechanically via `manage_roadmap` and `harness-roadmap-pilot`.
+Items have:
 
-Roadmap items reference strategy tracks by name in their `track` field. `harness-roadmap-pilot` uses that field to compute strategy-alignment as a tiebreaker bonus during recommendation.
+- `kind` (issue / spec / chore), `title`, `status` (planned / in-progress / blocked / done),
+  `owner`, `phase`, `blocked_by`, `depends_on`.
+- Free-form context lives in the linked spec or change doc, not in the
+  roadmap row.
 
-## How downstream skills use each
+### Belongs in roadmap
+
+- "feat: compound-engineering Strategic Anchor phase 7 — assignee: chad@,
+  status: in-progress, blocked_by: none."
+- "chore: bump @harness-engineering/graph version on release — status: planned."
+- `spec: docs/changes/<feature>/proposal.md — status: review.`
+
+### Does NOT belong in roadmap
+
+- "We exist to help agent-first teams." → STRATEGY.md.
+- "Our distinctive bet is that mechanical enforcement beats code review." →
+  STRATEGY.md.
+
+## How They Connect at Runtime
+
+Both files feed downstream skills as grounding, but through separate paths:
+
+- `harness-brainstorming` Phase 1 EXPLORE reads `STRATEGY.md` if present.
+  It does **not** read the roadmap (the brainstorm scopes a new spec, not
+  the next phase item).
+- `harness-roadmap-pilot` Phase 2 RECOMMEND reads **both**: the roadmap
+  for items + impact × confidence ÷ effort scoring, and STRATEGY.md for
+  the strategy-alignment tiebreaker bonus.
+- `BusinessKnowledgeIngestor.ingestStrategy`
+  (`packages/graph/src/ingest/BusinessKnowledgeIngestor.ts`) emits
+  `business_fact` nodes from `STRATEGY.md` with
+  `metadata.domain === 'strategy'`. The roadmap is **not** ingested into
+  the knowledge graph — it's an execution-state artifact, not a fact source.
+
+### Downstream skill read matrix
 
 | Skill                        | Reads `STRATEGY.md`                                      | Reads `docs/roadmap.md`                     |
 | ---------------------------- | -------------------------------------------------------- | ------------------------------------------- |
@@ -59,14 +124,30 @@ Roadmap items reference strategy tracks by name in their `track` field. `harness
 | `harness-roadmap-pilot`      | Phase 2 RECOMMEND step 1a; strategy-alignment tiebreaker | Authoritative read/write                    |
 | `harness-knowledge-pipeline` | Via `BusinessKnowledgeIngestor.ingestStrategy()`         | No (roadmap is not ingested as graph nodes) |
 
-## Soft-fail semantics
+## Common Mistakes
 
-Every downstream consumer treats `STRATEGY.md` as optional. Projects that genuinely do not need a strategy doc (CLI utilities, libraries, throwaway experiments) can decline the init prompt — `init.strategy.declined: true` is recorded in `.harness/state.json` and the user is not re-prompted. Skills that read the file continue to work; they just skip the grounding step.
+- **Embedding milestone updates in the strategy doc.** Symptom: `last_updated`
+  ticks every week. Fix: move to roadmap; restore strategy's durability.
+- **Describing the company's bet in roadmap row context.** Symptom: a
+  multi-paragraph "why" attached to a roadmap item. Fix: move the "why" to
+  the spec doc; let the roadmap row stay terse.
+- **Re-running `harness-strategy` to capture phase-level progress.** Symptom:
+  Tracks balloon with implementation details. Fix: rephrase the track as a
+  coherent investment ("downstream grounding") rather than a task list
+  ("wire brainstorming, then roadmap-pilot, then…").
+- **Treating absent STRATEGY.md as broken.** Soft-fail throughout — the init
+  step is opt-in, and downstream skills degrade silently. Pestering existing
+  projects is an anti-pattern.
 
-`docs/roadmap.md` is also optional (file-less mode pushes the roadmap into GitHub Issues — see ADRs 0008–0010), but `harness-roadmap-pilot` requires _one_ of the two roadmap modes to be active.
+## See Also
 
-## Authoring rules
-
-- **`STRATEGY.md` is interview-driven.** Run `/harness:strategy` and answer the questions section-by-section. The skill pushes back on fluff, goals, and feature lists, capped at 2 rounds per section. Do not bypass the interview by editing the file directly — `harness validate` rejects empty sections and unmodified `<placeholder>` markers.
-- **`docs/roadmap.md` is tool-driven.** Use `manage_roadmap` MCP operations or `harness-roadmap-pilot` for assignment. Manual edits are preserved (human-always-wins rule), but tool-driven edits are how the file stays consistent with `harness.config.json#roadmap.tracker`.
-- **Cross-references go one way.** Roadmap items may reference strategy tracks by name. Strategy never references specific roadmap items — strategy outlives any one item.
+- [ADR-0035](../knowledge/decisions/0035-strategy-anchor-vs-roadmap-md.md) —
+  STRATEGY.md vs roadmap.md separation of concerns.
+- [ADR-0036](../knowledge/decisions/0036-strategy-is-interview-driven.md) —
+  why strategy is interview-driven and never auto-generated.
+- `agents/skills/claude-code/harness-strategy/SKILL.md` — interview skill.
+- `agents/skills/claude-code/harness-roadmap-pilot/SKILL.md` — roadmap
+  prioritization skill.
+- `packages/core/src/strategy/schema.ts` — Zod schema and validator.
+- `packages/graph/src/ingest/BusinessKnowledgeIngestor.ts` — `ingestStrategy`
+  method.

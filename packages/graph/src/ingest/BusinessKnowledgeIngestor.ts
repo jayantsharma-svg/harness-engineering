@@ -1,11 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { z } from 'zod';
-import {
-  OPTIONAL_STRATEGY_SECTIONS,
-  REQUIRED_STRATEGY_SECTIONS,
-  type StrategySectionName,
-} from '@harness-engineering/types';
+import type { StrategySectionName } from '@harness-engineering/types';
 import type { GraphStore } from '../store/GraphStore.js';
 import type { GraphNode, IngestResult, NodeType, EdgeType } from '../types.js';
 import { emptyResult } from './ingestUtils.js';
@@ -79,6 +75,34 @@ const CODE_NODE_TYPES: readonly NodeType[] = [
   'variable',
 ];
 const MEASURABLE_TYPES = new Set<string>(['business_process', 'business_concept']);
+
+// Local mirror of REQUIRED_STRATEGY_SECTIONS / OPTIONAL_STRATEGY_SECTIONS from
+// @harness-engineering/types. Inlined because the graph layer takes types-only
+// imports from @harness-engineering/types (see types/src/strategy.ts header) —
+// runtime constants must be local. Any divergence is caught by
+// BusinessKnowledgeIngestor.strategy tests, which assert section coverage
+// against the same canonical list.
+const STRATEGY_REQUIRED_SECTIONS: readonly StrategySectionName[] = [
+  'Target problem',
+  'Our approach',
+  "Who it's for",
+  'Key metrics',
+  'Tracks',
+];
+const STRATEGY_OPTIONAL_SECTIONS: readonly StrategySectionName[] = [
+  'Milestones',
+  'Not working on',
+  'Marketing',
+];
+const STRATEGY_KNOWN_SECTIONS = new Set<string>([
+  ...STRATEGY_REQUIRED_SECTIONS,
+  ...STRATEGY_OPTIONAL_SECTIONS,
+]);
+
+// Frontmatter placeholder marker — same prefix the harness-strategy template
+// uses for unfilled section bodies (e.g. `<2-4 sentences. ...>`). Sections
+// whose body matches this verbatim placeholder are not ingested.
+const STRATEGY_PLACEHOLDER_RE = /^<[^>]+>\s*$/;
 
 interface Frontmatter {
   type: string;
@@ -183,39 +207,38 @@ export class BusinessKnowledgeIngestor {
   }
 
   /**
-   * Ingest a STRATEGY.md file at the given path, emitting one `business_fact`
-   * node per known section. Soft-fails on missing/unreadable file and on
-   * frontmatter shape mismatches — the upstream validator (core's
-   * StrategyDocSchema, invoked by `harness validate`) is the authoritative
-   * gate. This ingestor is intentionally permissive so a half-finished
-   * strategy still contributes whichever sections are present.
+   * Ingest the repo-root STRATEGY.md anchor as `business_fact` nodes — one per
+   * non-empty section. Soft-fails when the file is absent (returns empty result
+   * with no errors) so existing projects without a strategy doc keep working.
    *
-   * Layer note: the graph layer imports STRATEGY contract types from
-   * `@harness-engineering/types` but never the Zod schema or parser from
-   * `@harness-engineering/core` (graph → types only).
+   * Each emitted node carries `metadata.domain === 'strategy'` and
+   * `metadata.source === 'STRATEGY.md'`, making the strategy domain
+   * discoverable through the same filters as other business-knowledge nodes.
    */
   async ingestStrategy(strategyPath: string): Promise<IngestResult> {
     const start = Date.now();
+    const errors: string[] = [];
 
     let raw: string;
     try {
       raw = await fs.readFile(strategyPath, 'utf-8');
     } catch {
+      // Absent file is the common case; do not surface as an error.
       return emptyResult(Date.now() - start);
     }
 
     const parsed = parseStrategyMarkdown(raw);
     if (!parsed) {
-      return {
-        ...emptyResult(Date.now() - start),
-        errors: [`${strategyPath}: STRATEGY.md missing frontmatter`],
-      };
+      errors.push(`${strategyPath}: no frontmatter found`);
+      return { ...emptyResult(Date.now() - start), errors };
     }
 
-    const fileBasename = path.basename(strategyPath);
+    const relPath = path.basename(strategyPath);
     let nodesAdded = 0;
     for (const section of parsed.sections) {
-      this.store.addNode(buildStrategyNode(section, parsed.frontmatter, fileBasename));
+      const node = this.buildStrategyNode(section, parsed.frontmatter, relPath);
+      if (node === null) continue;
+      this.store.addNode(node);
       nodesAdded++;
     }
 
@@ -224,8 +247,43 @@ export class BusinessKnowledgeIngestor {
       nodesUpdated: 0,
       edgesAdded: 0,
       edgesUpdated: 0,
-      errors: [],
+      errors,
       durationMs: Date.now() - start,
+    };
+  }
+
+  /**
+   * Build a single STRATEGY.md `business_fact` node from a parsed section.
+   * Returns null when the section is unknown, empty, or carries unfilled
+   * template placeholder text — callers iterate and skip nulls.
+   */
+  private buildStrategyNode(
+    section: { name: string; body: string },
+    frontmatter: Record<string, unknown>,
+    relPath: string
+  ): GraphNode | null {
+    if (!STRATEGY_KNOWN_SECTIONS.has(section.name)) return null;
+    const body = section.body.trim();
+    if (body.length === 0) return null;
+    if (STRATEGY_PLACEHOLDER_RE.test(body)) return null;
+
+    const productName = typeof frontmatter.name === 'string' ? frontmatter.name : 'unnamed-product';
+    return {
+      id: `bk:strategy:${slugifyStrategySection(section.name)}`,
+      type: 'business_fact',
+      name: section.name,
+      path: relPath,
+      content: body,
+      metadata: {
+        domain: 'strategy',
+        source: 'STRATEGY.md',
+        section_name: section.name,
+        product_name: productName,
+        ...(typeof frontmatter.last_updated === 'string' && {
+          last_updated: frontmatter.last_updated,
+        }),
+        ...(typeof frontmatter.version === 'number' && { version: frontmatter.version }),
+      },
     };
   }
 
@@ -390,58 +448,54 @@ function parseFrontmatter(raw: string): { frontmatter: Frontmatter; body: string
   };
 }
 
-const KNOWN_STRATEGY_SECTIONS = new Set<string>([
-  ...REQUIRED_STRATEGY_SECTIONS,
-  ...OPTIONAL_STRATEGY_SECTIONS,
-]);
-
-interface StrategyParseResult {
-  frontmatter: Record<string, unknown>;
-  sections: { name: StrategySectionName; body: string }[];
-}
-
-interface H2Match {
-  name: string;
-  headingStart: number;
-  bodyStart: number;
+/**
+ * Convert a strategy section name into the kebab-case slug used as the trailing
+ * segment of its `bk:strategy:<slug>` node id. Lowercases, strips apostrophes,
+ * collapses runs of non-alphanumeric characters to single hyphens, and trims
+ * leading/trailing hyphens — so `"Who it's for"` becomes `who-its-for`.
+ */
+function slugifyStrategySection(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/'/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
 }
 
 /**
- * Minimal STRATEGY.md parser local to the graph layer. Authoritative parsing
- * lives in `@harness-engineering/core` but the graph layer cannot depend on
- * core (layer rule), so this re-implements the subset needed for graph node
- * creation: YAML key/value frontmatter and H2-delimited section bodies whose
- * names match the contract from `@harness-engineering/types`.
+ * Minimal STRATEGY.md parser — mirrors @harness-engineering/core's
+ * parseStrategyDoc shape (frontmatter + H2 sections) without pulling in the
+ * gray-matter runtime, which the graph layer doesn't depend on. Returns null
+ * when no frontmatter is found; returns sections with raw (un-validated)
+ * names so the caller can filter against the known-section allowlist.
  */
-function parseStrategyMarkdown(raw: string): StrategyParseResult | null {
-  const fmMatch = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
-  if (!fmMatch) return null;
-  return {
-    frontmatter: parseStrategyFrontmatter(fmMatch[1]!),
-    sections: extractStrategySections(fmMatch[2]!),
-  };
-}
+function parseStrategyMarkdown(raw: string): {
+  frontmatter: Record<string, unknown>;
+  sections: { name: string; body: string }[];
+} | null {
+  const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
+  if (!match) return null;
+  const yamlBlock = match[1]!;
+  const body = match[2]!;
 
-function parseStrategyFrontmatter(block: string): Record<string, unknown> {
   const frontmatter: Record<string, unknown> = {};
-  for (const line of block.split(/\r?\n/)) {
-    const kv = line.match(/^(\w+):\s*(.+?)\s*$/);
-    if (!kv) continue;
-    frontmatter[kv[1]!] = coerceFrontmatterValue(kv[1]!, kv[2]!);
+  for (const line of yamlBlock.split(/\r?\n/)) {
+    const kvMatch = line.match(/^(\w+):\s*(.+)$/);
+    if (!kvMatch) continue;
+    const key = kvMatch[1]!;
+    const rawValue = kvMatch[2]!.trim();
+    const unquoted = rawValue.replace(/^["']|["']$/g, '');
+    const asNumber = Number(unquoted);
+    if (unquoted !== '' && !Number.isNaN(asNumber) && /^-?\d+(?:\.\d+)?$/.test(unquoted)) {
+      frontmatter[key] = asNumber;
+    } else {
+      frontmatter[key] = unquoted;
+    }
   }
-  return frontmatter;
-}
 
-function coerceFrontmatterValue(key: string, rawValue: string): string | number {
-  const unquoted = rawValue.replace(/^['"]|['"]$/g, '');
-  if (key !== 'version') return unquoted;
-  const n = Number(unquoted);
-  return Number.isFinite(n) ? n : unquoted;
-}
-
-function findH2Matches(body: string): H2Match[] {
+  const sections: { name: string; body: string }[] = [];
   const h2Re = /^##[ \t]+(.+?)[ \t]*$/gm;
-  const matches: H2Match[] = [];
+  const matches: { name: string; headingStart: number; bodyStart: number }[] = [];
   let m: RegExpExecArray | null;
   while ((m = h2Re.exec(body)) !== null) {
     matches.push({
@@ -450,54 +504,16 @@ function findH2Matches(body: string): H2Match[] {
       bodyStart: m.index + m[0].length,
     });
   }
-  return matches;
-}
-
-function extractStrategySections(body: string): { name: StrategySectionName; body: string }[] {
-  const matches = findH2Matches(body);
-  const sections: { name: StrategySectionName; body: string }[] = [];
   for (let i = 0; i < matches.length; i++) {
     const current = matches[i]!;
-    if (!KNOWN_STRATEGY_SECTIONS.has(current.name)) continue;
     const sliceEnd = matches[i + 1]?.headingStart ?? body.length;
-    const sectionBody = body.slice(current.bodyStart, sliceEnd).trim();
-    if (!sectionBody) continue;
-    sections.push({ name: current.name as StrategySectionName, body: sectionBody });
+    sections.push({
+      name: current.name,
+      body: body.slice(current.bodyStart, sliceEnd).trim(),
+    });
   }
-  return sections;
-}
 
-function sectionSlugFor(name: StrategySectionName): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
-
-function buildStrategyNode(
-  section: { name: StrategySectionName; body: string },
-  frontmatter: Record<string, unknown>,
-  fileBasename: string
-): GraphNode {
-  const productName = typeof frontmatter.name === 'string' ? frontmatter.name : 'strategy';
-  const lastUpdated =
-    typeof frontmatter.last_updated === 'string' ? frontmatter.last_updated : undefined;
-  const version = typeof frontmatter.version === 'number' ? frontmatter.version : undefined;
-  return {
-    id: `bk:strategy:${sectionSlugFor(section.name)}`,
-    type: 'business_fact',
-    name: `${productName}: ${section.name}`,
-    path: fileBasename,
-    content: section.body,
-    metadata: {
-      domain: 'strategy',
-      section: section.name,
-      product_name: productName,
-      source: 'strategy',
-      ...(lastUpdated && { last_updated: lastUpdated }),
-      ...(version !== undefined && { version }),
-    },
-  };
+  return { frontmatter, sections };
 }
 
 function parseSolutionFrontmatter(

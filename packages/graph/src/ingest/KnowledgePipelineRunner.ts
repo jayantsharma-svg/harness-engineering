@@ -291,7 +291,10 @@ export class KnowledgePipelineRunner {
         durationMs: 0,
       };
     }
-    // STRATEGY.md at repo root — produces business_fact nodes per section.
+    // Strategy anchor from repo-root STRATEGY.md (Strategic Anchor phase 7).
+    // Produces business_fact nodes with metadata.domain === 'strategy'. Absent
+    // STRATEGY.md is the common case for existing projects — the ingestor
+    // soft-fails so adoption stays opt-in.
     const strategyPath = path.join(options.projectDir, 'STRATEGY.md');
     let strategyResult: IngestResult;
     try {
@@ -307,7 +310,7 @@ export class KnowledgePipelineRunner {
       };
     }
 
-    // Aggregate solutions and strategy ingestion errors alongside the knowledge
+    // Aggregate solutions + strategy ingestion errors alongside the knowledge
     // ingestion errors so contributors get a unified view of frontmatter /
     // parse failures.
     bkResult = {

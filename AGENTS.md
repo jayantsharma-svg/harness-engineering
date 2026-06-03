@@ -18,6 +18,72 @@ This is the single source of truth for AI agents working on the Harness Engineer
 
 **Complete** — All core packages (types, core, cli, eslint-plugin, linter-gen, graph, intelligence, dashboard, orchestrator), 741 skills (claude-code, gemini-cli, codex, and cursor), 12 personas, 19 templates, and 3 progressive examples are implemented. The project is in adoption and refinement mode. See `examples/` for progressive tutorials.
 
+## Strategic Anchor
+
+This repository ships a **Strategic Anchor system** for projects that adopt
+harness. The anchor lives at `STRATEGY.md` in the repo root (peer of
+`README.md`) and grounds downstream agent skills with product-level context
+that the codebase alone cannot supply.
+
+### What STRATEGY.md is
+
+A short, durable file with five required sections (`Target problem`,
+`Our approach`, `Who it's for`, `Key metrics`, `Tracks`) plus three optional
+sections (`Milestones`, `Not working on`, `Marketing`). Frontmatter carries
+`name`, `last_updated` (ISO date), and `version`. Schema authority lives in
+`packages/types/src/strategy.ts` (cross-layer contract) and
+`packages/core/src/strategy/schema.ts` (Zod runtime validator). `harness validate`
+checks shape when the file exists.
+
+### How agents should read it
+
+1. **Before brainstorming a new feature** — `harness-brainstorming` Phase 1
+   EXPLORE reads `STRATEGY.md` if present and cites it as grounding in the
+   spec's `evidence` section. If a feature contradicts the strategy, surface
+   the contradiction explicitly during EVALUATE rather than auto-resolving.
+
+2. **Before picking the next roadmap item** — `harness-roadmap-pilot` Phase 2
+   RECOMMEND reads `STRATEGY.md` and applies strategy-alignment as a
+   tiebreaker bonus on top of impact × confidence ÷ effort.
+
+3. **Before generating candidate ideas** — `harness-ideate` reads
+   `STRATEGY.md` as grounding before producing ranked ideation under
+   `docs/ideation/<slug>-YYYY-MM-DD.md`.
+
+4. **As graph-queryable facts** — `BusinessKnowledgeIngestor.ingestStrategy`
+   (in `packages/graph/src/ingest/`) emits one `business_fact` node per
+   non-empty section. Nodes are tagged with `metadata.domain === 'strategy'`
+   and `metadata.source === 'STRATEGY.md'`. Query examples:
+   - `findNodes({ type: 'business_fact' })` filtered by `metadata.domain === 'strategy'`
+     returns all strategy sections.
+   - `getNode('bk:strategy:target-problem')` returns the target-problem fact.
+
+### What agents must not do
+
+- **Do not auto-generate `STRATEGY.md` from code, commits, ADRs, or roadmap state.**
+  Strategy is interview-driven only ([ADR-0036](docs/knowledge/decisions/0036-strategy-is-interview-driven.md)).
+  The interview lives in the `harness-strategy` skill and enforces pushback
+  rules (fluff detection, goal-as-strategy rejection,
+  feature-list-as-strategy rejection) capped at 2 rounds per section.
+- **Do not write `STRATEGY.md` section bodies** from any skill other than
+  `harness-strategy`. (Tooling may bump `version` / `last_updated`
+  frontmatter; section bodies are off-limits.)
+- **Do not conflate `STRATEGY.md` with `harness-roadmap.md`.** Strategy is
+  durable product-level anchor; roadmap is tactical phase tracker. See
+  [ADR-0035](docs/knowledge/decisions/0035-strategy-anchor-vs-roadmap-md.md)
+  and [`docs/conventions/strategy-vs-roadmap.md`](docs/conventions/strategy-vs-roadmap.md).
+- **Do not block on absence.** STRATEGY.md is opt-in. Every consumer
+  soft-fails when the file is missing — agents must do the same.
+
+### Adoption surface
+
+- `/harness:strategy` — run interview / update STRATEGY.md.
+- `/harness:ideate` — generate ranked candidate ideas grounded in strategy.
+- `initialize-harness-project` Phase 3 — 3-way yes/no/later question on
+  capturing strategy at project init. Decline persists in
+  `.harness/state.json` as `init.strategy.declined: true` so re-runs
+  respect prior decision.
+
 ## Repository Structure
 
 This is a **monorepo** using pnpm workspaces and Turborepo for orchestration.
@@ -696,24 +762,6 @@ The `search_skills` MCP tool (`packages/cli/src/mcp/tools/search-skills.ts`) que
 The `@harness-skills/*` npm namespace enables publishing, discovering, and installing community skills. Key commands: `harness install`, `harness uninstall`, `harness skill search`, `harness skill create`, `harness skill publish`. Supports local installs (`--from ./path`), private registries (`--registry <url>`), and `.npmrc` auth tokens. Skills are pure content packages (no runtime code). Discovery priority: project-local > community > bundled.
 
 Implementation in `packages/cli/src/registry/` and `packages/cli/src/commands/skill/`. See the [Skill Marketplace Guide](./docs/guides/skill-marketplace.md) for full usage, architecture, and examples.
-
-### Strategic Anchor
-
-`STRATEGY.md` at the repo root is the durable product anchor — a short, high-signal document that captures **target problem**, **our approach**, **who it's for**, **key metrics**, and **tracks** of work. Optional sections: `Milestones`, `Not working on`, `Marketing`. It is peer to `README.md` so both humans and agents discover it without digging.
-
-Authoring is interview-driven via the `harness-strategy` skill (`/harness:strategy`). Authoring is never auto-generated from code or commit history — the value of the doc is the human commitment, not the inference. See [ADR-0036](./docs/knowledge/decisions/0036-strategy-is-interview-driven.md). Pushback rules in the skill reject fluff ("be the best at X"), goals-as-strategy ("grow revenue 20%"), and feature-list-as-strategy ("add A, B, C") with a 2-round cap per section. Schema enforcement (`packages/core/src/strategy/schema.ts`) rejects empty sections and unmodified `<placeholder>` markers, so header-only docs cannot pass `harness validate`.
-
-**How agents read it.** Three downstream skills ground on `STRATEGY.md` when present and soft-fail when absent (no skill blocks):
-
-- `harness-brainstorming` reads it in Phase 1 EXPLORE step 0a and cites it as evidence in the spec's `[evidence]` section. Contradictions between the user's feature description and the strategy are surfaced during EVALUATE rather than auto-resolved.
-- `harness-ideate` reads it in Phase 1 as focus context for candidate generation and uses strategy-alignment as a tiebreaker bonus during ranking.
-- `harness-roadmap-pilot` reads it in Phase 2 RECOMMEND step 1a and applies strategy-alignment as a tiebreaker bonus when candidate items score similarly on `impact × confidence ÷ effort`.
-
-**Separation from `docs/roadmap.md`.** `STRATEGY.md` carries product-level context (per-product cadence, updated when the bet changes). `docs/roadmap.md` carries phase-level execution state (per-phase cadence, updated weekly or per merge). See [ADR-0035](./docs/knowledge/decisions/0035-strategy-vs-roadmap-separation.md) and `docs/conventions/strategy-vs-roadmap.md`.
-
-**Knowledge graph integration.** `BusinessKnowledgeIngestor.ingestStrategy()` (`packages/graph/src/ingest/`) emits one `business_fact` node per known section, stamped with `domain: 'strategy'`, `product_name`, `last_updated`, and `version` metadata. The graph layer reads strategy contract types from `@harness-engineering/types` only — schema validation lives in `@harness-engineering/core` and runs at `harness validate` time.
-
-**Init wiring.** `initialize-harness-project` Phase 3 (CONFIGURE) offers a 3-way prompt — Yes (run the interview), No (record `init.strategy.declined: true` in `.harness/state.json`), Not sure (no-op; user can run `/harness:strategy` later). Existing projects without a `STRATEGY.md` are not pestered: every consumer soft-fails on absence.
 
 ### Project Roadmap
 

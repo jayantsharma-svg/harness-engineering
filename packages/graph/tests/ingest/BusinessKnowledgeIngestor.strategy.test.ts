@@ -6,38 +6,43 @@ import { GraphStore } from '../../src/store/GraphStore.js';
 import { BusinessKnowledgeIngestor } from '../../src/ingest/BusinessKnowledgeIngestor.js';
 
 const SAMPLE_STRATEGY = `---
-name: Harness
+name: Sample Product
 last_updated: 2026-06-02
 version: 1
 ---
 
-# Harness Strategy
+# Sample Product Strategy
 
 ## Target problem
 
-Engineering teams accumulate undocumented constraints faster than they can write specs. The result is rework, drift, and onboarding that takes months.
+Teams ship features without a durable record of why they exist.
 
 ## Our approach
 
-Treat constraints, decisions, and skills as first-class graph nodes that compound over time, so each engineering session leaves the codebase smarter.
+A repo-root anchor file that downstream skills read for grounding.
 
 ## Who it's for
 
-Senior engineers and engineering leads owning long-lived TypeScript monorepos where context loss has measurable cost.
+Engineering teams who lose strategic context across phases.
 
 ## Key metrics
 
-- Time-to-context: median minutes from session start to first useful code change
-- Rework rate: percent of merged PRs that touch the same files within 14 days
+- Adoption: percentage of repos with STRATEGY.md
+- Recall: percentage of brainstorm specs that cite strategy
 
 ## Tracks
 
-- Knowledge graph: keep the ingestion pipeline honest and fast
-- Skill ecosystem: raise the ceiling on agent quality through composable skills
+- Anchor adoption: ship STRATEGY.md schema + skill
+- Downstream grounding: wire brainstorm + ideate + roadmap-pilot
 
-## Not working on
+## Milestones
 
-Real-time multi-user collaboration. Out of scope until single-user flow is solid.
+- 2026-Q2: phase 7 ships
+- 2026-Q3: phase 8 ships
+
+## Marketing
+
+Public launch deferred until adoption telemetry stabilises.
 `;
 
 describe('BusinessKnowledgeIngestor.ingestStrategy', () => {
@@ -48,111 +53,182 @@ describe('BusinessKnowledgeIngestor.ingestStrategy', () => {
   beforeEach(async () => {
     store = new GraphStore();
     ingestor = new BusinessKnowledgeIngestor(store);
-    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'bk-strategy-'));
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'strategy-ingest-'));
   });
 
   afterEach(async () => {
     await fs.rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('produces business_fact nodes for each known section in STRATEGY.md', async () => {
+  it('produces a business_fact node per non-empty strategy section', async () => {
     const strategyPath = path.join(tmpDir, 'STRATEGY.md');
     await fs.writeFile(strategyPath, SAMPLE_STRATEGY, 'utf-8');
 
     const result = await ingestor.ingestStrategy(strategyPath);
 
+    expect(result.nodesAdded).toBe(7); // 5 required + Milestones + Marketing
     expect(result.errors).toEqual([]);
-    expect(result.nodesAdded).toBeGreaterThanOrEqual(1);
 
     const facts = store.findNodes({ type: 'business_fact' });
-    expect(facts.length).toBe(result.nodesAdded);
-
-    const sections = facts.map((n) => n.metadata.section as string);
-    expect(sections).toContain('Target problem');
-    expect(sections).toContain('Our approach');
-    expect(sections).toContain('Key metrics');
-    expect(sections).toContain('Tracks');
-    // Optional sections are emitted only when present.
-    expect(sections).toContain('Not working on');
+    expect(facts.length).toBe(7);
+    expect(facts.every((n) => n.metadata.domain === 'strategy')).toBe(true);
+    expect(facts.every((n) => n.metadata.source === 'STRATEGY.md')).toBe(true);
   });
 
-  it('stamps strategy metadata (domain, product_name, last_updated, version) on every node', async () => {
+  it('satisfies the spec contract: at least one business_fact node from a sample STRATEGY.md', async () => {
     const strategyPath = path.join(tmpDir, 'STRATEGY.md');
     await fs.writeFile(strategyPath, SAMPLE_STRATEGY, 'utf-8');
 
     await ingestor.ingestStrategy(strategyPath);
 
     const facts = store.findNodes({ type: 'business_fact' });
-    expect(facts.length).toBeGreaterThan(0);
-    for (const node of facts) {
-      expect(node.metadata.domain).toBe('strategy');
-      expect(node.metadata.product_name).toBe('Harness');
-      expect(node.metadata.source).toBe('strategy');
-      expect(node.metadata.last_updated).toBe('2026-06-02');
-      expect(node.metadata.version).toBe(1);
-      expect(typeof node.content).toBe('string');
-      expect(node.content!.length).toBeGreaterThan(0);
-    }
+    expect(facts.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('uses stable bk:strategy:<slug> node IDs', async () => {
+  it('uses bk:strategy:<slug> node ids with kebab-cased section names', async () => {
     const strategyPath = path.join(tmpDir, 'STRATEGY.md');
     await fs.writeFile(strategyPath, SAMPLE_STRATEGY, 'utf-8');
 
     await ingestor.ingestStrategy(strategyPath);
 
-    expect(store.getNode('bk:strategy:target-problem')).toBeDefined();
-    expect(store.getNode('bk:strategy:our-approach')).toBeDefined();
-    expect(store.getNode('bk:strategy:who-it-s-for')).toBeDefined();
-    expect(store.getNode('bk:strategy:key-metrics')).toBeDefined();
-    expect(store.getNode('bk:strategy:tracks')).toBeDefined();
+    expect(store.getNode('bk:strategy:target-problem')).not.toBeNull();
+    expect(store.getNode('bk:strategy:our-approach')).not.toBeNull();
+    expect(store.getNode('bk:strategy:who-its-for')).not.toBeNull(); // apostrophe stripped
+    expect(store.getNode('bk:strategy:key-metrics')).not.toBeNull();
+    expect(store.getNode('bk:strategy:tracks')).not.toBeNull();
+    expect(store.getNode('bk:strategy:milestones')).not.toBeNull();
+    expect(store.getNode('bk:strategy:marketing')).not.toBeNull();
   });
 
-  it('soft-fails (empty result, no errors) when STRATEGY.md does not exist', async () => {
-    const result = await ingestor.ingestStrategy(path.join(tmpDir, 'STRATEGY.md'));
+  it('preserves frontmatter context in node metadata', async () => {
+    const strategyPath = path.join(tmpDir, 'STRATEGY.md');
+    await fs.writeFile(strategyPath, SAMPLE_STRATEGY, 'utf-8');
+
+    await ingestor.ingestStrategy(strategyPath);
+
+    const targetProblem = store.getNode('bk:strategy:target-problem');
+    expect(targetProblem).not.toBeNull();
+    expect(targetProblem!.metadata.product_name).toBe('Sample Product');
+    expect(targetProblem!.metadata.last_updated).toBe('2026-06-02');
+    expect(targetProblem!.metadata.version).toBe(1);
+    expect(targetProblem!.metadata.section_name).toBe('Target problem');
+  });
+
+  it('soft-fails on missing STRATEGY.md (returns empty, no error)', async () => {
+    const missing = path.join(tmpDir, 'STRATEGY.md');
+
+    const result = await ingestor.ingestStrategy(missing);
+
     expect(result.nodesAdded).toBe(0);
     expect(result.errors).toEqual([]);
   });
 
-  it('reports a single error when STRATEGY.md exists but has no frontmatter', async () => {
+  it('surfaces a parse error when frontmatter is missing', async () => {
     const strategyPath = path.join(tmpDir, 'STRATEGY.md');
-    await fs.writeFile(strategyPath, '# Strategy\n\n## Target problem\n\nbody\n', 'utf-8');
+    await fs.writeFile(
+      strategyPath,
+      '# No frontmatter strategy\n\n## Target problem\n\nbody\n',
+      'utf-8'
+    );
 
     const result = await ingestor.ingestStrategy(strategyPath);
 
     expect(result.nodesAdded).toBe(0);
-    expect(result.errors.length).toBe(1);
-    expect(result.errors[0]).toMatch(/missing frontmatter/);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]).toMatch(/no frontmatter found/);
   });
 
-  it('ignores unknown H2 sections (schema-rejected names produce no nodes)', async () => {
+  it('skips unfilled placeholder sections', async () => {
     const strategyPath = path.join(tmpDir, 'STRATEGY.md');
     await fs.writeFile(
       strategyPath,
       `---
-name: Harness
+name: Placeholder Product
 last_updated: 2026-06-02
 version: 1
 ---
 
-# Harness Strategy
+# Placeholder Product Strategy
 
 ## Target problem
 
-A real problem.
+<2-4 sentences. What specifically is broken in the world that this product addresses?>
 
-## Random Section Name
+## Our approach
 
-This should be ignored — not in the known section set.
+Real prose about our approach to the problem.
+
+## Who it's for
+
+<2-4 sentences. Specific persona, not "developers" generically.>
+
+## Key metrics
+
+- adoption: percent of repos
+- recall: percent of specs citing strategy
+
+## Tracks
+
+- anchor: ship STRATEGY.md
 `,
       'utf-8'
     );
 
-    await ingestor.ingestStrategy(strategyPath);
+    const result = await ingestor.ingestStrategy(strategyPath);
 
+    // Placeholder bodies for "Target problem" and "Who it's for" are skipped.
+    expect(result.nodesAdded).toBe(3);
+    expect(store.getNode('bk:strategy:target-problem')).toBeNull();
+    expect(store.getNode('bk:strategy:our-approach')).not.toBeNull();
+    expect(store.getNode('bk:strategy:who-its-for')).toBeNull();
+    expect(store.getNode('bk:strategy:key-metrics')).not.toBeNull();
+    expect(store.getNode('bk:strategy:tracks')).not.toBeNull();
+  });
+
+  it('ignores unknown section names', async () => {
+    const strategyPath = path.join(tmpDir, 'STRATEGY.md');
+    await fs.writeFile(
+      strategyPath,
+      `---
+name: Unknown-Section Product
+last_updated: 2026-06-02
+version: 1
+---
+
+# Unknown-Section Product Strategy
+
+## Target problem
+
+real body
+
+## Our approach
+
+real body
+
+## Who it's for
+
+real body
+
+## Key metrics
+
+- m: a metric
+
+## Tracks
+
+- t: a track
+
+## Unknown future section
+
+This name is not in the required/optional allowlist.
+`,
+      'utf-8'
+    );
+
+    const result = await ingestor.ingestStrategy(strategyPath);
+
+    // Five known sections, unknown one is dropped silently.
+    expect(result.nodesAdded).toBe(5);
     const facts = store.findNodes({ type: 'business_fact' });
-    const sections = facts.map((n) => n.metadata.section as string);
-    expect(sections).toContain('Target problem');
-    expect(sections).not.toContain('Random Section Name');
+    expect(facts.every((n) => n.name !== 'Unknown future section')).toBe(true);
   });
 });
