@@ -75,7 +75,7 @@ export async function scaffoldInitFixture(
             plans: [],
             blockedBy: [],
             summary:
-              'Run harness-design-system to define palette, typography, and generate W3C DTCG tokens.',
+              'Run harness-design-system to define palette, typography, and generate W3C DTCG tokens. Deferred from project init — fires on first design-touching feature via on_new_feature.',
             assignee: null,
             priority: null,
             externalId: null,

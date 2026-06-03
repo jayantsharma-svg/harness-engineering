@@ -80,10 +80,12 @@ export interface InitFixtureHandle {
   cleanup: () => void; // rm -rf tmpDir
 }
 
-export function scaffoldInitFixture(scenario: InitFixtureScenario): InitFixtureHandle;
+export async function scaffoldInitFixture(
+  scenario: InitFixtureScenario
+): Promise<InitFixtureHandle>;
 ```
 
-The helper produces post-step-5b config state and post-step-4 roadmap state given the scenario, matching what the matrix test inlines today. No mutation logic moves into the helper — it only writes the requested fixture.
+The helper produces post-step-5b config state and post-step-4 roadmap state given the scenario, matching what the matrix test inlines today. The function is async because the Phase 3 implementation awaits `runInit({ cwd, name, level })` to scaffold the base project before mutating `harness.config.json` / `docs/roadmap.md`; callers must `await scaffoldInitFixture(...)`. No mutation logic moves into the helper — it only writes the requested fixture.
 
 ### Vocabulary Regression Assertions
 
