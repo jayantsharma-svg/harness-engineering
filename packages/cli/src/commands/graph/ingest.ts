@@ -18,6 +18,26 @@ async function loadConnectorConfig(
   }
 }
 
+/**
+ * Run the three BusinessKnowledge ingestion methods against the canonical
+ * project paths (docs/knowledge, docs/solutions, STRATEGY.md) and merge the
+ * results. Shared between the `--source knowledge` branch and the `--all`
+ * path so both produce the same node coverage.
+ */
+async function ingestBusinessKnowledge(
+  bk: {
+    ingest: (dir: string) => Promise<IngestResult>;
+    ingestSolutions: (dir: string) => Promise<IngestResult>;
+    ingestStrategy: (file: string) => Promise<IngestResult>;
+  },
+  projectPath: string
+): Promise<IngestResult> {
+  const knowledge = await bk.ingest(path.join(projectPath, 'docs', 'knowledge'));
+  const solutions = await bk.ingestSolutions(path.join(projectPath, 'docs', 'solutions'));
+  const strategy = await bk.ingestStrategy(path.join(projectPath, 'STRATEGY.md'));
+  return mergeResults(knowledge, solutions, strategy);
+}
+
 function mergeResults(...results: IngestResult[]): IngestResult {
   return results.reduce(
     (acc, r) => ({
@@ -74,10 +94,10 @@ export async function runIngest(
     // `--source knowledge` so `--all` and `--source knowledge` produce the
     // same node coverage for docs/knowledge, docs/solutions, STRATEGY.md.
     // Follow-up from PR #511 which fixed the `--source knowledge` branch only.
-    const bk = new BusinessKnowledgeIngestor(store);
-    const bkKnowledgeResult = await bk.ingest(path.join(projectPath, 'docs', 'knowledge'));
-    const bkSolutionsResult = await bk.ingestSolutions(path.join(projectPath, 'docs', 'solutions'));
-    const bkStrategyResult = await bk.ingestStrategy(path.join(projectPath, 'STRATEGY.md'));
+    const bkResult = await ingestBusinessKnowledge(
+      new BusinessKnowledgeIngestor(store),
+      projectPath
+    );
     const reqResult = await new RequirementIngestor(store).ingestSpecs(
       path.join(projectPath, 'docs', 'changes')
     );
@@ -98,7 +118,6 @@ export async function runIngest(
       figma: () => new FigmaConnector(),
       miro: () => new MiroConnector(),
     };
-    // Load connector configs and register
     for (const [name, factory] of Object.entries(connectorMap)) {
       const config = await loadConnectorConfig(projectPath, name);
       syncManager.registerConnector(factory(), config);
@@ -109,9 +128,7 @@ export async function runIngest(
     const merged = mergeResults(
       codeResult,
       knowledgeResult,
-      bkKnowledgeResult,
-      bkSolutionsResult,
-      bkStrategyResult,
+      bkResult,
       reqResult,
       gitResult,
       signalsResult,
@@ -134,11 +151,8 @@ export async function runIngest(
       // surfaced as a silent `+0 nodes` for users who probed via this command.
       // See github issue #504 Finding 1.
       const knowledge = await new KnowledgeIngestor(store).ingestAll(projectPath);
-      const bk = new BusinessKnowledgeIngestor(store);
-      const bkKnowledge = await bk.ingest(path.join(projectPath, 'docs', 'knowledge'));
-      const bkSolutions = await bk.ingestSolutions(path.join(projectPath, 'docs', 'solutions'));
-      const bkStrategy = await bk.ingestStrategy(path.join(projectPath, 'STRATEGY.md'));
-      result = mergeResults(knowledge, bkKnowledge, bkSolutions, bkStrategy);
+      const bk = await ingestBusinessKnowledge(new BusinessKnowledgeIngestor(store), projectPath);
+      result = mergeResults(knowledge, bk);
       break;
     }
     case 'git':
