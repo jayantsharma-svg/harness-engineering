@@ -43,6 +43,8 @@ Detect plugin-only state by checking whether `harness` resolves on PATH (`comman
 
 ## Process
 
+**Prompt the human in plain text** — every framework confirmation, migration check, and telemetry-identity question in this skill is plain text only. Do not elevate to `AskUserQuestion`: the framework list (~10 options) exceeds its 4-option cap and natural headers like "Confirm framework" exceed its 12-char cap, rendering the call as ERR.
+
 ### Phase 1: ASSESS — Determine Current State
 
 1. **Check for existing harness configuration.** Look for `.harness/` directory, `AGENTS.md`, `harness.config.json`, and any skill definitions. Their presence determines whether this is a new project or a migration.
