@@ -264,6 +264,78 @@ describe('OutcomeEvaluator — degrade-safe error boundary (Criterion 3 ∩ Crit
   });
 });
 
+describe('OutcomeEvaluator — persistence (Criterion 6)', () => {
+  it('writes exactly one execution_outcome node on the provider-success path', async () => {
+    const p = writeSpec(SPEC_WITH_CRITERIA);
+    const store = new GraphStore();
+    const { provider } = makeProvider({
+      verdict: 'NOT_SATISFIED',
+      confidence: 'high',
+      rationale: 'returns 200 unmet',
+      unmetCriteria: ['returns 200'],
+    } satisfies LlmVerdict);
+    await new OutcomeEvaluator(provider, store).evaluate({
+      specPath: p,
+      diff: 'd',
+      testOutput: 't',
+    });
+    const nodes = store.findNodes({ type: 'execution_outcome' });
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0].metadata.result).toBe('failure'); // NOT_SATISFIED -> failure
+    expect(nodes[0].metadata.verdict).toBe('NOT_SATISFIED');
+    expect(nodes[0].metadata.confidence).toBe('high');
+    expect(nodes[0].metadata.judgedAgainst).toBe('success-criteria');
+    expect(nodes[0].metadata.source).toBe('outcome-eval');
+    expect(nodes[0].metadata.linkedSpecId).toBe(p);
+  });
+
+  it('maps SATISFIED -> success', async () => {
+    const p = writeSpec(SPEC_WITH_CRITERIA);
+    const store = new GraphStore();
+    const { provider } = makeProvider({
+      verdict: 'SATISFIED',
+      confidence: 'medium',
+      rationale: 'ok',
+      unmetCriteria: [],
+    } satisfies LlmVerdict);
+    await new OutcomeEvaluator(provider, store).evaluate({
+      specPath: p,
+      diff: 'd',
+      testOutput: 't',
+    });
+    expect(store.findNodes({ type: 'execution_outcome' })[0].metadata.result).toBe('success');
+  });
+
+  it('writes exactly one node on the no-section short-circuit path (INCONCLUSIVE)', async () => {
+    const p = writeSpec(SPEC_NO_SECTION);
+    const store = new GraphStore();
+    const { provider, analyzeSpy } = makeProvider({});
+    await new OutcomeEvaluator(provider, store).evaluate({
+      specPath: p,
+      diff: 'd',
+      testOutput: 't',
+    });
+    expect(analyzeSpy).not.toHaveBeenCalled();
+    const nodes = store.findNodes({ type: 'execution_outcome' });
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0].metadata.verdict).toBe('INCONCLUSIVE');
+    expect(nodes[0].metadata.result).toBe('failure'); // INCONCLUSIVE -> failure for type-validity
+    expect(nodes[0].metadata.agentPersona).toBeUndefined(); // scorer-neutral (D2)
+  });
+
+  it('writes exactly one node on the degraded provider-rejection path', async () => {
+    const p = writeSpec(SPEC_WITH_CRITERIA);
+    const store = new GraphStore();
+    const { provider } = makeRejectingProvider('429');
+    await new OutcomeEvaluator(provider, store).evaluate({
+      specPath: p,
+      diff: 'd',
+      testOutput: 't',
+    });
+    expect(store.findNodes({ type: 'execution_outcome' })).toHaveLength(1);
+  });
+});
+
 describe('OutcomeEvaluator — conservative-confidence calibration (Criterion 7)', () => {
   it('system prompt caps partial satisfaction at medium', () => {
     expect(OUTCOME_EVAL_SYSTEM_PROMPT.toLowerCase()).toMatch(/partial.*medium|not exceed.*medium/);
