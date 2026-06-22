@@ -27,6 +27,9 @@ export class ExecutionOutcomeConnector {
       type: 'execution_outcome',
       name: `${outcome.result}: ${outcome.identifier}`,
       metadata: {
+        // Caller-supplied extras merge FIRST so reserved core fields below
+        // always win (no override of result/linkedSpecId/etc.).
+        ...(outcome.metadata ?? {}),
         issueId: outcome.issueId,
         identifier: outcome.identifier,
         result: outcome.result,

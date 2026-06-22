@@ -154,6 +154,35 @@ describe('ExecutionOutcomeConnector', () => {
     expect('taskType' in node!.metadata).toBe(false);
   });
 
+  it('records optional extra metadata when provided (additive, backward-compatible)', () => {
+    const store = new GraphStore();
+    const connector = new ExecutionOutcomeConnector(store);
+    connector.ingest(
+      makeOutcome({
+        metadata: {
+          verdict: 'NOT_SATISFIED',
+          confidence: 'high',
+          judgedAgainst: 'success-criteria',
+          source: 'outcome-eval',
+        },
+      })
+    );
+    const node = store.getNode('outcome:issue-1:1');
+    expect(node!.metadata.verdict).toBe('NOT_SATISFIED');
+    expect(node!.metadata.confidence).toBe('high');
+    expect(node!.metadata.judgedAgainst).toBe('success-criteria');
+    expect(node!.metadata.source).toBe('outcome-eval');
+    // Reserved core fields are not overridable by the extra metadata.
+    expect(node!.metadata.result).toBe('failure');
+  });
+
+  it('omits extra metadata keys entirely when not provided', () => {
+    const store = new GraphStore();
+    new ExecutionOutcomeConnector(store).ingest(makeOutcome());
+    const node = store.getNode('outcome:issue-1:1');
+    expect(node!.metadata.verdict).toBeUndefined();
+  });
+
   it('handles duplicate ingestion gracefully (upsert)', () => {
     const store = new GraphStore();
     const connector = new ExecutionOutcomeConnector(store);
