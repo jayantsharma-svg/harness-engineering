@@ -129,8 +129,7 @@ _Not produced — task count (4) below standard-mode threshold (8)._
      it('is advisory for every other verdict×confidence pair (8 of 9)', () => {
        for (const v of VERDICTS) {
          for (const c of CONFIDENCES) {
-           const expected =
-             v === 'NOT_SATISFIED' && c === 'high' ? 'blocking' : 'advisory';
+           const expected = v === 'NOT_SATISFIED' && c === 'high' ? 'blocking' : 'advisory';
            expect(deriveAuthority(v, c)).toBe(expected);
          }
        }
@@ -170,9 +169,7 @@ _Not produced — task count (4) below standard-mode threshold (8)._
      verdict: Verdict,
      confidence: Confidence
    ): 'blocking' | 'advisory' {
-     return verdict === 'NOT_SATISFIED' && confidence === 'high'
-       ? 'blocking'
-       : 'advisory';
+     return verdict === 'NOT_SATISFIED' && confidence === 'high' ? 'blocking' : 'advisory';
    }
    ```
 
@@ -256,12 +253,8 @@ _Not produced — task count (4) below standard-mode threshold (8)._
        confidence: z
          .enum(['low', 'medium', 'high'])
          .describe('Confidence in the verdict; high requires a named criterion'),
-       rationale: z
-         .string()
-         .describe('Cites specific met / unmet criteria'),
-       unmetCriteria: z
-         .array(z.string())
-         .describe('Unmet criteria; empty when SATISFIED'),
+       rationale: z.string().describe('Cites specific met / unmet criteria'),
+       unmetCriteria: z.array(z.string()).describe('Unmet criteria; empty when SATISFIED'),
      })
      .strict();
 
@@ -326,10 +319,10 @@ _Not produced — task count (4) below standard-mode threshold (8)._
 
 ## Traceability
 
-| Observable Truth | Task(s) |
-| --- | --- |
-| 1 — types exact | Task 1 |
-| 2 — deriveAuthority blocking iff NOT_SATISFIED+high | Task 2 |
-| 3 — verdictSchema shape, no authority | Task 3 |
-| 4 — authority not LLM-readable (injection rejected) | Task 3 |
-| 5 — harness validate + layer rule | Task 4 |
+| Observable Truth                                    | Task(s) |
+| --------------------------------------------------- | ------- |
+| 1 — types exact                                     | Task 1  |
+| 2 — deriveAuthority blocking iff NOT_SATISFIED+high | Task 2  |
+| 3 — verdictSchema shape, no authority               | Task 3  |
+| 4 — authority not LLM-readable (injection rejected) | Task 3  |
+| 5 — harness validate + layer rule                   | Task 4  |
