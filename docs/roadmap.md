@@ -2354,11 +2354,11 @@ last_manual_edit: 2026-06-05T02:45:19.209Z
 ### Build harness:outcome-eval skill
 
 - **Status:** planned
-- **Spec:** —
+- **Spec:** docs/changes/outcome-eval/proposal.md
 - **Summary:** The article's named #1 industry gap and the project's largest single missing piece. LLM-judgment skill that reads the spec's user-visible-behavior section + the diff + test outputs and produces a structured "did this satisfy the spec" verdict. Wire into `harness.orchestrator.md` as step 6.5 between code-review and ship. Wire into CI workflow template (item below) as required check. Uses existing primitives in `packages/intelligence` (PESL simulator, effectiveness scorer with graph-attributed execution_outcome nodes, SEL spec enrichment). Confidence calibration similar to `harness:security-craft` to manage false-positive risk. Source: Pass 1 #3, Pass 2 #3 (CRITICAL).
 - **Blockers:** —
 - **Plan:** —
-- **Assignee:** —
+- **Assignee:** chad.warner@capillarytech.com
 - **Priority:** P0
 - **External-ID:** github:Intense-Visions/harness-engineering#532
 
@@ -2782,14 +2782,15 @@ last_manual_edit: 2026-06-05T02:45:19.209Z
 
 ## Assignment History
 
-| Feature                                                          | Assignee | Action   | Date       |
-| ---------------------------------------------------------------- | -------- | -------- | ---------- |
-| Performance Engineering Knowledge Skills                         | @chadjw  | assigned | 2026-04-09 |
-| Phase 2: Code Signal Extractors                                  | @chadjw  | assigned | 2026-04-23 |
-| Phase 3: Connector Enhancement                                   | @chadjw  | assigned | 2026-04-22 |
-| Phase 4: Knowledge Pipeline & Diagrams                           | @chadjw  | assigned | 2026-04-23 |
-| Hermes Phase 0.1: Reference Slack Bridge                         | @cwarner | assigned | 2026-05-15 |
-| design-pipeline sub-project #2: audit-component-anatomy          | @chadjw  | assigned | 2026-05-23 |
-| design-pipeline sub-project #0: brand-guidelines source-of-truth | @chadjw  | assigned | 2026-05-23 |
-| design-pipeline sub-project #3: audit-brand-compliance           | @chadjw  | assigned | 2026-06-02 |
-| Init design + roadmap polish follow-ups                          | @chadjw  | assigned | 2026-06-03 |
+| Feature                                                          | Assignee                      | Action   | Date       |
+| ---------------------------------------------------------------- | ----------------------------- | -------- | ---------- |
+| Performance Engineering Knowledge Skills                         | @chadjw                       | assigned | 2026-04-09 |
+| Phase 2: Code Signal Extractors                                  | @chadjw                       | assigned | 2026-04-23 |
+| Phase 3: Connector Enhancement                                   | @chadjw                       | assigned | 2026-04-22 |
+| Phase 4: Knowledge Pipeline & Diagrams                           | @chadjw                       | assigned | 2026-04-23 |
+| Hermes Phase 0.1: Reference Slack Bridge                         | @cwarner                      | assigned | 2026-05-15 |
+| design-pipeline sub-project #2: audit-component-anatomy          | @chadjw                       | assigned | 2026-05-23 |
+| design-pipeline sub-project #0: brand-guidelines source-of-truth | @chadjw                       | assigned | 2026-05-23 |
+| design-pipeline sub-project #3: audit-brand-compliance           | @chadjw                       | assigned | 2026-06-02 |
+| Init design + roadmap polish follow-ups                          | @chadjw                       | assigned | 2026-06-03 |
+| Build harness:outcome-eval skill                                 | chad.warner@capillarytech.com | assigned | 2026-06-22 |
