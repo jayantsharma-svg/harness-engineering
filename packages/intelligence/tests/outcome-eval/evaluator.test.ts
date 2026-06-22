@@ -5,6 +5,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { GraphStore } from '@harness-engineering/graph';
 import type { AnalysisProvider, AnalysisResponse } from '../../src/analysis-provider/interface.js';
 import { OutcomeEvaluator } from '../../src/outcome-eval/evaluator.js';
+import { OUTCOME_EVAL_SYSTEM_PROMPT } from '../../src/outcome-eval/prompts.js';
 import type { LlmVerdict } from '../../src/outcome-eval/prompts.js';
 
 function makeProvider(
@@ -108,5 +109,31 @@ describe('OutcomeEvaluator — provider path', () => {
     const evaluator = new OutcomeEvaluator(provider, new GraphStore());
     // Strict schema rejects the extra key -> evaluate throws.
     await expect(evaluator.evaluate({ specPath: p, diff: 'd', testOutput: 't' })).rejects.toThrow();
+  });
+});
+
+describe('OutcomeEvaluator — conservative-confidence calibration (Criterion 7)', () => {
+  it('system prompt caps partial satisfaction at medium', () => {
+    expect(OUTCOME_EVAL_SYSTEM_PROMPT.toLowerCase()).toMatch(/partial.*medium|not exceed.*medium/);
+  });
+
+  it('a partial-satisfaction verdict (medium) is advisory, never blocking', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'outcome-eval-'));
+    const p = join(dir, 'spec.md');
+    writeFileSync(p, SPEC_WITH_CRITERIA);
+    // Stub models a partial-satisfaction outcome: NOT_SATISFIED at medium.
+    const { provider } = makeProvider({
+      verdict: 'NOT_SATISFIED',
+      confidence: 'medium',
+      rationale: 'Endpoint added but error path unverified — partial.',
+      unmetCriteria: ['returns 200 on error path'],
+    } satisfies LlmVerdict);
+    const v = await new OutcomeEvaluator(provider, new GraphStore()).evaluate({
+      specPath: p,
+      diff: 'd',
+      testOutput: 't',
+    });
+    expect(v.confidence).toBe('medium');
+    expect(v.authority).toBe('advisory'); // medium NOT_SATISFIED never blocks
   });
 });
