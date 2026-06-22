@@ -27,6 +27,11 @@ Phases:
 - gate: Render the verdict; on a blocking verdict (NOT_SATISFIED + high confidence) halt before Ship
   </objective>
 
+<execution_context>
+@agents/skills/claude-code/outcome-eval/SKILL.md
+@agents/skills/claude-code/outcome-eval/skill.yaml
+</execution_context>
+
 <process>
 1. Try: invoke mcp__harness__outcome_eval with skill: "outcome-eval"
 2. If MCP unavailable: read SKILL.md and follow its workflow directly
