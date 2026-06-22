@@ -334,6 +334,29 @@ describe('OutcomeEvaluator — persistence (Criterion 6)', () => {
     });
     expect(store.findNodes({ type: 'execution_outcome' })).toHaveLength(1);
   });
+
+  it('swallows a graph-write failure; verdict is returned unchanged (D3)', async () => {
+    const p = writeSpec(SPEC_WITH_CRITERIA);
+    const throwingStore = new GraphStore();
+    vi.spyOn(throwingStore, 'addNode').mockImplementation(() => {
+      throw new Error('disk full while writing graph');
+    });
+    const { provider } = makeProvider({
+      verdict: 'NOT_SATISFIED',
+      confidence: 'high',
+      rationale: 'unmet',
+      unmetCriteria: ['returns 200'],
+    } satisfies LlmVerdict);
+    const v = await new OutcomeEvaluator(provider, throwingStore).evaluate({
+      specPath: p,
+      diff: 'd',
+      testOutput: 't',
+    });
+    // evaluate() must NOT throw; the blocking verdict survives intact.
+    expect(v.verdict).toBe('NOT_SATISFIED');
+    expect(v.authority).toBe('blocking');
+    expect(throwingStore.findNodes({ type: 'execution_outcome' })).toHaveLength(0);
+  });
 });
 
 describe('OutcomeEvaluator — conservative-confidence calibration (Criterion 7)', () => {
