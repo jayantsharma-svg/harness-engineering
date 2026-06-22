@@ -33,9 +33,18 @@ export class OutcomeEvaluator {
   }
 
   async evaluate(input: OutcomeEvalInput): Promise<OutcomeVerdict> {
-    const resolved = await this.resolveJudgmentSection(input);
+    // Section resolution (incl. readFile) is degrade-safe: a missing spec or
+    // read error yields a degraded verdict with section unknown ('overview')
+    // and the provider is never called.
+    let resolved: { judgedAgainst: JudgedAgainst; body: string } | null;
+    try {
+      resolved = await this.resolveJudgmentSection(input);
+    } catch {
+      return this.finish(this.degradedVerdict('overview'), input);
+    }
 
-    // No judgable section: never call the LLM, never block.
+    // No judgable section (or empty/whitespace specSection): never call the
+    // LLM, never block.
     if (resolved === null) {
       const verdict = this.buildVerdict(
         'INCONCLUSIVE',
@@ -44,29 +53,68 @@ export class OutcomeEvaluator {
         'overview',
         []
       );
-      await this.persistOutcome(verdict, input);
-      return verdict;
+      return this.finish(verdict, input);
     }
 
-    const response = await this.provider.analyze<LlmVerdict>({
-      prompt: buildUserPrompt(resolved.body, input.diff, input.testOutput),
-      systemPrompt: OUTCOME_EVAL_SYSTEM_PROMPT,
-      responseSchema: verdictSchema,
-      ...(this.options.model !== undefined && { model: this.options.model }),
-    });
+    const verdict = await this.judge(resolved, input);
+    return this.finish(verdict, input);
+  }
 
-    // Defensive strict re-parse: rejects any extra key (e.g. an injected
-    // `authority`) even if the provider did not enforce strict mode. This is
-    // the false-positive-critical seam — authority is derived in TS below.
-    const llm = verdictSchema.parse(response.result);
+  /**
+   * Run the provider call and strict re-parse. ANY failure here — provider
+   * rejection (rate limit/network), or a strict-parse rejection of a malformed
+   * or authority-injected payload — degrades safely to INCONCLUSIVE/low/
+   * advisory rather than throwing. This reconciles Criterion 3 (never block on
+   * noise) with Criterion 4: an injected `authority` key is discarded by the
+   * .strict() re-parse, and the degraded verdict's authority is DERIVED from
+   * INCONCLUSIVE/low = advisory — so the LLM gains nothing by injecting it.
+   */
+  private async judge(
+    resolved: { judgedAgainst: JudgedAgainst; body: string },
+    input: OutcomeEvalInput
+  ): Promise<OutcomeVerdict> {
+    try {
+      const response = await this.provider.analyze<LlmVerdict>({
+        prompt: buildUserPrompt(resolved.body, input.diff, input.testOutput),
+        systemPrompt: OUTCOME_EVAL_SYSTEM_PROMPT,
+        responseSchema: verdictSchema,
+        ...(this.options.model !== undefined && { model: this.options.model }),
+      });
 
-    const verdict = this.buildVerdict(
-      llm.verdict,
-      llm.confidence,
-      llm.rationale,
-      resolved.judgedAgainst,
-      llm.unmetCriteria
+      // Defensive strict re-parse: rejects any extra key (e.g. an injected
+      // `authority`) even if the provider did not enforce strict mode. This is
+      // the false-positive-critical seam — authority is derived in TS below.
+      const llm = verdictSchema.parse(response.result);
+
+      return this.buildVerdict(
+        llm.verdict,
+        llm.confidence,
+        llm.rationale,
+        resolved.judgedAgainst,
+        llm.unmetCriteria
+      );
+    } catch {
+      return this.degradedVerdict(resolved.judgedAgainst);
+    }
+  }
+
+  /**
+   * Build the safe-degradation verdict. INCONCLUSIVE/low yields advisory
+   * authority via deriveAuthority — never blocking. The rationale names only a
+   * coarse reason category, never a stack trace or secret.
+   */
+  private degradedVerdict(judgedAgainst: JudgedAgainst): OutcomeVerdict {
+    return this.buildVerdict(
+      'INCONCLUSIVE',
+      'low',
+      'Evaluation could not be completed; defaulting to an inconclusive, advisory verdict.',
+      judgedAgainst,
+      []
     );
+  }
+
+  /** Persist (Phase 4 seam) then return the verdict. */
+  private async finish(verdict: OutcomeVerdict, input: OutcomeEvalInput): Promise<OutcomeVerdict> {
     await this.persistOutcome(verdict, input);
     return verdict;
   }
@@ -75,7 +123,11 @@ export class OutcomeEvaluator {
     input: OutcomeEvalInput
   ): Promise<{ judgedAgainst: JudgedAgainst; body: string } | null> {
     if (input.specSection !== undefined) {
-      return { judgedAgainst: 'success-criteria', body: input.specSection };
+      // An empty/whitespace pre-resolved section is not judgable: take the
+      // no-section short-circuit rather than paying a success-criteria LLM call.
+      return input.specSection.trim() === ''
+        ? null
+        : { judgedAgainst: 'success-criteria', body: input.specSection };
     }
     const markdown = await readFile(input.specPath, 'utf8');
     return resolveSection(markdown);
