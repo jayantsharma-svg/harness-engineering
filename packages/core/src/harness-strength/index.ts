@@ -8,3 +8,5 @@ export { rollupScore, SEVERITY_WEIGHTS } from './scoring';
 export { buildProjectContext, resolveMode } from './context';
 export type { ModeOptions } from './context';
 export { ALL_RULES } from './rules/index';
+export { HarnessStrengthAuditor } from './auditor';
+export type { AuditOptions } from './auditor';
