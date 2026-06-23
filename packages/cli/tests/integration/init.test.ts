@@ -338,4 +338,17 @@ describe('harness init — CI workflow', () => {
     expect(fs.existsSync(path.join(tmp, '.github/workflows/ci.yml'))).toBe(true);
     fs.rmSync(tmp, { recursive: true });
   });
+
+  it('init writes .github/workflows/ci.yml with build/lint/test + gate', async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-init-ci-'));
+    const r = await runInit({ cwd: tmp, name: 'ci-proj', level: 'basic' });
+    expect(r.ok).toBe(true);
+    const wf = path.join(tmp, '.github/workflows/ci.yml');
+    expect(fs.existsSync(wf)).toBe(true);
+    const c = fs.readFileSync(wf, 'utf-8');
+    expect(c).toContain('harness ci check --json');
+    expect(c).toContain('pnpm test');
+    expect(c).not.toMatch(/git push/);
+    fs.rmSync(tmp, { recursive: true });
+  });
 });
