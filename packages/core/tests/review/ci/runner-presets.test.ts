@@ -6,8 +6,9 @@ import {
 } from '../../../src/review/ci/runner-presets';
 
 describe('RUNNER_PRESETS registry shape', () => {
-  it('has entries for claude, gemini, codex, cursor, local', () => {
+  it('has entries for claude, gemini, antigravity, codex, cursor, local', () => {
     expect(Object.keys(RUNNER_PRESETS).sort()).toEqual([
+      'antigravity',
       'claude',
       'codex',
       'cursor',
@@ -16,8 +17,8 @@ describe('RUNNER_PRESETS registry shape', () => {
     ]);
   });
 
-  it('marks claude/codex as supported agent-cli presets', () => {
-    for (const id of ['claude', 'codex'] as const) {
+  it('marks claude/codex/antigravity as supported agent-cli presets', () => {
+    for (const id of ['claude', 'codex', 'antigravity'] as const) {
       const p = RUNNER_PRESETS[id];
       expect(p.kind).toBe('agent-cli');
       expect(p.supported).toBe(true);
@@ -32,13 +33,14 @@ describe('RUNNER_PRESETS registry shape', () => {
   it('classifies every preset kind via presetKind', () => {
     expect(presetKind('claude')).toBe('agent-cli');
     expect(presetKind('gemini')).toBe('agent-cli');
+    expect(presetKind('antigravity')).toBe('agent-cli');
     expect(presetKind('codex')).toBe('agent-cli');
     expect(presetKind('cursor')).toBe('agent-cli');
     expect(presetKind('local')).toBe('endpoint');
   });
 
   it('builds a STDIN-based headless invocation argv per supported agent-cli runner', () => {
-    for (const id of ['claude', 'codex'] as const) {
+    for (const id of ['claude', 'codex', 'antigravity'] as const) {
       const preset = RUNNER_PRESETS[id];
       if (preset.kind !== 'agent-cli' || !preset.supported) {
         throw new Error(`${id} should be supported agent-cli`);
@@ -70,18 +72,38 @@ describe('RUNNER_PRESETS registry shape', () => {
     expect(inv.args).toEqual(['exec', '--json', 'INSTR']);
   });
 
-  it('reports claude/codex as supported runners via isSupportedRunner', () => {
-    expect(isSupportedRunner('claude')).toBe(true);
-    expect(isSupportedRunner('codex')).toBe(true);
+  it('builds the verified antigravity argv: `agy --print <instruction>` (no --output-format flag)', () => {
+    const p = RUNNER_PRESETS.antigravity;
+    if (p.kind !== 'agent-cli' || !p.supported) throw new Error('antigravity should be supported');
+    const inv = p.headlessInvocation({ instruction: 'INSTR' });
+    expect(inv.command).toBe('agy');
+    expect(inv.args).toEqual(['--print', 'INSTR']);
+    // agy has NO --output-format/--json flag (it errors on it); the diff is on STDIN.
+    expect(inv.args).not.toContain('--output-format');
+    expect(inv.args).not.toContain('--json');
   });
 
-  it('marks gemini as an unsupported agent-cli preset (UNVERIFIED envelope, deferred to CI)', () => {
+  it('uses GEMINI_API_KEY as the best-guess CI secret for antigravity (Gemini-family)', () => {
+    const p = RUNNER_PRESETS.antigravity;
+    if (p.kind !== 'agent-cli' || !p.supported) throw new Error('antigravity should be supported');
+    expect(p.secretEnvVar).toBe('GEMINI_API_KEY');
+  });
+
+  it('reports claude/codex/antigravity as supported runners via isSupportedRunner', () => {
+    expect(isSupportedRunner('claude')).toBe(true);
+    expect(isSupportedRunner('codex')).toBe(true);
+    expect(isSupportedRunner('antigravity')).toBe(true);
+  });
+
+  it('marks gemini as unsupported and SUPERSEDED by the antigravity runner', () => {
     const g = RUNNER_PRESETS.gemini;
     expect(g.kind).toBe('agent-cli');
     expect(g.supported).toBe(false);
     if (g.kind !== 'agent-cli' || g.supported) throw new Error('gemini should be unsupported');
     expect(g.unsupportedReason).toMatch(/GEMINI_API_KEY/);
     expect(g.unsupportedReason).toMatch(/UNVERIFIED/);
+    expect(g.unsupportedReason).toMatch(/SUPERSEDED/);
+    expect(g.unsupportedReason).toMatch(/--runner antigravity/);
     expect(isSupportedRunner('gemini')).toBe(false);
   });
 

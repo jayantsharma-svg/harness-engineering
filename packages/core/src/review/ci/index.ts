@@ -23,4 +23,5 @@ export type {
 export { parseClaudeVerdict } from './parsers/claude';
 export { parseGeminiVerdict } from './parsers/gemini';
 export { parseCodexVerdict } from './parsers/codex';
+export { parseAntigravityVerdict } from './parsers/antigravity';
 export { parseLocalVerdict } from './parsers/local';

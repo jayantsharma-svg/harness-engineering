@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { parseClaudeVerdict } from '../../../src/review/ci/parsers/claude';
 import { parseGeminiVerdict } from '../../../src/review/ci/parsers/gemini';
 import { parseCodexVerdict } from '../../../src/review/ci/parsers/codex';
+import { parseAntigravityVerdict } from '../../../src/review/ci/parsers/antigravity';
 import { parseLocalVerdict } from '../../../src/review/ci/parsers/local';
 import { parseCiReviewVerdict } from '../../../src/review/ci/verdict-schema';
 
@@ -147,6 +148,64 @@ describe('codex verdict parser', () => {
       item: { id: 'i0', type: 'agent_message', text: 'not json' },
     });
     expect(() => parseCodexVerdict(stream)).toThrow();
+  });
+});
+
+describe('antigravity verdict parser (single-stage `agy --print` plain-text JSON)', () => {
+  it('parses the real plain-text JSON output directly into a schema-valid verdict', () => {
+    // Real captured stdout: the verdict object emitted DIRECTLY (no transcript
+    // wrapper), with a trailing newline.
+    const v = parseCiReviewVerdict(parseAntigravityVerdict(fx('antigravity-verdict.txt')));
+    expect(v.runner).toBe('antigravity');
+    expect(v.ranLlmTier).toBe(true);
+    expect(v.assessment).toBe('approve');
+    expect(v.findings).toHaveLength(0);
+    expect(v.blockingFindings).toHaveLength(0);
+    expect(v.exitCode).toBe(0);
+  });
+
+  it('strips a ```json fenced block before parsing', () => {
+    const fenced = [
+      '```json',
+      JSON.stringify({
+        assessment: 'request-changes',
+        findings: [
+          {
+            id: 'bug-1',
+            file: 'src/x.ts',
+            lineRange: [1, 2],
+            domain: 'bug',
+            severity: 'critical',
+            title: 'boom',
+            rationale: 'because',
+            evidence: ['src/x.ts:1'],
+            validatedBy: 'heuristic',
+          },
+        ],
+      }),
+      '```',
+    ].join('\n');
+    const v = parseAntigravityVerdict(fenced);
+    expect(v.assessment).toBe('request-changes');
+    expect(v.blockingFindings).toHaveLength(1);
+    expect(v.exitCode).toBe(1);
+  });
+
+  it('extracts the first balanced JSON object when wrapped in surrounding prose', () => {
+    const prose =
+      'Here is my review of the diff:\n\n' +
+      JSON.stringify({ assessment: 'comment', findings: [] }) +
+      '\n\nLet me know if you need more detail.';
+    const v = parseAntigravityVerdict(prose);
+    expect(v.assessment).toBe('comment');
+    expect(v.findings).toHaveLength(0);
+    expect(v.exitCode).toBe(0);
+  });
+
+  it('throws when no parseable JSON object is present (does not silently pass)', () => {
+    expect(() => parseAntigravityVerdict('I could not complete the review.')).toThrow(
+      /no parseable JSON object/
+    );
   });
 });
 

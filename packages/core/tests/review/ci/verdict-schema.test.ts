@@ -58,7 +58,27 @@ describe('CiReviewVerdictSchema', () => {
 
   it('includes the local endpoint runner in the CI_RUNNERS enum', () => {
     expect(CI_RUNNERS).toContain('local');
-    expect(CI_RUNNERS).toEqual(['claude', 'gemini', 'codex', 'cursor', 'local', 'floor-only']);
+    expect(CI_RUNNERS).toEqual([
+      'claude',
+      'gemini',
+      'antigravity',
+      'codex',
+      'cursor',
+      'local',
+      'floor-only',
+    ]);
+  });
+
+  it('includes the antigravity runner in the CI_RUNNERS enum', () => {
+    expect(CI_RUNNERS).toContain('antigravity');
+  });
+
+  it('parses an antigravity verdict (single-stage agent-cli, ranLlmTier true)', () => {
+    const v = parseCiReviewVerdict(
+      makeVerdict({ runner: 'antigravity', ranLlmTier: true, assessment: 'approve' })
+    );
+    expect(v.runner).toBe('antigravity');
+    expect(v.ranLlmTier).toBe(true);
   });
 
   it('parses a local endpoint verdict (ranLlmTier true, single-pass)', () => {

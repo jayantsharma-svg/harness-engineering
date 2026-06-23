@@ -1,9 +1,11 @@
 import type { CiReviewVerdict } from './verdict-schema';
 import { parseClaudeVerdict } from './parsers/claude';
 // parseGeminiVerdict is intentionally not imported here: the gemini preset is
-// downgraded to `supported: false` (see below) until its output envelope is
-// verified in CI. The parser remains exported from ./index for that future work.
+// downgraded to `supported: false` (see below) and SUPERSEDED by the `antigravity`
+// runner (the renamed `gemini` CLI, command `agy`). The parser remains exported
+// from ./index for the deferred in-CI gemini-envelope verification.
 import { parseCodexVerdict } from './parsers/codex';
+import { parseAntigravityVerdict } from './parsers/antigravity';
 import { parseLocalVerdict } from './parsers/local';
 
 /**
@@ -89,7 +91,7 @@ export type AgentCliPreset = AgentCliSupported | AgentCliUnsupported;
 export type EndpointPreset = EndpointSupported | EndpointUnsupported;
 export type RunnerPreset = AgentCliPreset | EndpointPreset;
 
-export type AgentCliRunnerId = 'claude' | 'gemini' | 'codex' | 'cursor';
+export type AgentCliRunnerId = 'claude' | 'gemini' | 'antigravity' | 'codex' | 'cursor';
 export type EndpointRunnerId = 'local';
 export type RunnerId = AgentCliRunnerId | EndpointRunnerId;
 
@@ -117,10 +119,34 @@ export const RUNNER_PRESETS: Record<RunnerId, RunnerPreset> = {
     // the headlessInvocation above, and `verdictParser: parseGeminiVerdict` once
     // the output envelope is captured in CI.
     unsupportedReason:
-      'gemini argv corrected from --help (`gemini -p <instruction> -o json`, diff on STDIN), ' +
-      'but the JSON output envelope is UNVERIFIED: no GEMINI_API_KEY was available in the ' +
-      'authoring environment, so the CLI fell through to interactive OAuth and produced no ' +
-      'capturable result. Verification deferred to a real CI run with credentials.',
+      'SUPERSEDED by the `antigravity` runner (use `--runner antigravity`): the Gemini agentic ' +
+      'CLI was renamed to Antigravity (command `agy`), which authenticates locally and produces ' +
+      'a capturable verdict where this `gemini` CLI did not. Retained as a valid runner id for ' +
+      'back-compat. Original deferral note: gemini argv corrected from --help ' +
+      '(`gemini -p <instruction> -o json`, diff on STDIN), but the JSON output envelope is ' +
+      'UNVERIFIED: no GEMINI_API_KEY was available in the authoring environment, so the CLI fell ' +
+      'through to interactive OAuth and produced no capturable result. Verification deferred to a ' +
+      'real CI run with credentials.',
+  },
+  antigravity: {
+    kind: 'agent-cli',
+    supported: true,
+    // agy is authenticated locally via OAuth here (no API key needed for local
+    // runs). For CI, the gating secret is uncertain — this is a BEST-GUESS pending
+    // CI verification: antigravity is Gemini-family (the renamed `gemini` CLI), so
+    // GEMINI_API_KEY is the most likely credential. Local auth is OAuth-based and
+    // needs no secret; confirm/correct this against a real CI run.
+    secretEnvVar: 'GEMINI_API_KEY',
+    // Verified live against the real CLI: diff piped via STDIN, instruction as the
+    // `--print` prompt. There is NO `--output-format`/`--json` flag (it errors
+    // `flags provided but not defined: -output-format`); `--print` (alias
+    // `--prompt`) runs a single non-interactive prompt and emits the model's
+    // response as plain text. Consistent with the claude/codex STDIN diff model.
+    headlessInvocation: ({ instruction }) => ({
+      command: 'agy',
+      args: ['--print', instruction],
+    }),
+    verdictParser: parseAntigravityVerdict,
   },
   codex: {
     kind: 'agent-cli',

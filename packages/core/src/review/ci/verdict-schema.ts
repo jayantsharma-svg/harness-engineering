@@ -8,7 +8,15 @@ export const CI_REVIEW_VERDICT_SCHEMA_VERSION = 1 as const;
  * 'local' = single-pass openai-compatible endpoint runner (kind: 'endpoint').
  * 'floor-only' = heuristic floor ran, no LLM tier.
  */
-export const CI_RUNNERS = ['claude', 'gemini', 'codex', 'cursor', 'local', 'floor-only'] as const;
+export const CI_RUNNERS = [
+  'claude',
+  'gemini',
+  'antigravity',
+  'codex',
+  'cursor',
+  'local',
+  'floor-only',
+] as const;
 export type CiRunner = (typeof CI_RUNNERS)[number];
 
 /** Assessment values — must stay in lockstep with core ReviewAssessment (output.ts). */

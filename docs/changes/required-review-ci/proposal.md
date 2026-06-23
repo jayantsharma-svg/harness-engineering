@@ -35,8 +35,11 @@ pieces" gap (roadmap source: Pass 2 #6).
    request-changes/critical) makes a rejecting verdict fail the check. Green must
    mean "the review approved."
 3. **G3 — Multi-client.** A normalized verdict schema + `runner` input with
-   working presets for **Claude, Gemini, Codex, Cursor** (agent-CLI runners) plus
-   **`local`** (an endpoint-based runner over an openai-compatible local model).
+   working presets for **Claude, Antigravity (`agy`), Codex, Cursor** (agent-CLI
+   runners) plus **`local`** (an endpoint-based runner over an openai-compatible
+   local model). Antigravity is the current Gemini-family agentic CLI; the older
+   standalone `gemini` CLI is retained as a superseded runner id that points at
+   `antigravity`.
 4. **G4 — The check is actually required.** A config-as-code ruleset binds the
    check name in branch protection.
 5. **G5 — Secret-free / cost-free option.** The `local` runner delivers
@@ -76,11 +79,15 @@ Formalizing the brainstorming questions (Q1–Q5) and the architecture choice.
   Both kinds normalize to the same `CiReviewVerdict`, so the gate/threshold logic
   is preset-kind-agnostic. _(Q3 generalized + D6 + D7)_
 
-- **D4 — Five runners in v1, feasibility-gated.** Claude + Codex ship verified
-  (`agent-cli`), confirmed against the real CLIs via the Phase 1 Task 10 smoke
-  test (diff piped over STDIN; two-stage JSON envelopes). The following are
+- **D4 — Runners in v1, feasibility-gated.** Claude + Codex + **Antigravity (`agy`)**
+  ship verified (`agent-cli`), confirmed against the real CLIs via the Phase 1
+  Task 10 smoke test (diff piped over STDIN). Note the envelope differs per runner:
+  claude wraps the verdict in a transcript `.result` string, codex in a JSONL
+  `agent_message.text` (both two-stage), while **antigravity `agy --print` emits the
+  verdict as plain-text JSON directly (single-stage)**. The following are
   `[UNVERIFIED]` and each gated behind its own Phase 1/CI spike — no
-  silently-broken preset ships: **Gemini** (`agent-cli`, downgraded to
+  silently-broken preset ships: **Gemini** (`agent-cli`, superseded by Antigravity;
+  downgraded to
   `supported:false`: argv corrected from `--help` to `gemini -p <instr> -o json`
   with the diff on STDIN, but the output envelope is UNVERIFIED because no
   `GEMINI_API_KEY` was available locally — the CLI fell through to interactive
@@ -103,9 +110,18 @@ Formalizing the brainstorming questions (Q1–Q5) and the architecture choice.
   Additionally **attempt full-agentic local** (a local model driving the
   multi-persona skill); because small local models may not drive tool-use/subagent
   dispatch reliably, this is gated behind a dedicated spike and is NOT promised
-  until that spike passes. This honors the repo's existing provider architecture
+  until that spike passes. _(human decision: "consider local LLM" → option B)_
+- **D8 — Antigravity (`agy`) is the Gemini-family runner.** Per the runtime
+  rename, the Gemini agentic CLI is now Antigravity (`agy`). The `antigravity`
+  runner (`agy --print`, diff on STDIN, single-stage plain-text-JSON parser) ships
+  verified — it authenticated locally where the older `gemini` CLI did not. The
+  `gemini` runner id is retained as `supported:false` with `unsupportedReason`
+  pointing adopters to `antigravity`. _(human correction: "gemini is now
+  antigravity cli, command is agy")_
+
+  Together D7 and D8 honor the repo's existing provider architecture
   (anthropic / openai / local-model) and the Multi-client-portability strategy
-  track. _(human decision: "consider local LLM" → option B)_
+  track.
 
 ## Technical design
 
@@ -152,7 +168,7 @@ Zod schema in core; the normalization target every runner maps to:
 ```
 {
   schemaVersion: 1,
-  runner: 'claude' | 'gemini' | 'codex' | 'cursor' | 'local' | 'floor-only',
+  runner: 'claude' | 'gemini' | 'antigravity' | 'codex' | 'cursor' | 'local' | 'floor-only',
   ranLlmTier: boolean,
   assessment: 'approve' | 'comment' | 'request-changes',
   findings: ReviewFinding[],          // reuse existing core ReviewFinding type
@@ -242,10 +258,12 @@ MUST match the workflow job name (asserted by a test that parses both files).
 4. **SC4 — Verdict normalization.** Each runner's raw output (both preset kinds)
    maps to a schema-valid `CiReviewVerdict` (unit tests per runner against captured
    fixtures). Schema is versioned.
-5. **SC5 — Multi-client verified.** Claude + Gemini (`agent-cli`) run headless in a
-   real GitHub runner and emit a parseable verdict. Codex + Cursor (`agent-cli`) and
-   `local` (`endpoint`, single-pass) either pass the same bar OR are explicitly
-   marked unsupported with the blocking reason (no silently-broken preset ships).
+5. **SC5 — Multi-client verified.** Claude + Codex + Antigravity (`agent-cli`) are
+   verified locally against the real CLIs (diff piped over STDIN) and emit a parseable
+   verdict. Gemini (`agent-cli`, SUPERSEDED by `antigravity` — the renamed `gemini`
+   CLI, command `agy`) and Cursor (`agent-cli`) and `local` (`endpoint`, single-pass)
+   either pass the same bar OR are explicitly marked unsupported/deferred with the
+   blocking reason (no silently-broken preset ships).
    5a. **SC5a — `local` single-pass.** With a reachable openai-compatible endpoint,
    `--runner local` produces a schema-valid `CiReviewVerdict` with no API-key secret
    and no token cost (G5). Verified against a running endpoint; deterministic parts
