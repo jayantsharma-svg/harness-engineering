@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseClaudeVerdict } from '../../../src/review/ci/parsers/claude';
+import { parseGeminiVerdict } from '../../../src/review/ci/parsers/gemini';
 import { parseCiReviewVerdict } from '../../../src/review/ci/verdict-schema';
 
 const fx = (name: string) => readFileSync(join(__dirname, 'fixtures', name), 'utf8');
@@ -18,5 +19,15 @@ describe('claude verdict parser', () => {
 
   it('throws on non-JSON input', () => {
     expect(() => parseClaudeVerdict('not json')).toThrow();
+  });
+});
+
+describe('gemini verdict parser', () => {
+  it('maps gemini review envelope to a schema-valid CiReviewVerdict', () => {
+    const v = parseCiReviewVerdict(parseGeminiVerdict(fx('gemini-verdict.json')));
+    expect(v.runner).toBe('gemini');
+    expect(v.assessment).toBe('comment');
+    expect(v.blockingFindings).toHaveLength(0);
+    expect(v.exitCode).toBe(0);
   });
 });
