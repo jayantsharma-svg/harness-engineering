@@ -9,7 +9,8 @@ export const SEVERITY_WEIGHTS: Record<StrengthFinding['severity'], number> = {
 
 const clamp = (n: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, n));
 
-function tierFor(score: number): Tier {
+/** Pure score→tier mapping. Exported so the solid/at-risk boundary is unit-testable. */
+export function tierFor(score: number): Tier {
   if (score >= 85) return 'solid';
   if (score >= 50) return 'at-risk';
   return 'theatre';

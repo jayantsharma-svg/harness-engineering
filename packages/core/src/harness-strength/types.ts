@@ -31,6 +31,9 @@ export const HarnessConfigSubsetSchema = z
   .object({
     layers: z.array(z.unknown()).optional(),
     architecture: z
+      // `thresholds` distinguishes absent (undefined) from empty ({}): Phase 2's
+      // STRENGTH-004 rule treats both as meaningful — undefined = key never set,
+      // {} = key present but no thresholds configured.
       .object({ thresholds: z.record(z.unknown()).optional() })
       .passthrough()
       .optional(),

@@ -95,6 +95,40 @@ describe('buildProjectContext (present inputs)', () => {
     expect(ctx.initSkill).toBeUndefined();
   });
 
+  it('resolves a settings.json hook command to its real script path/contents', () => {
+    mkdirSync(join(root, '.harness', 'hooks'), { recursive: true });
+    writeFileSync(join(root, '.harness', 'hooks', 'foo.js'), '// foo hook\nprocess.exit(0)\n');
+    mkdirSync(join(root, '.claude'), { recursive: true });
+    writeFileSync(
+      join(root, '.claude', 'settings.json'),
+      JSON.stringify({
+        hooks: {
+          PreToolUse: [
+            {
+              hooks: [
+                {
+                  type: 'command',
+                  command: 'node "$(git rev-parse --show-toplevel)/.harness/hooks/foo.js"',
+                },
+              ],
+            },
+          ],
+        },
+      })
+    );
+    const ctx = buildProjectContext(root, 'adopter');
+    const foo = ctx.hookFiles.find((h) => h.name === 'foo.js');
+    expect(foo).toBeDefined();
+    expect(foo?.text).toContain('foo hook');
+  });
+
+  it('discovers scripts under .harness/hooks/ by directory scan', () => {
+    mkdirSync(join(root, '.harness', 'hooks'), { recursive: true });
+    writeFileSync(join(root, '.harness', 'hooks', 'block-no-verify.js'), '// blocks --no-verify\n');
+    const ctx = buildProjectContext(root, 'adopter');
+    expect(ctx.hookFiles.some((h) => h.name === 'block-no-verify.js')).toBe(true);
+  });
+
   it('populates templates (.hbs) and initSkill in toolkit mode', () => {
     mkdirSync(join(root, 'templates', 'basic'), { recursive: true });
     writeFileSync(join(root, 'templates', 'basic', 'harness.config.json.hbs'), '{}');

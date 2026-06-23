@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { rollupScore, SEVERITY_WEIGHTS } from './scoring';
+import { rollupScore, tierFor, SEVERITY_WEIGHTS } from './scoring';
 import type { StrengthFinding } from './types';
 
 const f = (severity: StrengthFinding['severity']): StrengthFinding => ({
@@ -43,6 +43,11 @@ describe('rollupScore', () => {
     // 100 - 6*8 - 2*2 = 100-52 = 48 -> theatre
     const fortyEight = [...Array.from({ length: 8 }, () => f('warning')), f('info'), f('info')];
     expect(rollupScore(fortyEight)).toEqual({ score: 48, tier: 'theatre' });
+  });
+
+  it('tierFor: 85 is solid, 84 is at-risk (solid/at-risk boundary)', () => {
+    expect(tierFor(85)).toBe('solid');
+    expect(tierFor(84)).toBe('at-risk');
   });
 
   it('is deterministic across repeated calls', () => {

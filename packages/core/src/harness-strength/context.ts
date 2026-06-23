@@ -73,13 +73,14 @@ function resolveHookFiles(root: string): HookFile[] {
   for (const h of [
     ...readHookDir(join(root, '.husky')),
     ...readHookDir(join(root, '.claude', 'hooks')),
+    ...readHookDir(join(root, '.harness', 'hooks')),
   ]) {
     collected.set(resolve(h.path), h);
   }
 
   // Scripts referenced from .claude/settings.json hook registrations.
   const settings = readJsonOrNull(join(root, '.claude', 'settings.json'));
-  for (const ref of extractSettingsHookScripts(settings)) {
+  for (const ref of extractSettingsHookScripts(settings, root)) {
     const abs = resolve(root, ref);
     if (collected.has(abs)) continue;
     const text = readTextOrNull(abs);
@@ -90,14 +91,30 @@ function resolveHookFiles(root: string): HookFile[] {
   return [...collected.values()];
 }
 
-/** Best-effort: pull any string that looks like a script path out of settings.hooks. */
-function extractSettingsHookScripts(settings: unknown): string[] {
+/**
+ * Matches a single script-path token inside a hook command string: a run of
+ * non-whitespace, non-quote characters ending in a known script extension.
+ * Keys on a real script extension so incidental tokens (e.g. build.js.map) are
+ * not mistaken for the hook script.
+ */
+const HOOK_SCRIPT_TOKEN = /(?:^|[\s"'])([^\s"']+\.(?:sh|mjs|cjs|js|ts))(?=$|[\s"'])/g;
+
+/**
+ * Best-effort: pull the SCRIPT PATH out of each settings.hooks command string
+ * (not the whole command). Normalizes a leading `$(git rev-parse
+ * --show-toplevel)` (with surrounding quotes) to the project root so the path
+ * resolves relative to root.
+ */
+function extractSettingsHookScripts(settings: unknown, root: string): string[] {
   const out: string[] = [];
   if (settings === null || typeof settings !== 'object') return out;
   const hooks = (settings as Record<string, unknown>).hooks;
   const walk = (v: unknown): void => {
     if (typeof v === 'string') {
-      if (/\.(sh|mjs|cjs|js|ts)\b/.test(v) || v.includes('hooks/')) out.push(v);
+      for (const m of v.matchAll(HOOK_SCRIPT_TOKEN)) {
+        const token = m[1];
+        if (token) out.push(normalizeHookRef(token, root));
+      }
     } else if (Array.isArray(v)) {
       v.forEach(walk);
     } else if (v && typeof v === 'object') {
@@ -106,6 +123,14 @@ function extractSettingsHookScripts(settings: unknown): string[] {
   };
   walk(hooks);
   return out;
+}
+
+/** Strip a leading repo-root command substitution / quotes so the ref resolves under root. */
+function normalizeHookRef(token: string, root: string): string {
+  let ref = token.replace(/^["']|["']$/g, '');
+  // `$(git rev-parse --show-toplevel)/path` -> `<root>/path`
+  ref = ref.replace(/^\$\(git rev-parse --show-toplevel\)\/?/, `${root}/`);
+  return ref;
 }
 
 function readWorkflows(root: string): { path: string; text: string }[] {
