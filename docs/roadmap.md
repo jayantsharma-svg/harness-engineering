@@ -2518,7 +2518,7 @@ last_manual_edit: 2026-06-23T20:30:00.000Z
 
 ### Build harness:outcome-eval skill
 
-- **Status:** planned
+- **Status:** done
 - **Spec:** docs/changes/outcome-eval/proposal.md
 - **Summary:** The article's named #1 industry gap and the project's largest single missing piece. LLM-judgment skill that reads the spec's user-visible-behavior section + the diff + test outputs and produces a structured "did this satisfy the spec" verdict. Wire into `harness.orchestrator.md` as step 6.5 between code-review and ship. Wire into CI workflow template (item below) as required check. Uses existing primitives in `packages/intelligence` (PESL simulator, effectiveness scorer with graph-attributed execution_outcome nodes, SEL spec enrichment). Confidence calibration similar to `harness:security-craft` to manage false-positive risk. Source: Pass 1 #3, Pass 2 #3 (CRITICAL).
 - **Blockers:** —
@@ -2540,7 +2540,7 @@ last_manual_edit: 2026-06-23T20:30:00.000Z
 
 ### Ship the 5-signal dashboard panel and signals.md doc
 
-- **Status:** planned
+- **Status:** done
 - **Spec:** docs/changes/five-signal-dashboard-panel/proposal.md
 - **Summary:** Article gear item #7: "the five or six signals that, if any of them moves, the senior wants to know inside the hour." Today the dashboard surfaces operational data (maintenance, routing) but no curated signal layer. Pick five: PR-merged-without-multi-persona-review, coverage-trend-down-30d, complexity-trend-up-30d, baseline-auto-update-count, eval-fail-rate. Render as the dashboard's default landing view. Document the picked five in new `docs/standard/signals.md`. Source: Pass 1 #5, Pass 2 #4, Pass 3 #11.
 - **Blockers:** —
