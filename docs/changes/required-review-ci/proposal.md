@@ -76,13 +76,20 @@ Formalizing the brainstorming questions (Q1–Q5) and the architecture choice.
   Both kinds normalize to the same `CiReviewVerdict`, so the gate/threshold logic
   is preset-kind-agnostic. _(Q3 generalized + D6 + D7)_
 
-- **D4 — Five runners in v1, feasibility-gated.** Claude + Gemini ship verified
-  (`agent-cli`). The following are `[UNVERIFIED]` and each gated behind its own
-  Phase 1 spike — no silently-broken preset ships: Codex/Cursor headless-CI
-  (`agent-cli`); `local` single-pass (needs a running openai-compatible endpoint,
-  absent in the authoring environment); **full-agentic `local`** (a local model
-  driving tool-use/subagent dispatch — the highest-risk item; small models may not
-  drive the agentic pipeline reliably). _(Q4-A + D7)_
+- **D4 — Five runners in v1, feasibility-gated.** Claude + Codex ship verified
+  (`agent-cli`), confirmed against the real CLIs via the Phase 1 Task 10 smoke
+  test (diff piped over STDIN; two-stage JSON envelopes). The following are
+  `[UNVERIFIED]` and each gated behind its own Phase 1/CI spike — no
+  silently-broken preset ships: **Gemini** (`agent-cli`, downgraded to
+  `supported:false`: argv corrected from `--help` to `gemini -p <instr> -o json`
+  with the diff on STDIN, but the output envelope is UNVERIFIED because no
+  `GEMINI_API_KEY` was available locally — the CLI fell through to interactive
+  OAuth; verification deferred to CI); Cursor headless-CI (`agent-cli`); `local`
+  single-pass (needs a running openai-compatible endpoint, absent in the
+  authoring environment); **full-agentic `local`** (a local model driving
+  tool-use/subagent dispatch — the highest-risk item; small models may not
+  drive the agentic pipeline reliably). _(Q4-A + D7; revised by Task 10 smoke
+  test divergence)_
 - **D5 — Config-as-code ruleset.** Committed `required-review.ruleset.json` + a
   documented one-line `gh api` apply step makes the check required. _(Q5-A)_
 - **D6 — Orchestration in tested TS.** The contract (floor reuse, per-runner

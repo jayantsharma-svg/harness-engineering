@@ -1,15 +1,24 @@
 import type { CiReviewVerdict } from './verdict-schema';
 import { parseClaudeVerdict } from './parsers/claude';
-import { parseGeminiVerdict } from './parsers/gemini';
+// parseGeminiVerdict is intentionally not imported here: the gemini preset is
+// downgraded to `supported: false` (see below) until its output envelope is
+// verified in CI. The parser remains exported from ./index for that future work.
 import { parseCodexVerdict } from './parsers/codex';
 import { parseLocalVerdict } from './parsers/local';
 
-/** A headless invocation descriptor: the argv the orchestrator shells out to. */
+/**
+ * A headless invocation descriptor: the argv the orchestrator shells out to.
+ *
+ * The unified diff is supplied to the child process over STDIN — the orchestrator
+ * (Phase 2) pipes it in. None of the verified CLIs (claude, codex) accept a diff
+ * via a flag/path argument; both read from STDIN and take the review instruction
+ * as a prompt. (Confirmed against the real CLIs in the Phase 1 Task 10 smoke test.)
+ */
 export interface HeadlessInvocation {
   /** Executable name expected on PATH (e.g. 'claude'). */
   command: string;
-  /** Args builder given the review instruction + diff path. */
-  args: (opts: { instruction: string; diffPath: string }) => string[];
+  /** Args builder given the review instruction (the diff is piped via STDIN). */
+  args: (opts: { instruction: string }) => string[];
 }
 
 /**
@@ -41,7 +50,7 @@ interface AgentCliSupported {
   kind: 'agent-cli';
   supported: true;
   secretEnvVar: string;
-  headlessInvocation: (opts: { instruction: string; diffPath: string }) => {
+  headlessInvocation: (opts: { instruction: string }) => {
     command: string;
     args: string[];
   };
@@ -89,29 +98,39 @@ export const RUNNER_PRESETS: Record<RunnerId, RunnerPreset> = {
     kind: 'agent-cli',
     supported: true,
     secretEnvVar: 'ANTHROPIC_API_KEY',
-    headlessInvocation: ({ instruction, diffPath }) => ({
+    // Verified (Task 10 smoke test): diff piped via STDIN, instruction as the
+    // `-p` prompt, JSON transcript on stdout. There is NO `--input-file` flag.
+    headlessInvocation: ({ instruction }) => ({
       command: 'claude',
-      args: ['-p', instruction, '--input-file', diffPath, '--output-format', 'json'],
+      args: ['-p', instruction, '--output-format', 'json'],
     }),
     verdictParser: parseClaudeVerdict,
   },
   gemini: {
     kind: 'agent-cli',
-    supported: true,
-    secretEnvVar: 'GEMINI_API_KEY',
-    headlessInvocation: ({ instruction, diffPath }) => ({
-      command: 'gemini',
-      args: ['--prompt', instruction, '--file', diffPath, '--json'],
-    }),
-    verdictParser: parseGeminiVerdict,
+    supported: false,
+    // argv corrected from `gemini --help` (NOT `--json`; it is `-o json`, and there
+    // is no `--file` flag — the diff goes on STDIN):
+    //   command: 'gemini'
+    //   args: ['-p', instruction, '-o', 'json']   // diff piped via STDIN
+    // Re-enable by restoring `supported: true`, `secretEnvVar: 'GEMINI_API_KEY'`,
+    // the headlessInvocation above, and `verdictParser: parseGeminiVerdict` once
+    // the output envelope is captured in CI.
+    unsupportedReason:
+      'gemini argv corrected from --help (`gemini -p <instruction> -o json`, diff on STDIN), ' +
+      'but the JSON output envelope is UNVERIFIED: no GEMINI_API_KEY was available in the ' +
+      'authoring environment, so the CLI fell through to interactive OAuth and produced no ' +
+      'capturable result. Verification deferred to a real CI run with credentials.',
   },
   codex: {
     kind: 'agent-cli',
     supported: true,
     secretEnvVar: 'OPENAI_API_KEY',
-    headlessInvocation: ({ instruction, diffPath }) => ({
+    // Verified (Task 10 smoke test): diff piped via STDIN, instruction as the
+    // positional prompt, JSONL event stream on stdout. There is NO `--file` flag.
+    headlessInvocation: ({ instruction }) => ({
       command: 'codex',
-      args: ['exec', '--json', instruction, '--file', diffPath],
+      args: ['exec', '--json', instruction],
     }),
     verdictParser: parseCodexVerdict,
   },

@@ -16,8 +16,8 @@ describe('RUNNER_PRESETS registry shape', () => {
     ]);
   });
 
-  it('marks claude/gemini/codex as supported agent-cli presets', () => {
-    for (const id of ['claude', 'gemini', 'codex'] as const) {
+  it('marks claude/codex as supported agent-cli presets', () => {
+    for (const id of ['claude', 'codex'] as const) {
       const p = RUNNER_PRESETS[id];
       expect(p.kind).toBe('agent-cli');
       expect(p.supported).toBe(true);
@@ -37,22 +37,52 @@ describe('RUNNER_PRESETS registry shape', () => {
     expect(presetKind('local')).toBe('endpoint');
   });
 
-  it('builds a headless invocation argv per supported agent-cli runner', () => {
-    for (const id of ['claude', 'gemini', 'codex'] as const) {
+  it('builds a STDIN-based headless invocation argv per supported agent-cli runner', () => {
+    for (const id of ['claude', 'codex'] as const) {
       const preset = RUNNER_PRESETS[id];
       if (preset.kind !== 'agent-cli' || !preset.supported) {
         throw new Error(`${id} should be supported agent-cli`);
       }
-      const inv = preset.headlessInvocation({ instruction: 'review', diffPath: '/tmp/d.diff' });
+      // The diff is piped via STDIN — the builder takes only the instruction.
+      const inv = preset.headlessInvocation({ instruction: 'review this diff' });
       expect(inv.command).toMatch(/.+/);
       expect(Array.isArray(inv.args)).toBe(true);
+      expect(inv.args).toContain('review this diff');
+      // No diff-path/file argument leaks into argv (diff goes over STDIN).
+      expect(inv.args).not.toContain('--input-file');
+      expect(inv.args).not.toContain('--file');
     }
   });
 
-  it('reports claude/gemini/codex as supported runners via isSupportedRunner', () => {
+  it('builds the verified claude argv: `claude -p <instruction> --output-format json`', () => {
+    const p = RUNNER_PRESETS.claude;
+    if (p.kind !== 'agent-cli' || !p.supported) throw new Error('claude should be supported');
+    const inv = p.headlessInvocation({ instruction: 'INSTR' });
+    expect(inv.command).toBe('claude');
+    expect(inv.args).toEqual(['-p', 'INSTR', '--output-format', 'json']);
+  });
+
+  it('builds the verified codex argv: `codex exec --json <instruction>` (positional prompt)', () => {
+    const p = RUNNER_PRESETS.codex;
+    if (p.kind !== 'agent-cli' || !p.supported) throw new Error('codex should be supported');
+    const inv = p.headlessInvocation({ instruction: 'INSTR' });
+    expect(inv.command).toBe('codex');
+    expect(inv.args).toEqual(['exec', '--json', 'INSTR']);
+  });
+
+  it('reports claude/codex as supported runners via isSupportedRunner', () => {
     expect(isSupportedRunner('claude')).toBe(true);
-    expect(isSupportedRunner('gemini')).toBe(true);
     expect(isSupportedRunner('codex')).toBe(true);
+  });
+
+  it('marks gemini as an unsupported agent-cli preset (UNVERIFIED envelope, deferred to CI)', () => {
+    const g = RUNNER_PRESETS.gemini;
+    expect(g.kind).toBe('agent-cli');
+    expect(g.supported).toBe(false);
+    if (g.kind !== 'agent-cli' || g.supported) throw new Error('gemini should be unsupported');
+    expect(g.unsupportedReason).toMatch(/GEMINI_API_KEY/);
+    expect(g.unsupportedReason).toMatch(/UNVERIFIED/);
+    expect(isSupportedRunner('gemini')).toBe(false);
   });
 
   it('marks cursor as an unsupported agent-cli placeholder', () => {

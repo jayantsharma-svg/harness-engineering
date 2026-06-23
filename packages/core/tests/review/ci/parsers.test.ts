@@ -10,36 +10,155 @@ import { parseCiReviewVerdict } from '../../../src/review/ci/verdict-schema';
 const fx = (name: string) => readFileSync(join(__dirname, 'fixtures', name), 'utf8');
 
 describe('claude verdict parser', () => {
-  it('maps raw claude output to a schema-valid CiReviewVerdict', () => {
+  it('unwraps the transcript `.result` JSON string into a schema-valid CiReviewVerdict', () => {
+    // Real shape: outer transcript envelope whose `.result` is a JSON STRING.
     const v = parseClaudeVerdict(fx('claude-verdict.json'));
     const validated = parseCiReviewVerdict(v); // throws if invalid
     expect(validated.runner).toBe('claude');
     expect(validated.ranLlmTier).toBe(true);
     expect(validated.assessment).toBe('request-changes');
+    expect(validated.findings).toHaveLength(1);
     expect(validated.blockingFindings.every((f) => f.severity === 'critical')).toBe(true);
+    expect(validated.exitCode).toBe(1);
   });
 
-  it('throws on non-JSON input', () => {
+  it('approves with exitCode 0 when the inner verdict has no blocking findings', () => {
+    const envelope = JSON.stringify({
+      type: 'result',
+      subtype: 'success',
+      is_error: false,
+      result: JSON.stringify({ assessment: 'approve', findings: [] }),
+    });
+    const v = parseClaudeVerdict(envelope);
+    expect(v.assessment).toBe('approve');
+    expect(v.findings).toHaveLength(0);
+    expect(v.exitCode).toBe(0);
+  });
+
+  it('throws on non-JSON input (does not silently pass)', () => {
     expect(() => parseClaudeVerdict('not json')).toThrow();
   });
-});
 
-describe('gemini verdict parser', () => {
-  it('maps gemini review envelope to a schema-valid CiReviewVerdict', () => {
-    const v = parseCiReviewVerdict(parseGeminiVerdict(fx('gemini-verdict.json')));
-    expect(v.runner).toBe('gemini');
-    expect(v.assessment).toBe('comment');
-    expect(v.blockingFindings).toHaveLength(0);
-    expect(v.exitCode).toBe(0);
+  it('throws when the transcript reports is_error=true (does not silently pass)', () => {
+    const errEnvelope = JSON.stringify({
+      type: 'result',
+      subtype: 'error_max_turns',
+      is_error: true,
+      result: 'partial output',
+    });
+    expect(() => parseClaudeVerdict(errEnvelope)).toThrow(/is_error/);
+  });
+
+  it('throws when the `.result` field is missing', () => {
+    const noResult = JSON.stringify({ type: 'result', is_error: false });
+    expect(() => parseClaudeVerdict(noResult)).toThrow(/result/);
+  });
+
+  it('throws when the inner `.result` string is not valid JSON', () => {
+    const badInner = JSON.stringify({
+      type: 'result',
+      is_error: false,
+      result: 'this is not json',
+    });
+    expect(() => parseClaudeVerdict(badInner)).toThrow();
   });
 });
 
 describe('codex verdict parser', () => {
-  it('maps codex clean result to an approve verdict with exitCode 0', () => {
-    const v = parseCiReviewVerdict(parseCodexVerdict(fx('codex-verdict.json')));
+  it('extracts the agent_message text from the JSONL stream into an approve verdict', () => {
+    // Real shape: JSONL event stream; verdict lives in item.completed/agent_message.text.
+    const v = parseCiReviewVerdict(parseCodexVerdict(fx('codex-verdict.jsonl')));
     expect(v.runner).toBe('codex');
     expect(v.assessment).toBe('approve');
     expect(v.findings).toHaveLength(0);
+    expect(v.exitCode).toBe(0);
+  });
+
+  it('takes the LAST agent_message when multiple are present', () => {
+    const stream = [
+      JSON.stringify({ type: 'thread.started', thread_id: 'th_1' }),
+      JSON.stringify({
+        type: 'item.completed',
+        item: {
+          id: 'i0',
+          type: 'agent_message',
+          text: JSON.stringify({ assessment: 'comment', findings: [] }),
+        },
+      }),
+      JSON.stringify({
+        type: 'item.completed',
+        item: {
+          id: 'i1',
+          type: 'agent_message',
+          text: JSON.stringify({
+            assessment: 'request-changes',
+            findings: [
+              {
+                id: 'bug-1',
+                file: 'src/x.ts',
+                lineRange: [1, 2],
+                domain: 'bug',
+                severity: 'critical',
+                title: 'boom',
+                rationale: 'because',
+                evidence: ['src/x.ts:1'],
+                validatedBy: 'heuristic',
+              },
+            ],
+          }),
+        },
+      }),
+      JSON.stringify({ type: 'turn.completed' }),
+    ].join('\n');
+    const v = parseCodexVerdict(stream);
+    expect(v.assessment).toBe('request-changes');
+    expect(v.blockingFindings).toHaveLength(1);
+    expect(v.exitCode).toBe(1);
+  });
+
+  it('skips non-JSON noise lines defensively', () => {
+    const stream = [
+      'progress: spinning up sandbox...',
+      JSON.stringify({ type: 'turn.started' }),
+      JSON.stringify({
+        type: 'item.completed',
+        item: {
+          id: 'i0',
+          type: 'agent_message',
+          text: JSON.stringify({ assessment: 'approve', findings: [] }),
+        },
+      }),
+    ].join('\n');
+    const v = parseCodexVerdict(stream);
+    expect(v.assessment).toBe('approve');
+  });
+
+  it('throws when no agent_message event is present (does not silently pass)', () => {
+    const stream = [
+      JSON.stringify({ type: 'thread.started', thread_id: 'th_1' }),
+      JSON.stringify({ type: 'turn.completed' }),
+    ].join('\n');
+    expect(() => parseCodexVerdict(stream)).toThrow(/agent_message/);
+  });
+
+  it('throws when the agent_message text is not valid JSON', () => {
+    const stream = JSON.stringify({
+      type: 'item.completed',
+      item: { id: 'i0', type: 'agent_message', text: 'not json' },
+    });
+    expect(() => parseCodexVerdict(stream)).toThrow();
+  });
+});
+
+describe('gemini verdict parser (UNVERIFIED — preset downgraded to unsupported)', () => {
+  // The gemini agent-cli preset is `supported: false` until its output envelope
+  // is captured in CI. The parser is retained (and still exported) against the
+  // representative envelope shape so it can be re-enabled without rewriting tests.
+  it('maps the representative gemini review envelope to a schema-valid CiReviewVerdict', () => {
+    const v = parseCiReviewVerdict(parseGeminiVerdict(fx('gemini-verdict.json')));
+    expect(v.runner).toBe('gemini');
+    expect(v.assessment).toBe('comment');
+    expect(v.blockingFindings).toHaveLength(0);
     expect(v.exitCode).toBe(0);
   });
 });
