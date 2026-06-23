@@ -351,4 +351,23 @@ describe('harness init — CI workflow', () => {
     expect(c).not.toMatch(/git push/);
     fs.rmSync(tmp, { recursive: true });
   });
+
+  it('does not overwrite an existing ci.yml', async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-init-ci-keep-'));
+    fs.mkdirSync(path.join(tmp, '.github/workflows'), { recursive: true });
+    fs.writeFileSync(path.join(tmp, '.github/workflows/ci.yml'), 'name: Hand-tuned\n');
+    await runInit({ cwd: tmp, name: 'keep', level: 'basic' });
+    expect(fs.readFileSync(path.join(tmp, '.github/workflows/ci.yml'), 'utf-8')).toBe(
+      'name: Hand-tuned\n'
+    );
+    fs.rmSync(tmp, { recursive: true });
+  });
+
+  it('language drives the generated steps (python)', async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-init-ci-py-'));
+    await runInit({ cwd: tmp, name: 'py', language: 'python' });
+    const c = fs.readFileSync(path.join(tmp, '.github/workflows/ci.yml'), 'utf-8');
+    expect(c).toContain('pytest');
+    fs.rmSync(tmp, { recursive: true });
+  });
 });
