@@ -30,8 +30,71 @@ function buildSkipFlag(checks?: CICheckName[]): string {
   return ` --skip ${skipChecks.join(',')}`;
 }
 
-function generateGitHubActions(skipFlag: string): string {
-  return `name: Harness Checks
+interface LanguageSteps {
+  setup: string; // YAML lines for runtime setup step(s), indented for steps list
+  install: string;
+  build?: string;
+  lint?: string;
+  test: string;
+}
+
+function stepsForLanguage(language?: string): LanguageSteps {
+  switch (language) {
+    case 'python':
+      return {
+        setup: `      - uses: actions/setup-python@v5\n        with:\n          python-version: '3.12'`,
+        install: 'pip install -e .',
+        lint: 'ruff check .',
+        test: 'pytest',
+      };
+    case 'go':
+      return {
+        setup: `      - uses: actions/setup-go@v5\n        with:\n          go-version: 'stable'`,
+        install: 'go mod download',
+        build: 'go build ./...',
+        lint: 'golangci-lint run',
+        test: 'go test ./...',
+      };
+    case 'rust':
+      return {
+        setup: `      - uses: dtolnay/rust-toolchain@stable`,
+        install: 'cargo fetch',
+        build: 'cargo build',
+        lint: 'cargo clippy',
+        test: 'cargo test',
+      };
+    case 'java':
+      return {
+        setup: `      - uses: actions/setup-java@v4\n        with:\n          distribution: 'temurin'\n          java-version: '21'`,
+        install: 'mvn -B -q install -DskipTests',
+        test: 'mvn -B verify',
+      };
+    case 'typescript':
+    default:
+      return {
+        setup: `      - uses: actions/setup-node@v4\n        with:\n          node-version: '22'\n      - uses: pnpm/action-setup@v4`,
+        install: 'pnpm i --frozen-lockfile',
+        build: 'pnpm build',
+        lint: 'pnpm lint',
+        test: 'pnpm test',
+      };
+  }
+}
+
+function generateGitHubActions(skipFlag: string, language?: string): string {
+  const steps = stepsForLanguage(language);
+
+  const commandSteps: string[] = [];
+  commandSteps.push(`      - name: Install dependencies\n        run: ${steps.install}`);
+  if (steps.build) {
+    commandSteps.push(`      - name: Build\n        run: ${steps.build}`);
+  }
+  if (steps.lint) {
+    commandSteps.push(`      - name: Lint\n        run: ${steps.lint}`);
+  }
+  commandSteps.push(`      - name: Test\n        run: ${steps.test}`);
+
+  return `name: CI
 
 on:
   push:
@@ -44,15 +107,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  harness:
+  ci:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - run: npm install -g @harness-engineering/cli
-      - name: Run harness checks
+${steps.setup}
+${commandSteps.join('\n')}
+      - name: Harness gate
         run: harness ci check --json${skipFlag}
 `;
 }
@@ -102,12 +163,16 @@ exit $EXIT_CODE
 export function generateCIConfig(options: {
   platform: CIPlatform;
   checks?: CICheckName[];
+  language?: string;
 }): Result<GenerateResult, CLIError> {
-  const { platform, checks } = options;
+  const { platform, checks, language } = options;
   const skipFlag = buildSkipFlag(checks);
 
   const generators: Record<CIPlatform, { filename: string; generate: (skip: string) => string }> = {
-    github: { filename: '.github/workflows/harness.yml', generate: generateGitHubActions },
+    github: {
+      filename: '.github/workflows/harness.yml',
+      generate: (skip: string) => generateGitHubActions(skip, language),
+    },
     gitlab: { filename: '.gitlab-ci-harness.yml', generate: generateGitLabCI },
     generic: { filename: 'harness-ci.sh', generate: generateGenericScript },
   };
