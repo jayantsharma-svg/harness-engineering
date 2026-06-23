@@ -50,6 +50,18 @@ describe('generateCIConfig — language', () => {
     expect(result.value.content).toContain('pnpm test');
   });
 
+  it('sets up pnpm before setup-node in the TS setup (matches project ci.yml)', () => {
+    const result = generateCIConfig({ platform: 'github', language: 'typescript' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const c = result.value.content;
+    const pnpmIdx = c.indexOf('pnpm/action-setup@v4');
+    const nodeIdx = c.indexOf('actions/setup-node@v4');
+    expect(pnpmIdx).toBeGreaterThan(-1);
+    expect(nodeIdx).toBeGreaterThan(-1);
+    expect(pnpmIdx).toBeLessThan(nodeIdx);
+  });
+
   it('emits a single fail-fast ci job with checkout, setup, install, build, lint, test, gate', () => {
     const r = generateCIConfig({ platform: 'github', language: 'typescript' });
     expect(r.ok).toBe(true);

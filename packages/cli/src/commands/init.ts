@@ -138,12 +138,17 @@ function scaffoldProject(
   // generator (generateCIConfig). It is classified as a harness-managed file
   // (engine.ts HARNESS_CONFIG_FILES), so engine.write emits it in both fresh
   // and existing-project mode and skips it when a workflow already exists.
-  const ciResult = generateCIConfig({ platform: 'github', ...(language && { language }) });
+  const ciResult = generateCIConfig({
+    platform: 'github',
+    ...(language !== undefined && { language }),
+  });
   if (ciResult.ok) {
     renderResult.value.files.push({
       relativePath: ciResult.value.filename,
       content: ciResult.value.content,
     });
+  } else {
+    logger.warn(`CI workflow was not generated: ${ciResult.error.message}`);
   }
 
   const existingProject = !force && engine.isExistingProject(cwd);

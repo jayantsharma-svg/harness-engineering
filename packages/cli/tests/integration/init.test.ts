@@ -370,4 +370,20 @@ describe('harness init — CI workflow', () => {
     expect(c).toContain('pytest');
     fs.rmSync(tmp, { recursive: true });
   });
+
+  it('creates ci.yml in an existing project with no workflow (primary persona)', async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-init-ci-existing-proj-'));
+    // Seed an existing-project marker; no .github/workflows/ci.yml present.
+    fs.writeFileSync(path.join(tmp, 'package.json'), '{"name":"existing-app"}');
+
+    const r = await runInit({ cwd: tmp, name: 'existing-app', level: 'basic' });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+
+    const wf = path.join(tmp, '.github/workflows/ci.yml');
+    expect(fs.existsSync(wf)).toBe(true);
+    const c = fs.readFileSync(wf, 'utf-8');
+    expect(c).toContain('harness ci check --json');
+    fs.rmSync(tmp, { recursive: true });
+  });
 });

@@ -72,7 +72,7 @@ function stepsForLanguage(language?: string): LanguageSteps {
     case 'typescript':
     default:
       return {
-        setup: `      - uses: actions/setup-node@v4\n        with:\n          node-version: '22'\n      - uses: pnpm/action-setup@v4`,
+        setup: `      - uses: pnpm/action-setup@v4\n      - uses: actions/setup-node@v4\n        with:\n          node-version: '22'`,
         install: 'pnpm i --frozen-lockfile',
         build: 'pnpm build',
         lint: 'pnpm lint',
