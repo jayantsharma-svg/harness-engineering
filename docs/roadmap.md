@@ -2287,6 +2287,94 @@ last_manual_edit: 2026-06-23T15:38:55.939Z
 - **Priority:** —
 - **External-ID:** github:Intense-Visions/harness-engineering#584
 
+### Event-Sourced State Model with Deterministic Reducer
+
+- **Status:** planned
+- **Spec:** —
+- **Summary:** Replace harness's mutated .harness/state.json with an append-only event log + pure deterministic reducer + materialized snapshot, plus an explicit guarded state machine for autopilot/orchestrator task lanes (forced-transition rules, dependency guards, mandatory evidence to reach terminal states). Highest-leverage hardening of harness's weakest subsystem (state/provenance); subsumes and complements the Append-Only Session Audit Trail (#580). Modeled on Spec Kitty's status/{emit,store,reducer,transitions}.py. Adoption #1 from docs/research/spec-kitty-comparison-analysis.md [SPECKITTY-1]
+- **Blockers:** —
+- **Plan:** —
+- **Assignee:** —
+- **Priority:** —
+- **External-ID:** github:Intense-Visions/harness-engineering#598
+
+### Live Work-in-Flight Kanban for Parallel/Autopilot Runs
+
+- **Status:** planned
+- **Spec:** —
+- **Summary:** Add a live work-in-flight kanban to the harness dashboard fed by orchestrator/parallel-coordinator state: per-task lane, owning agent, worktree, blockers, and dependency edges — surfacing in-flight agent work rather than only retrospective health signals. Reuses the existing dashboard package and orchestrator state machine. Complements Dashboard v3: Team & Stakeholder Views (#124). Adapted from Spec Kitty's local kanban control plane. Adoption #2 from docs/research/spec-kitty-comparison-analysis.md [SPECKITTY-2]
+- **Blockers:** —
+- **Plan:** —
+- **Assignee:** —
+- **Priority:** —
+- **External-ID:** github:Intense-Visions/harness-engineering#599
+
+### Smart-Merge Engine for Parallel-Coordinator Integration
+
+- **Status:** planned
+- **Spec:** —
+- **Summary:** Port a preflight -> conflict-forecast -> classify -> resolve -> resumable-merge-state pipeline into harness's worktree integration path, replacing the current basic git 3-way + cherry-pick. Predicts conflicts before merging and persists resumable state so an interrupted multi-agent integration can recover. Closes the integration bottleneck for parallel-coordinator execution. Adapted from Spec Kitty's merge/ smart-merge engine. Adoption #3 from docs/research/spec-kitty-comparison-analysis.md [SPECKITTY-3]
+- **Blockers:** —
+- **Plan:** —
+- **Assignee:** —
+- **Priority:** —
+- **External-ID:** github:Intense-Visions/harness-engineering#600
+
+### Owned-Files Declaration in Plans/Tasks
+
+- **Status:** planned
+- **Spec:** —
+- **Summary:** Add an owns:[paths] field to harness plan tasks declaring the source files each task owns, enabling cheap deterministic pre-execution conflict forecasting alongside the heavier graph-based independence check (check_task_independence). A near-free parallel-safety guardrail. Adapted from Spec Kitty's per-work-package owned-files frontmatter. Adoption #4 from docs/research/spec-kitty-comparison-analysis.md [SPECKITTY-4]
+- **Blockers:** —
+- **Plan:** —
+- **Assignee:** —
+- **Priority:** —
+- **External-ID:** github:Intense-Visions/harness-engineering#601
+
+### Auto-Triggered Retrospection with Applyable Proposals
+
+- **Status:** planned
+- **Spec:** —
+- **Summary:** Fire harness:compound automatically at the session/phase terminus (rather than only on human invocation) and emit applyable synthesis proposals that can propagate to the knowledge graph or other in-flight work, not just written to docs/solutions/. Complements the harness:compound skill, harness:outcome-eval (#532), and harness:catalog-retrospective (#536). Adapted from Spec Kitty's retrospective_hook auto-trigger + applyable-proposal shape. Adoption #5 from docs/research/spec-kitty-comparison-analysis.md [SPECKITTY-5]
+- **Blockers:** —
+- **Plan:** —
+- **Assignee:** —
+- **Priority:** —
+- **External-ID:** github:Intense-Visions/harness-engineering#602
+
+### ULID Identity for Sessions and Worktrees
+
+- **Status:** planned
+- **Spec:** —
+- **Summary:** Adopt collision-free immutable ULID identity for harness sessions and worktree-isolated tasks, with human-friendly numbering assigned only at completion — fixing the worktree/branch/dashboard disambiguation problem that slug-prefix schemes collide on. Adapted from Spec Kitty's ULID mission identity (mission_id immutable, mission_number at merge). Adoption #6 from docs/research/spec-kitty-comparison-analysis.md [SPECKITTY-6]
+- **Blockers:** —
+- **Plan:** —
+- **Assignee:** —
+- **Priority:** —
+- **External-ID:** github:Intense-Visions/harness-engineering#603
+
+### Orchestrator Gateway Policy Envelope and Subprocess Air-Gap
+
+- **Status:** planned
+- **Spec:** —
+- **Summary:** Add a per-call PolicyMetadata envelope (approval mode, sandbox mode, network mode, dangerous-flags, agent family/version) and a zero-import subprocess boundary to the harness orchestrator gateway API (ADR 0011), validated on both ends for safe agent isolation and a full governance audit trail. Complements MCP server version pinning + trust model (#557). Adapted from Spec Kitty's orchestrator-api subprocess air-gap. Adoption #7 from docs/research/spec-kitty-comparison-analysis.md [SPECKITTY-7]
+- **Blockers:** —
+- **Plan:** —
+- **Assignee:** —
+- **Priority:** —
+- **External-ID:** github:Intense-Visions/harness-engineering#604
+
+### Semantic-Vocabulary CI Gate
+
+- **Status:** planned
+- **Spec:** —
+- **Summary:** Add a harness analog of Spec Kitty's test_no_legacy_terminology architectural test: a CI gate that fails when deprecated or renamed canonical terms reappear in skills/docs, protecting the glossary and naming-craft investment from vocabulary drift over time. Adapted from Spec Kitty's semantic-terminology architectural test. Adoption #8 from docs/research/spec-kitty-comparison-analysis.md [SPECKITTY-8]
+- **Blockers:** —
+- **Plan:** —
+- **Assignee:** —
+- **Priority:** —
+- **External-ID:** github:Intense-Visions/harness-engineering#605
+
 ## v4.0 Business Knowledge System
 
 ### Phase 1: Knowledge Foundation
