@@ -189,6 +189,23 @@ Findings: 2  (Errors: 2 | Warnings: 0 | Info: 0)
 
 Two error-severity findings → FAIL. STRENGTH-001 is the recursion item: a hook that runs but cannot block. Run with `--report-only` only when you explicitly want to surface findings without failing the build (e.g., a first baseline-capture run) — and never to normalize the weakness.
 
+## Skill Test Scenarios
+
+### Scenario 1: Red Flag — "I'll re-grep the hooks myself to double-check the engine"
+
+Input: The agent has the `harness check-harness-strength --json` output in hand but is about to open `.husky/pre-commit` and grep it by hand to "confirm" the STRENGTH-001 finding.
+Expected: Agent stops, cites the no-reimplementation gate (ADR 0039 / spec D1), and interprets the engine's JSON instead of hand-grepping the hook.
+
+### Scenario 2: Rationalization — "it only warns, not errors, so it's fine"
+
+Input: The engine reports a documented "never blocks" pre-commit profile, and the agent is tempted to treat it as acceptable because nothing currently fails the build.
+Expected: Agent rejects the rationalization, recognizes that "warns but doesn't stop" IS STRENGTH-001 (the recursion item), and surfaces it as a finding rather than normalizing it.
+
+### Scenario 3: Gate — error-severity STRENGTH-001 finding present without `--report-only`
+
+Input: The `--json` output contains an error-severity STRENGTH-001 finding, `--report-only` was not passed, and the agent is about to summarize the run as PASS.
+Expected: Agent halts, reports FAIL with a non-zero exit, lists the finding with its file:line evidence and remediation, and does not proceed past the gate.
+
 
 --- skill.yaml (agents/skills/claude-code/harness-audit-harness-strength/skill.yaml) ---
 name: harness-audit-harness-strength
