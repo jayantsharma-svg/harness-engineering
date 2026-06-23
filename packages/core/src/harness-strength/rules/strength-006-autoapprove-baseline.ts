@@ -13,9 +13,30 @@ import type { ProjectContext, StrengthFinding, StrengthRule } from '../types';
  * false positive; documented as a known v1 limitation (revisit in dogfood).
  */
 
-const AUTO_STEP = /auto-?approve|auto-?merge|--auto\b|enable-pull-request-automerge/i;
-const PAT_GATING = /secrets\.\w*(?:PAT|TOKEN)\w*/;
-const REVIEW_SIGNAL = /required_reviewers|review.*approved|approvals?\s*:\s*[1-9]|CODEOWNERS/i;
+const AUTO_PATTERN = /auto-?approve|auto-?merge|--auto\b|enable-pull-request-automerge/i;
+// Only treat a line as an auto-approve/merge STEP when the auto pattern appears
+// on an actual step directive (`uses:` / `run:` / `with:`), not in a free-text
+// job/step NAME, so a workflow merely titled "auto-approve baseline" is not
+// matched on its name alone.
+const STEP_DIRECTIVE = /^\s*(?:-\s*)?(?:uses|run|with)\s*:/i;
+// A PAT/token reference, EXCLUDING the default `GITHUB_TOKEN` (which is scoped
+// to the workflow and is not a personal access token).
+const PAT_GATING = /secrets\.(?!GITHUB_TOKEN\b)\w*(?:PAT|TOKEN)\w*/;
+// A real review mechanism — a configured approval gate or a workflow trigger
+// that is conditioned on a submitted human review. Keys on STRUCTURED signals,
+// NOT arbitrary comment text (so a comment like `# once review is approved`
+// cannot suppress a finding). Note: an auto-approve action's own name contains
+// "approve", so we deliberately do not treat bare `uses:` lines as review gates.
+const REVIEW_SIGNAL =
+  /required_reviewers|approvals?\s*:\s*[1-9]|CODEOWNERS|github\.event\.review\.state\s*==\s*['"]approved['"]/i;
+
+/**
+ * True when the auto-approve/merge pattern appears on an actual step directive
+ * (`uses:`/`run:`/`with:`) rather than only in free text such as a job name.
+ */
+function hasAutoStep(text: string): boolean {
+  return text.split('\n').some((l) => STEP_DIRECTIVE.test(l) && AUTO_PATTERN.test(l));
+}
 
 export const strength006AutoapproveBaseline: StrengthRule = {
   id: 'STRENGTH-006',
@@ -26,12 +47,12 @@ export const strength006AutoapproveBaseline: StrengthRule = {
   detect(ctx: ProjectContext): Omit<StrengthFinding, 'severity'>[] {
     const findings: Omit<StrengthFinding, 'severity'>[] = [];
     for (const wf of ctx.workflows) {
-      const hasAuto = AUTO_STEP.test(wf.text);
+      const hasAuto = hasAutoStep(wf.text);
       const hasPat = PAT_GATING.test(wf.text);
       const hasReview = REVIEW_SIGNAL.test(wf.text);
       if (hasAuto && hasPat && !hasReview) {
         const lines = wf.text.split('\n');
-        const idx = lines.findIndex((l) => AUTO_STEP.test(l));
+        const idx = lines.findIndex((l) => STEP_DIRECTIVE.test(l) && AUTO_PATTERN.test(l));
         findings.push({
           id: 'STRENGTH-006',
           gearPiece: 'review-gate',
