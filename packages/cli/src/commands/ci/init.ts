@@ -113,6 +113,8 @@ jobs:
       - uses: actions/checkout@v4
 ${steps.setup}
 ${commandSteps.join('\n')}
+      - name: Install harness CLI
+        run: npm install -g @harness-engineering/cli
       - name: Harness gate
         run: harness ci check --json${skipFlag}
 `;

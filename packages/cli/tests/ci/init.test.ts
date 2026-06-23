@@ -64,6 +64,29 @@ describe('generateCIConfig — language', () => {
     expect(c.trimEnd().endsWith('run: harness ci check --json')).toBe(true);
   });
 
+  it('installs the harness CLI immediately before the gate (language-independent)', () => {
+    const r = generateCIConfig({ platform: 'github', language: 'typescript' });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const c = r.value.content;
+    expect(c).toContain('npm install -g @harness-engineering/cli');
+    const installIdx = c.indexOf('npm install -g @harness-engineering/cli');
+    const gateIdx = c.indexOf('harness ci check --json');
+    expect(installIdx).toBeGreaterThan(-1);
+    expect(gateIdx).toBeGreaterThan(installIdx);
+  });
+
+  it('installs the harness CLI for a non-Node language (python)', () => {
+    const r = generateCIConfig({ platform: 'github', language: 'python' });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const c = r.value.content;
+    expect(c).toContain('npm install -g @harness-engineering/cli');
+    const installIdx = c.indexOf('npm install -g @harness-engineering/cli');
+    const gateIdx = c.indexOf('harness ci check --json');
+    expect(gateIdx).toBeGreaterThan(installIdx);
+  });
+
   it('excludes any baseline-refresh or git push step', () => {
     const r = generateCIConfig({ platform: 'github' });
     if (!r.ok) return;
