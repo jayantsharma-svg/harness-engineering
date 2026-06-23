@@ -1211,9 +1211,9 @@ last_manual_edit: 2026-06-23T15:38:55.939Z
 
 ### Optional canary Integration for harness Test Skills
 
-- **Status:** in-progress
+- **Status:** done
 - **Spec:** docs/changes/canary-test-integration/proposal.md
-- **Summary:** Add canary as an optional, gracefully-degrading dependency on the test surface via a single CanaryAdapter that execs canary-test-cli and parses JSON; gated by a Phase 0 verification spike. All 4 phases implemented (adapter core, MCP tools + audit wiring, docs/ADR, validation). PR #596 merged; PR #597 open. Awaiting #597 merge to close out.
+- **Summary:** Add canary as an optional, gracefully-degrading dependency on the test surface via a single CanaryAdapter that execs canary-test-cli and parses JSON; gated by a Phase 0 verification spike. All 4 phases shipped (adapter core, MCP tools + audit wiring, docs/ADR, validation). PR #596 and #597 both merged.
 - **Blockers:** —
 - **Plan:** docs/changes/canary-test-integration/plans/2026-06-23-canary-adapter-core-plan.md, docs/changes/canary-test-integration/plans/2026-06-23-phase-2-skill-wiring-plan.md
 - **Assignee:** —
