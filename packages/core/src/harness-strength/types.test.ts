@@ -5,6 +5,7 @@ import {
   AuditResultSchema,
   HarnessConfigSubsetSchema,
 } from './types';
+import type { StrengthRule } from './types';
 
 describe('StrengthFindingSchema', () => {
   it('accepts a valid finding without optional line', () => {
@@ -55,6 +56,32 @@ describe('ProjectContextSchema', () => {
       healthSnapshot: null,
     });
     expect(r.success).toBe(true);
+  });
+});
+
+describe('StrengthRule.evaluable (optional, additive)', () => {
+  it('accepts a rule WITH an evaluable predicate', () => {
+    const rule: StrengthRule = {
+      id: 'STRENGTH-XXX',
+      gearPiece: 'g',
+      defaultSeverity: 'error',
+      appliesIn: () => true,
+      evaluable: () => false,
+      detect: () => [],
+    };
+    expect(typeof rule.evaluable).toBe('function');
+    expect(rule.evaluable?.({} as never)).toBe(false);
+  });
+
+  it('accepts a rule WITHOUT an evaluable predicate (omitted => always evaluable)', () => {
+    const rule: StrengthRule = {
+      id: 'STRENGTH-YYY',
+      gearPiece: 'g',
+      defaultSeverity: 'warning',
+      appliesIn: () => true,
+      detect: () => [],
+    };
+    expect(typeof rule.evaluable).toBe('undefined');
   });
 });
 

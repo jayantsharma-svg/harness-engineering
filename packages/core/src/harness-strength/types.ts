@@ -99,6 +99,12 @@ export interface StrengthRule {
   gearPiece: string;
   defaultSeverity: Severity;
   appliesIn(mode: Mode): boolean;
+  /**
+   * Optional. Returns false when the rule's required input is absent, so the
+   * auditor excludes it from rulesRun/rulesPassing (a "not evaluable" pattern
+   * must never count as a pass — success criterion #7). Omitted => always evaluable.
+   */
+  evaluable?(ctx: ProjectContext): boolean;
   // severity is applied by the auditor (config-overridable); detect returns the rest:
   detect(ctx: ProjectContext): Omit<StrengthFinding, 'severity'>[];
 }
