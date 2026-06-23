@@ -70,4 +70,52 @@ describe('generateCIConfig — language', () => {
     expect(r.value.content).not.toMatch(/git push/);
     expect(r.value.content).not.toMatch(/refresh-baselines|baseline.*update/i);
   });
+
+  it('python project emits pytest and ruff', () => {
+    const r = generateCIConfig({ platform: 'github', language: 'python' });
+    if (!r.ok) return;
+    expect(r.value.content).toContain('setup-python');
+    expect(r.value.content).toContain('ruff check .');
+    expect(r.value.content).toContain('pytest');
+  });
+
+  it('go project emits go test and golangci-lint', () => {
+    const r = generateCIConfig({ platform: 'github', language: 'go' });
+    if (!r.ok) return;
+    expect(r.value.content).toContain('go build ./...');
+    expect(r.value.content).toContain('golangci-lint run');
+    expect(r.value.content).toContain('go test ./...');
+  });
+
+  it('rust project emits cargo build/clippy/test', () => {
+    const r = generateCIConfig({ platform: 'github', language: 'rust' });
+    if (!r.ok) return;
+    expect(r.value.content).toContain('cargo build');
+    expect(r.value.content).toContain('cargo clippy');
+    expect(r.value.content).toContain('cargo test');
+  });
+
+  it('java project emits mvn verify', () => {
+    const r = generateCIConfig({ platform: 'github', language: 'java' });
+    if (!r.ok) return;
+    expect(r.value.content).toContain('setup-java');
+    expect(r.value.content).toContain('mvn -B verify');
+  });
+
+  it('unknown language falls back to TypeScript defaults', () => {
+    const r = generateCIConfig({ platform: 'github', language: 'cobol' });
+    if (!r.ok) return;
+    expect(r.value.content).toContain('pnpm test');
+  });
+
+  it('language option does not affect gitlab/generic output', () => {
+    const g1 = generateCIConfig({ platform: 'gitlab' });
+    const g2 = generateCIConfig({ platform: 'gitlab', language: 'python' });
+    if (!g1.ok || !g2.ok) return;
+    expect(g2.value.content).toBe(g1.value.content);
+    const s1 = generateCIConfig({ platform: 'generic' });
+    const s2 = generateCIConfig({ platform: 'generic', language: 'go' });
+    if (!s1.ok || !s2.ok) return;
+    expect(s2.value.content).toBe(s1.value.content);
+  });
 });
