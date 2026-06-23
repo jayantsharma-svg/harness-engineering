@@ -35,9 +35,13 @@ pieces" gap (roadmap source: Pass 2 #6).
    request-changes/critical) makes a rejecting verdict fail the check. Green must
    mean "the review approved."
 3. **G3 — Multi-client.** A normalized verdict schema + `runner` input with
-   working presets for **Claude, Gemini, Codex, Cursor**.
+   working presets for **Claude, Gemini, Codex, Cursor** (agent-CLI runners) plus
+   **`local`** (an endpoint-based runner over an openai-compatible local model).
 4. **G4 — The check is actually required.** A config-as-code ruleset binds the
    check name in branch protection.
+5. **G5 — Secret-free / cost-free option.** The `local` runner delivers
+   LLM-judgment review with no API-key secret and no per-PR token cost, lowering
+   the adoption barrier for a check that runs on every PR.
 
 ## Non-goals (YAGNI)
 
@@ -55,25 +59,46 @@ Formalizing the brainstorming questions (Q1–Q5) and the architecture choice.
   LLM tier is secret-gated and degrades gracefully. _(Q1-A)_
 - **D2 — Configurable threshold.** `--block-on` defaults to request-changes/critical;
   adopters can loosen it. _(Q2-A)_
-- **D3 — Per-client runner contract.** A normalized `CiReviewVerdict` schema plus a
-  `runner` input. **All four runner presets are uniform headless CLI invocations
-  the `harness review-ci` command shells out to** (`claude -p`, `gemini`, `codex`,
-  `cursor`) — NOT GitHub Actions. This supersedes the brainstorm's initial
-  `claude-code-action` framing (chosen before multi-client was a requirement):
-  symmetric CLI invocations keep all four runners uniform, keep orchestration in
-  tested TS, and drop the Claude-specific action dependency.
-  `anthropics/claude-code-action` is documented as an _alternative_ an adopter can
-  swap in, not the bundled default. _(Q3 generalized + D6)_
-- **D4 — All four presets in v1.** Claude, Gemini, Codex, Cursor. Codex/Cursor
-  headless-CI feasibility is `[UNVERIFIED]` and gated behind the Phase 1 spike — no
-  silently-broken preset ships. _(Q4-A)_
+- **D3 — Per-client runner contract (two preset kinds).** A normalized
+  `CiReviewVerdict` schema plus a `runner` input. The contract supports two
+  preset _kinds_:
+  - **`agent-cli`** — uniform headless CLI invocations the `harness review-ci`
+    command shells out to (`claude -p`, `gemini`, `codex`, `cursor`), each running
+    the full agentic multi-persona skill. NOT GitHub Actions — this supersedes the
+    brainstorm's initial `claude-code-action` framing (chosen before multi-client
+    was a requirement); `anthropics/claude-code-action` is documented as an
+    _alternative_ an adopter can swap in, not the bundled default.
+  - **`endpoint`** — a model-endpoint runner (`local`) that does a single LLM-judgment
+    pass over the diff via the existing openai-compatible analysis provider
+    (`packages/intelligence/src/analysis-provider/openai-compatible.ts`); no agent
+    harness, no secret, no token cost.
+
+  Both kinds normalize to the same `CiReviewVerdict`, so the gate/threshold logic
+  is preset-kind-agnostic. _(Q3 generalized + D6 + D7)_
+
+- **D4 — Five runners in v1, feasibility-gated.** Claude + Gemini ship verified
+  (`agent-cli`). The following are `[UNVERIFIED]` and each gated behind its own
+  Phase 1 spike — no silently-broken preset ships: Codex/Cursor headless-CI
+  (`agent-cli`); `local` single-pass (needs a running openai-compatible endpoint,
+  absent in the authoring environment); **full-agentic `local`** (a local model
+  driving tool-use/subagent dispatch — the highest-risk item; small models may not
+  drive the agentic pipeline reliably). _(Q4-A + D7)_
 - **D5 — Config-as-code ruleset.** Committed `required-review.ruleset.json` + a
   documented one-line `gh api` apply step makes the check required. _(Q5-A)_
 - **D6 — Orchestration in tested TS.** The contract (floor reuse, per-runner
   normalization, threshold, exit codes) lives in `packages/core`, exposed via a
   `harness review-ci` command — not smeared across adopter YAML. Verdict
-  normalization across four heterogeneous client outputs is the load-bearing,
+  normalization across heterogeneous client outputs is the load-bearing,
   error-prone seam and belongs in the most testable layer. _(Approach 3)_
+- **D7 — `local` runner, dual-mode.** Add a `local` runner backed by the harness's
+  existing local-model / openai-compatible provider. Ship the **single-pass**
+  endpoint mode first (deterministic, testable, secret-free, cost-free — G5).
+  Additionally **attempt full-agentic local** (a local model driving the
+  multi-persona skill); because small local models may not drive tool-use/subagent
+  dispatch reliably, this is gated behind a dedicated spike and is NOT promised
+  until that spike passes. This honors the repo's existing provider architecture
+  (anthropic / openai / local-model) and the Multi-client-portability strategy
+  track. _(human decision: "consider local LLM" → option B)_
 
 ## Technical design
 
@@ -120,7 +145,7 @@ Zod schema in core; the normalization target every runner maps to:
 ```
 {
   schemaVersion: 1,
-  runner: 'claude' | 'gemini' | 'codex' | 'cursor' | 'floor-only',
+  runner: 'claude' | 'gemini' | 'codex' | 'cursor' | 'local' | 'floor-only',
   ranLlmTier: boolean,
   assessment: 'approve' | 'comment' | 'request-changes',
   findings: ReviewFinding[],          // reuse existing core ReviewFinding type
@@ -133,14 +158,29 @@ Zod schema in core; the normalization target every runner maps to:
 
 ### Per-runner preset registry
 
-A typed registry in `packages/core/src/review/ci/runner-presets.ts`. Each entry:
-`{ secretEnvVar, headlessInvocation, verdictParser }`. Adding a runner = one
-registry entry + tests, no template change. This is what makes D4's "all four"
-and future clients cheap.
+A typed registry in `packages/core/src/review/ci/runner-presets.ts`. A preset is a
+discriminated union on `kind`:
 
-**[IMPORTANT]** Codex/Cursor presets carry `[UNVERIFIED]` headless-CI feasibility.
-Implementation Phase 1 verifies each can (a) run headless in a GitHub runner and
-(b) emit a parseable verdict, _before_ their preset is marked supported.
+- `kind: 'agent-cli'` — `{ secretEnvVar, headlessInvocation, verdictParser, supported }`
+  (claude, gemini, codex, cursor).
+- `kind: 'endpoint'` — `{ endpointEnvVar, modelEnvVar, invoke, verdictParser, supported }`
+  where `invoke` calls the openai-compatible analysis provider against the local
+  endpoint (`local`).
+
+Both kinds expose `verdictParser` and normalize to the same `CiReviewVerdict`, so
+the threshold/gate logic never branches on kind. Adding a runner = one registry
+entry + tests, no template change.
+
+**[IMPORTANT]** `[UNVERIFIED]` presets — each gated behind its Phase 1 spike before
+being marked `supported`, so no silently-broken preset ships:
+
+- **Codex / Cursor** (`agent-cli`) — headless-CI invocation + parseable verdict.
+- **`local` single-pass** (`endpoint`) — needs a running openai-compatible endpoint
+  (absent in the authoring environment); deterministic parts (registry entry,
+  parser, unit tests) are built now, live verification deferred.
+- **Full-agentic `local`** — highest risk; a separate spike confirms whether a local
+  model can drive the multi-persona tool-use/subagent dispatch at all. Not promised
+  until it passes.
 
 ### Component B — `templates/ci/required-review.yml.hbs`
 
@@ -192,13 +232,20 @@ MUST match the workflow job name (asserted by a test that parses both files).
 3. **SC3 — Anti-theatre threshold.** A normalized `request-changes` verdict exits
    non-zero under default `block-on`; the same verdict exits 0 under
    `--block-on none`.
-4. **SC4 — Verdict normalization.** Each of the 4 runners' raw outputs maps to a
-   schema-valid `CiReviewVerdict` (unit tests per runner against captured
+4. **SC4 — Verdict normalization.** Each runner's raw output (both preset kinds)
+   maps to a schema-valid `CiReviewVerdict` (unit tests per runner against captured
    fixtures). Schema is versioned.
-5. **SC5 — Multi-client verified.** Claude + Gemini presets run headless in a real
-   GitHub runner and emit a parseable verdict. Codex + Cursor presets either pass
-   the same bar OR are explicitly marked unsupported with the blocking reason (no
-   silently-broken preset ships).
+5. **SC5 — Multi-client verified.** Claude + Gemini (`agent-cli`) run headless in a
+   real GitHub runner and emit a parseable verdict. Codex + Cursor (`agent-cli`) and
+   `local` (`endpoint`, single-pass) either pass the same bar OR are explicitly
+   marked unsupported with the blocking reason (no silently-broken preset ships).
+   5a. **SC5a — `local` single-pass.** With a reachable openai-compatible endpoint,
+   `--runner local` produces a schema-valid `CiReviewVerdict` with no API-key secret
+   and no token cost (G5). Verified against a running endpoint; deterministic parts
+   unit-tested without one.
+   5b. **SC5b — Full-agentic `local` spike.** A spike determines whether a local model
+   can drive the multi-persona tool-use/subagent pipeline. Result is a recorded
+   go/no-go; the agentic-local path ships only on "go".
 6. **SC6 — Required binding.** Applying `required-review.ruleset.json` via the
    documented `gh api` step makes the workflow's check a required status check; the
    check name in the ruleset matches the workflow job name (asserted by a test
@@ -213,10 +260,14 @@ MUST match the workflow job name (asserted by a test that parses both files).
 ## Implementation order
 
 - **Phase 1 — Runner-contract feasibility spike + schema.** Define `CiReviewVerdict`
-  (Zod) and the runner-preset registry shape. Verify all 4 runners' headless-CI
-  invocation + parseable output (SC5 gate). Output: per-runner go/no-go + captured
-  verdict fixtures. Resolves the `[UNVERIFIED]` Codex/Cursor risk before anything
-  depends on it.
+  (Zod) and the two-kind runner-preset registry (`agent-cli` + `endpoint`). Build
+  presets for claude/gemini/codex (`agent-cli`) and `local` single-pass
+  (`endpoint`); cursor as `supported:false`. Verify runners' invocation + parseable
+  output (SC5 gate) for what's locally reachable; defer in-CI + endpoint-dependent
+  verification. Output: per-runner go/no-go + captured verdict fixtures.
+- **Phase 1b — Full-agentic `local` spike (deferred).** Determine whether a local
+  model can drive the multi-persona tool-use/subagent pipeline (SC5b). Recorded
+  go/no-go; gates whether the agentic-local path ships.
 - **Phase 2 — Core orchestrator.** `packages/core/src/review/ci/` — floor reuse,
   per-runner normalization, threshold logic, exit codes. Full unit coverage
   (SC1–SC4).
