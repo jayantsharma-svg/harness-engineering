@@ -51,6 +51,12 @@ export { WHATWG_BAD_PORTS, isBadPort, assertPortUsable } from './shared/port';
 export * from './validation';
 
 /**
+ * Branch name validation.
+ */
+export { validateBranchName } from './validation/branch';
+export type { BranchingConfig, BranchValidationResult } from './validation/branch';
+
+/**
  * Context module for managing AI agent context and knowledge maps.
  */
 export * from './context';
@@ -139,6 +145,7 @@ export {
   isUpdateCheckEnabled,
   shouldRunCheck,
   readCheckState,
+  invalidateCheckState,
   spawnBackgroundCheck,
   getUpdateNotification,
 } from './update-checker';
@@ -189,6 +196,15 @@ export {
   getOrCreateInstallId,
   collectEvents,
   send,
+  CacheMetricsRecorder,
+  OTLPExporter,
+  SpanKind,
+} from './telemetry';
+export type {
+  CacheMetricsRecorderOptions,
+  OTLPExporterOptions,
+  TraceSpan,
+  SpanAttributes,
 } from './telemetry';
 
 /**
