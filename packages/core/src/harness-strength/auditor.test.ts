@@ -154,3 +154,47 @@ npx lint-staged
     }
   });
 });
+
+describe('HarnessStrengthAuditor clean harness (passing gate path)', () => {
+  // layers defined + populated thresholds, nothing else => no rule fires.
+  const CLEAN = JSON.stringify({
+    version: 1,
+    layers: [{ name: 'a' }],
+    architecture: { thresholds: { maxFanIn: 12 } },
+  });
+
+  function buildClean(): string {
+    const dir = mkdtempSync(join(tmpdir(), 'hs-clean-'));
+    writeFileSync(join(dir, 'harness.config.json'), CLEAN);
+    return dir;
+  }
+
+  it('scores 100/solid with zero findings when layers have populated thresholds', () => {
+    const dir = buildClean();
+    try {
+      const result = new HarnessStrengthAuditor().audit(dir, {});
+      expect(isOk(result)).toBe(true);
+      if (!isOk(result)) return;
+      const v = result.value;
+      expect(v.findings).toEqual([]);
+      expect(v.score).toBe(100);
+      expect(v.tier).toBe('solid');
+      expect(v.summary.errors).toBe(0);
+      expect(v.summary.warnings).toBe(0);
+      // STRENGTH-004 evaluable (config present) and passes; others not evaluable.
+      expect(v.summary.rulesPassing).toBeGreaterThanOrEqual(1);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('is deterministic across two runs on the clean fixture', () => {
+    const dir = buildClean();
+    try {
+      const auditor = new HarnessStrengthAuditor();
+      expect(auditor.audit(dir, {})).toEqual(auditor.audit(dir, {}));
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
