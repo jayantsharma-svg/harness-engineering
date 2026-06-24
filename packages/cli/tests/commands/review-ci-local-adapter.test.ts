@@ -79,4 +79,39 @@ describe('createLocalInvoke', () => {
     expect(Array.isArray(parsed.findings)).toBe(true);
     expect(parsed.findings[0]).toMatchObject({ id: 'f1', domain: 'bug', severity: 'critical' });
   });
+
+  it('rejects a non-http(s) endpoint with a clear error (no provider construction)', async () => {
+    const invoke = createLocalInvoke();
+    await expect(
+      invoke({ endpoint: 'ftp://x/v1', model: 'm', instruction: 'r', diff: 'd' })
+    ).rejects.toThrow(/HARNESS_LOCAL_ENDPOINT.*http/);
+    expect(providerCtor).not.toHaveBeenCalled();
+  });
+
+  it('permits a localhost http endpoint', async () => {
+    const invoke = createLocalInvoke();
+    await expect(
+      invoke({ endpoint: 'http://localhost:1234/v1', model: 'm', instruction: 'r', diff: 'd' })
+    ).resolves.toBeTypeOf('string');
+  });
+
+  it('propagates a provider failure as a rejection (surfaces as a runner failure, not a silent pass)', async () => {
+    analyzeMock.mockReset();
+    analyzeMock.mockRejectedValue(
+      new Error('connection refused to https://internal/api?token=SECRET')
+    );
+    const invoke = createLocalInvoke();
+    const err = await invoke({
+      endpoint: 'http://x/v1',
+      model: 'm',
+      instruction: 'r',
+      diff: 'd',
+    }).catch((e: unknown) => e as Error);
+    expect(err).toBeInstanceOf(Error);
+    // The surfaced message is sanitized: no URL/secret context, length-capped.
+    expect(err.message).not.toMatch(/https?:\/\//);
+    expect(err.message).not.toContain('SECRET');
+    expect(err.message.length).toBeLessThanOrEqual(220);
+    expect(err.message).toMatch(/local runner/i);
+  });
 });
