@@ -278,8 +278,15 @@ async function handlePromote(
     });
   }
 
-  const patch: FeaturePatch = { status: target.status, spec: target.spec };
-  if (target.summary) patch.summary = target.summary;
+  // Patch only the fields core actually changed, mirroring the file-mode path:
+  // D2 preserves status (except backlog→planned) and D5 preserves a human
+  // summary. Re-writing unchanged "preserve" fields would bump the tracker's
+  // updatedAt / audit history and risk tripping directional-sync guards.
+  const original = all.value.features.find((f) => f.name.trim().toLowerCase() === key);
+  const patch: FeaturePatch = {};
+  if (!original || target.spec !== original.spec) patch.spec = target.spec;
+  if (!original || target.status !== original.status) patch.status = target.status;
+  if (!original || target.summary !== original.summary) patch.summary = target.summary;
   const upd = await client.update(target.externalId, patch);
   if (!upd.ok) {
     const detail =

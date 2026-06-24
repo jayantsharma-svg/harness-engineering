@@ -334,6 +334,40 @@ describe('handleManageRoadmapFileLess — promote', () => {
     );
   });
 
+  it('promote: blocked row → patches spec only, preserves status and human summary', async () => {
+    const captured: { id?: string; patch?: FeaturePatch } = {};
+    const update = vi.fn(async (id: string, patch: FeaturePatch) => {
+      captured.id = id;
+      captured.patch = patch;
+      return Ok(tf({ externalId: id, name: 'Alpha', status: 'blocked', spec: SPEC }));
+    });
+    const client = makeClient({
+      fetchAll: async () =>
+        Ok({
+          features: [
+            tf({
+              externalId: 'github:o/r#9',
+              name: 'Alpha',
+              status: 'blocked',
+              spec: 'old.md',
+              summary: 'human wrote this',
+            }),
+          ],
+          etag: null,
+        }),
+      update,
+    });
+    const r = await handleManageRoadmapFileLess(
+      { path: '/tmp', action: 'promote', feature: 'Alpha', spec: SPEC, summary: 'from H1' },
+      client
+    );
+    expect(r.isError).toBe(false);
+    const envelope = JSON.parse(r.content[0]?.text ?? '{}');
+    expect(envelope).toMatchObject({ ok: true, transitioned: 'spec-updated' });
+    // Only the spec changed — status and the human summary are NOT re-written.
+    expect(captured.patch).toEqual({ spec: SPEC });
+  });
+
   it('promote: in-progress row → refusal, no update call', async () => {
     const update = vi.fn(async () => Ok(tf()));
     const client = makeClient({
