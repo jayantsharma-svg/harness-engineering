@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { generateCIConfig } from '../../src/commands/ci/init';
+import { generateCIConfig, createInitCommand } from '../../src/commands/ci/init';
 
 describe('generateCIConfig', () => {
   it('generates GitHub Actions workflow content', () => {
     const result = generateCIConfig({ platform: 'github' });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.filename).toBe('.github/workflows/harness.yml');
+    expect(result.value.filename).toBe('.github/workflows/ci.yml');
     expect(result.value.content).toContain('harness ci check');
     expect(result.value.content).toContain('on:');
   });
@@ -36,5 +36,127 @@ describe('generateCIConfig', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.content).toContain('--skip');
+  });
+});
+
+describe('generateCIConfig — language', () => {
+  it('emits TypeScript/default steps for github', () => {
+    const result = generateCIConfig({ platform: 'github', language: 'typescript' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.content).toContain('pnpm i --frozen-lockfile');
+    expect(result.value.content).toContain('pnpm build');
+    expect(result.value.content).toContain('pnpm lint');
+    expect(result.value.content).toContain('pnpm test');
+  });
+
+  it('sets up pnpm before setup-node in the TS setup (matches project ci.yml)', () => {
+    const result = generateCIConfig({ platform: 'github', language: 'typescript' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const c = result.value.content;
+    const pnpmIdx = c.indexOf('pnpm/action-setup@v4');
+    const nodeIdx = c.indexOf('actions/setup-node@v4');
+    expect(pnpmIdx).toBeGreaterThan(-1);
+    expect(nodeIdx).toBeGreaterThan(-1);
+    expect(pnpmIdx).toBeLessThan(nodeIdx);
+  });
+
+  it('emits a single fail-fast ci job with checkout, setup, install, build, lint, test, gate', () => {
+    const r = generateCIConfig({ platform: 'github', language: 'typescript' });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const c = r.value.content;
+    expect(c).toContain('actions/checkout@v4');
+    expect(c).toMatch(/jobs:\s*\n\s*ci:/);
+    expect(c).toContain('pnpm i --frozen-lockfile');
+    expect(c).toContain('pnpm build');
+    expect(c).toContain('harness ci check --json');
+    // gate is the last step
+    expect(c.trimEnd().endsWith('run: harness ci check --json')).toBe(true);
+  });
+
+  it('installs the harness CLI immediately before the gate (language-independent)', () => {
+    const r = generateCIConfig({ platform: 'github', language: 'typescript' });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const c = r.value.content;
+    expect(c).toContain('npm install -g @harness-engineering/cli');
+    const installIdx = c.indexOf('npm install -g @harness-engineering/cli');
+    const gateIdx = c.indexOf('harness ci check --json');
+    expect(installIdx).toBeGreaterThan(-1);
+    expect(gateIdx).toBeGreaterThan(installIdx);
+  });
+
+  it('installs the harness CLI for a non-Node language (python)', () => {
+    const r = generateCIConfig({ platform: 'github', language: 'python' });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const c = r.value.content;
+    expect(c).toContain('npm install -g @harness-engineering/cli');
+    const installIdx = c.indexOf('npm install -g @harness-engineering/cli');
+    const gateIdx = c.indexOf('harness ci check --json');
+    expect(gateIdx).toBeGreaterThan(installIdx);
+  });
+
+  it('excludes any baseline-refresh or git push step', () => {
+    const r = generateCIConfig({ platform: 'github' });
+    if (!r.ok) return;
+    expect(r.value.content).not.toMatch(/git push/);
+    expect(r.value.content).not.toMatch(/refresh-baselines|baseline.*update/i);
+  });
+
+  it('python project emits pytest and ruff', () => {
+    const r = generateCIConfig({ platform: 'github', language: 'python' });
+    if (!r.ok) return;
+    expect(r.value.content).toContain('setup-python');
+    expect(r.value.content).toContain('ruff check .');
+    expect(r.value.content).toContain('pytest');
+  });
+
+  it('go project emits go test and golangci-lint', () => {
+    const r = generateCIConfig({ platform: 'github', language: 'go' });
+    if (!r.ok) return;
+    expect(r.value.content).toContain('go build ./...');
+    expect(r.value.content).toContain('golangci-lint run');
+    expect(r.value.content).toContain('go test ./...');
+  });
+
+  it('rust project emits cargo build/clippy/test', () => {
+    const r = generateCIConfig({ platform: 'github', language: 'rust' });
+    if (!r.ok) return;
+    expect(r.value.content).toContain('cargo build');
+    expect(r.value.content).toContain('cargo clippy');
+    expect(r.value.content).toContain('cargo test');
+  });
+
+  it('java project emits mvn verify', () => {
+    const r = generateCIConfig({ platform: 'github', language: 'java' });
+    if (!r.ok) return;
+    expect(r.value.content).toContain('setup-java');
+    expect(r.value.content).toContain('mvn -B verify');
+  });
+
+  it('unknown language falls back to TypeScript defaults', () => {
+    const r = generateCIConfig({ platform: 'github', language: 'cobol' });
+    if (!r.ok) return;
+    expect(r.value.content).toContain('pnpm test');
+  });
+
+  it('ci init command accepts --language', () => {
+    const cmd = createInitCommand();
+    const opt = cmd.options.find((o) => o.long === '--language');
+    expect(opt).toBeDefined();
+  });
+
+  it('language option does not affect gitlab/generic output', () => {
+    const g1 = generateCIConfig({ platform: 'gitlab' });
+    const g2 = generateCIConfig({ platform: 'gitlab', language: 'python' });
+    if (!g1.ok || !g2.ok) return;
+    expect(g2.value.content).toBe(g1.value.content);
+    const s1 = generateCIConfig({ platform: 'generic' });
+    const s2 = generateCIConfig({ platform: 'generic', language: 'go' });
+    if (!s1.ok || !s2.ok) return;
+    expect(s2.value.content).toBe(s1.value.content);
   });
 });
