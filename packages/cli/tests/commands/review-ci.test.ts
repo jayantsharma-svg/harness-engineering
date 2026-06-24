@@ -12,6 +12,7 @@ import {
   runReviewCi,
   emitReviewCi,
   createReviewCiCommand,
+  assertKnownRunner,
 } from '../../src/commands/review-ci';
 import type { CiReviewResult, RunCiReviewOptions } from '@harness-engineering/core';
 import { logger } from '../../src/output/logger';
@@ -73,6 +74,66 @@ describe('buildDiffInfo', () => {
   it('throws a descriptive error when parseDiff fails', () => {
     parseDiffMock.mockReturnValue({ ok: false, error: { message: 'bad diff' } });
     expect(() => buildDiffInfo('garbage')).toThrow(/Failed to parse diff: bad diff/);
+  });
+
+  it('reports totalDiffLines=0 for an empty diff (not 1)', () => {
+    parseDiffMock.mockReturnValue({ ok: true, value: { files: [] } });
+    const info = buildDiffInfo('');
+    expect(info.totalDiffLines).toBe(0);
+  });
+
+  it('does not duplicate the whole raw diff on a path-key miss (path with a space)', () => {
+    // core's parseDiff is mocked to return the b-side path; the per-file splitter
+    // must key on the SAME path so the section is found and the whole raw diff is
+    // never substituted for a single file. The split path keys must align with the
+    // path parseDiff yields, even for paths containing spaces.
+    parseDiffMock.mockReturnValue({
+      ok: true,
+      value: {
+        files: [{ path: 'src/my file.ts', status: 'modified', additions: 1, deletions: 0 }],
+      },
+    });
+    const raw = ['diff --git a/src/my file.ts b/src/my file.ts', '+changed'].join('\n');
+    const info = buildDiffInfo(raw);
+    const section = info.fileDiffs.get('src/my file.ts');
+    expect(section).toBeDefined();
+    // The section must be the per-file content, NOT the entire raw diff duplicated.
+    expect(section).toContain('+changed');
+    // It must contain exactly one diff --git header (its own), never duplicated.
+    expect((section!.match(/diff --git/g) ?? []).length).toBe(1);
+  });
+
+  it('falls back to empty (not the whole raw diff) when a path key truly misses', () => {
+    // parseDiff yields a path the splitter cannot key (forces a miss); the fallback
+    // must be '' so the file contributes no diff rather than duplicating everything.
+    parseDiffMock.mockReturnValue({
+      ok: true,
+      value: {
+        files: [{ path: 'does/not/match.ts', status: 'modified', additions: 0, deletions: 0 }],
+      },
+    });
+    const raw = ['diff --git a/other.ts b/other.ts', '+x', '+y', '+z'].join('\n');
+    const info = buildDiffInfo(raw);
+    expect(info.fileDiffs.get('does/not/match.ts')).toBe('');
+  });
+});
+
+describe('assertKnownRunner', () => {
+  it.each(['claude', 'gemini', 'antigravity', 'codex', 'cursor', 'local'])(
+    'accepts real runner id %s',
+    (id) => {
+      expect(() => assertKnownRunner(id)).not.toThrow();
+    }
+  );
+
+  it('accepts undefined (floor-only)', () => {
+    expect(() => assertKnownRunner(undefined)).not.toThrow();
+  });
+
+  it('rejects an unknown runner with a clear, enumerated message', () => {
+    expect(() => assertKnownRunner('foo')).toThrow(
+      /unknown runner 'foo'.*claude.*antigravity.*codex.*cursor.*local/s
+    );
   });
 });
 
@@ -157,6 +218,15 @@ describe('runReviewCi', () => {
     });
     expect(captured.opts!.blockOn).toBe('critical');
   });
+
+  it('rejects an unknown runner before delegating (fails closed with a clear error)', async () => {
+    const { runCiReviewImpl, runGit, resolveRaw } = setup();
+    await expect(
+      runReviewCi({ runCiReviewImpl, runGit, resolveRaw, runner: 'foo', diffRange: 'a...b' })
+    ).rejects.toThrow(/unknown runner 'foo'/);
+    // It must reject at the boundary, never reaching the orchestrator with a bad cast.
+    expect(runCiReviewImpl).not.toHaveBeenCalled();
+  });
 });
 
 describe('emitReviewCi', () => {
@@ -218,5 +288,21 @@ describe('createReviewCiCommand', () => {
     const cmd = createReviewCiCommand();
     const blockOn = cmd.options.find((o) => o.long === '--block-on');
     expect(blockOn?.defaultValue).toBe('request-changes');
+  });
+
+  it('constrains --runner to the real runner id list via commander choices', () => {
+    const cmd = createReviewCiCommand();
+    const runner = cmd.options.find((o) => o.long === '--runner');
+    expect(runner?.argChoices).toEqual(
+      expect.arrayContaining(['claude', 'gemini', 'antigravity', 'codex', 'cursor', 'local'])
+    );
+  });
+
+  it('constrains --block-on to the real assessment levels + none via commander choices', () => {
+    // `critical` is a finding severity, NOT an assessment; the valid block-on
+    // levels are core's CI_ASSESSMENTS (approve|comment|request-changes) plus none.
+    const cmd = createReviewCiCommand();
+    const blockOn = cmd.options.find((o) => o.long === '--block-on');
+    expect(blockOn?.argChoices).toEqual(['approve', 'comment', 'request-changes', 'none']);
   });
 });

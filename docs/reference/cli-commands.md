@@ -407,8 +407,8 @@ Run the tiered code-review gate (floor + optional LLM runner) for CI
 
 **Options:**
 
-- `--runner` — claude | gemini | codex | cursor | antigravity | local (omit = floor-only)
-- `--block-on` — critical | request-changes | none (default: "request-changes")
+- `--runner` — claude | gemini | antigravity | codex | cursor | local (omit = floor-only)
+- `--block-on` — approve | comment | request-changes | none (default: "request-changes")
 - `--diff` — git range (default: origin/<base>...HEAD)
 - `--comment` — post verdict as a PR review (stubbed in this phase)
 - `--json` — write the verdict artifact to this path

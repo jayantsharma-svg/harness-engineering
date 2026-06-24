@@ -1,15 +1,49 @@
 import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
-import { Command } from 'commander';
-import { parseDiff, runCiReview } from '@harness-engineering/core';
+import { Command, Option } from 'commander';
+import { parseDiff, runCiReview, RUNNER_PRESETS, CI_ASSESSMENTS } from '@harness-engineering/core';
 import type {
   DiffInfo,
   RunCiReviewOptions,
   CiReviewResult,
   CiBlockOn,
+  RunnerId,
 } from '@harness-engineering/core';
 import { createLocalInvoke } from './review-ci-local-adapter';
 import { logger } from '../output/logger';
+
+/**
+ * The real, complete set of runner ids — derived from core's `RUNNER_PRESETS`
+ * (the single source of truth) rather than a hand-maintained copy that could
+ * drift. Used to constrain `--runner` at the command boundary and to validate
+ * a runner before it is cast into core's typed options.
+ */
+const KNOWN_RUNNERS = Object.keys(RUNNER_PRESETS) as RunnerId[];
+
+/**
+ * The valid `--block-on` levels — derived from core's `CI_ASSESSMENTS` (the
+ * single source of truth) plus the `none` escape hatch, rather than a drifting
+ * hardcoded copy. NOTE: the prior help text advertised `critical`, but `critical`
+ * is a finding *severity*, not an assessment — feeding it to core's threshold made
+ * `CI_ASSESSMENTS.indexOf` return -1 and silently "always block". Constraining to
+ * the real assessment levels rejects that typo at the boundary (SUG-A).
+ */
+const BLOCK_ON_LEVELS: CiBlockOn[] = [...CI_ASSESSMENTS, 'none'];
+
+/**
+ * Reject an unknown `--runner` value at the command boundary with a clear,
+ * enumerated error (instead of letting an unchecked cast reach core, where a
+ * missing `RUNNER_PRESETS[id]` preset surfaces only as an opaque `TypeError`).
+ * `undefined` (floor-only, no runner) is allowed.
+ */
+export function assertKnownRunner(
+  runner: string | undefined
+): asserts runner is RunnerId | undefined {
+  if (runner === undefined) return;
+  if (!(KNOWN_RUNNERS as string[]).includes(runner)) {
+    throw new Error(`unknown runner '${runner}' (expected: ${KNOWN_RUNNERS.join('|')})`);
+  }
+}
 
 /**
  * Injectable git seam. Returns trimmed stdout of `git <args>`.
@@ -55,7 +89,11 @@ export function resolveDiffRange(opts: { range?: string; cwd?: string; runGit?: 
  */
 function splitDiffByFile(rawDiff: string): Map<string, string> {
   const sections = new Map<string, string>();
-  const headerRe = /^diff --git a\/.+ b\/(.+)$/;
+  // Mirror core's `parseDiff` path extraction (diff-analyzer's `parseDiffHeader`):
+  // non-greedy `a/(.+?) b/(.+?)` keyed on the b-side path. Using the SAME extraction
+  // keeps these section keys aligned with the `ChangedFile.path` values, so an
+  // ordinary path (incl. one containing spaces, or a rename) never misses on lookup.
+  const headerRe = /^diff --git a\/(.+?) b\/(.+?)$/;
   let currentPath: string | null = null;
   let buffer: string[] = [];
   const flush = () => {
@@ -63,9 +101,9 @@ function splitDiffByFile(rawDiff: string): Map<string, string> {
   };
   for (const line of rawDiff.split('\n')) {
     const m = line.match(headerRe);
-    if (m?.[1]) {
+    if (m?.[2]) {
       flush();
-      currentPath = m[1];
+      currentPath = m[2];
       buffer = [line];
     } else if (currentPath !== null) {
       buffer.push(line);
@@ -88,8 +126,13 @@ export function buildDiffInfo(rawDiff: string): DiffInfo {
     changedFiles: files.map((f) => f.path),
     newFiles: files.filter((f) => f.status === 'added').map((f) => f.path),
     deletedFiles: files.filter((f) => f.status === 'deleted').map((f) => f.path),
-    totalDiffLines: rawDiff.split('\n').length,
-    fileDiffs: new Map(files.map((f) => [f.path, perFile.get(f.path) ?? rawDiff])),
+    totalDiffLines: rawDiff ? rawDiff.split('\n').length : 0,
+    // On a path-key miss, fall back to '' (the file contributes no per-file diff)
+    // rather than the ENTIRE raw diff — substituting the whole diff would duplicate
+    // every file's content into one section, inflating the STDIN payload to the LLM
+    // (and risking core's execMaxStdoutBytes). With splitDiffByFile aligned to core's
+    // path extraction, ordinary paths never miss; this is the safe degenerate case.
+    fileDiffs: new Map(files.map((f) => [f.path, perFile.get(f.path) ?? ''])),
   };
 }
 
@@ -135,6 +178,9 @@ function buildCallOpts(opts: ReviewCiOptions, cwd: string, diff: DiffInfo): RunC
 }
 
 export async function runReviewCi(opts: ReviewCiOptions): Promise<CiReviewResult> {
+  // Fail closed at the boundary: an unknown runner must surface a clear error
+  // here, not a downstream `TypeError` from an undefined preset in core.
+  assertKnownRunner(opts.runner);
   const cwd = opts.cwd ?? process.cwd();
   const runGit = opts.runGit ?? defaultRunGit;
   const range = resolveDiffRange({
@@ -176,11 +222,16 @@ export function emitReviewCi(
 export function createReviewCiCommand(): Command {
   return new Command('review-ci')
     .description('Run the tiered code-review gate (floor + optional LLM runner) for CI')
-    .option(
-      '--runner <runner>',
-      'claude | gemini | codex | cursor | antigravity | local (omit = floor-only)'
+    .addOption(
+      new Option('--runner <runner>', `${KNOWN_RUNNERS.join(' | ')} (omit = floor-only)`).choices(
+        KNOWN_RUNNERS
+      )
     )
-    .option('--block-on <level>', 'critical | request-changes | none', 'request-changes')
+    .addOption(
+      new Option('--block-on <level>', BLOCK_ON_LEVELS.join(' | '))
+        .choices(BLOCK_ON_LEVELS)
+        .default('request-changes')
+    )
     .option('--diff <range>', 'git range (default: origin/<base>...HEAD)')
     .option('--comment', 'post verdict as a PR review (stubbed in this phase)')
     .option('--json <path>', 'write the verdict artifact to this path')
