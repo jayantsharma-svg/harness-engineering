@@ -58,20 +58,29 @@ heuristic floor of `review-ci` runs regardless and can block on its own; the LLM
 tier is secret-gated and **degrades gracefully** (skips the LLM pass) when its
 secret is absent.
 
-| `runner`                                    | Secret env var(s)                                                                           |
-| ------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| `claude`                                    | `ANTHROPIC_API_KEY`                                                                         |
-| `antigravity` (and the superseded `gemini`) | `GEMINI_API_KEY`                                                                            |
-| `codex`                                     | `OPENAI_API_KEY`                                                                            |
-| `local`                                     | `HARNESS_LOCAL_ENDPOINT`, `HARNESS_LOCAL_MODEL` — **no API key; secret-free and cost-free** |
+| `runner`                                    | Secret env var(s)                                                                                         |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `claude`                                    | `ANTHROPIC_API_KEY`                                                                                       |
+| `antigravity` (and the superseded `gemini`) | `GEMINI_API_KEY` _(unverified for CI — selecting antigravity without a working secret yields floor-only)_ |
+| `codex`                                     | `OPENAI_API_KEY`                                                                                          |
+| `local`                                     | `HARNESS_LOCAL_ENDPOINT`, `HARNESS_LOCAL_MODEL` — **no API key; secret-free and cost-free**               |
 
 The `local` runner points at your own OpenAI-compatible endpoint, so it needs no
 API-key secret and incurs no per-call cost.
 
 ## Notes
 
-- `--comment` (PR-review posting) is passed to `review-ci` but is not yet wired
-  in the published CLI; it is a documented non-failing stub. The check still
-  gates on the command's exit code, so the required check works without it.
+- `--comment` (PR-review posting) is **not** rendered into the workflow today: it
+  is a non-functional stub in the published CLI (it logs a "not wired" warning and
+  posts nothing), and including it invited an over-broad `pull-requests: write`
+  permission. The flag still exists on the CLI for when PR posting lands; the
+  rendered run step will re-add `--comment` (and the workflow will re-add
+  `pull-requests: write`) once posting is actually implemented. The check gates on
+  the command's exit code, so the required check works without it.
+- The rendered workflow diffs `origin/${{ github.base_ref }}...HEAD` (the PR's
+  real base, resolved at runtime), with `fetch-depth: 0` and an explicit
+  `git fetch origin ${{ github.base_ref }}` step so the base ref is reachable.
+  This avoids `review-ci`'s `origin/HEAD` fallback silently reviewing the wrong
+  (or empty) diff when the PR base is not `main`.
 - The workflow pins `@harness-engineering/cli@2.8.0` for reproducibility; bump
   the pin in the rendered workflow to adopt newer releases.

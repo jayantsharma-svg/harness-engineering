@@ -68,11 +68,40 @@ describe('ci-required-review template', () => {
     expect(runStep.run).toContain('--block-on request-changes');
     expect(parsed.on.pull_request.branches).toContain('main');
 
+    // IMP-1: the gate must diff against the PR's real base via the runtime
+    // `github.base_ref` expression, NOT the CLI's origin/HEAD fallback (which
+    // can silently review the wrong/empty diff on a pull_request event). The GH
+    // expression is preserved verbatim past Handlebars; {{runner}}/{{blockOn}}
+    // are substituted on the same line.
+    expect(runStep.run).toContain('--diff "origin/${{ github.base_ref }}...HEAD"');
+
+    // SUG-3: --comment is dropped from the rendered command (non-functional stub
+    // today; its presence invited the over-broad pull-requests:write permission).
+    expect(runStep.run).not.toContain('--comment');
+
+    // IMP-1: a step fetches the PR base so origin/${{ github.base_ref }} resolves.
+    const fetchStep = parsed.jobs['required-review'].steps.find(
+      (s: { run?: string }) => typeof s.run === 'string' && s.run.includes('git fetch origin')
+    );
+    expect(fetchStep).toBeDefined();
+    expect(fetchStep.run).toContain('git fetch origin ${{ github.base_ref }}');
+
+    // IMP-2: least privilege — write was dropped (--comment posts nothing today).
+    expect(parsed.permissions['contents']).toBe('read');
+    expect(parsed.permissions['pull-requests']).not.toBe('write');
+
     // GitHub `${{ secrets.X }}` expressions survived Handlebars verbatim:
     expect(wf!.content).toContain('${{ secrets.ANTHROPIC_API_KEY }}');
     expect(parsed.jobs['required-review'].env.ANTHROPIC_API_KEY).toBe(
       '${{ secrets.ANTHROPIC_API_KEY }}'
     );
+
+    // SUG-5: an escaped GH expression and a substituted Handlebars var coexist on
+    // one line (the run step has a literal ${{ github.base_ref }} AND a real
+    // {{runner}} -> claude substitution). Proves the per-line escaping is correct.
+    expect(runStep.run).toContain('${{ github.base_ref }}');
+    expect(runStep.run).toContain('--runner claude');
+
     // No stray escaping artifact leaked into the output:
     expect(wf!.content).not.toContain('\\{{');
   });
