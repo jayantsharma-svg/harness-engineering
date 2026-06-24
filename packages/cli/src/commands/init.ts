@@ -15,6 +15,7 @@ import { logger } from '../output/logger';
 import { CLIError, ExitCode } from '../utils/errors';
 import { resolveTemplatesDir } from '../utils/paths';
 import { setupMcp } from './setup-mcp';
+import { generateCIConfig } from './ci/init';
 
 interface InitOptions {
   cwd?: string;
@@ -132,6 +133,23 @@ function scaffoldProject(
     ...(language !== undefined && { language }),
   });
   if (!renderResult.ok) return Err(new CLIError(renderResult.error.message, ExitCode.ERROR));
+
+  // Inject the GitHub Actions CI workflow into the write set via the single
+  // generator (generateCIConfig). It is classified as a harness-managed file
+  // (engine.ts HARNESS_CONFIG_FILES), so engine.write emits it in both fresh
+  // and existing-project mode and skips it when a workflow already exists.
+  const ciResult = generateCIConfig({
+    platform: 'github',
+    ...(language !== undefined && { language }),
+  });
+  if (ciResult.ok) {
+    renderResult.value.files.push({
+      relativePath: ciResult.value.filename,
+      content: ciResult.value.content,
+    });
+  } else {
+    logger.warn(`CI workflow was not generated: ${ciResult.error.message}`);
+  }
 
   const existingProject = !force && engine.isExistingProject(cwd);
 

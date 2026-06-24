@@ -3,6 +3,8 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
 import { runInit } from '../../src/commands/init';
+import { TemplateEngine } from '../../src/templates/engine';
+import { resolveTemplatesDir } from '../../src/utils/paths';
 
 describe('harness init integration', () => {
   const levels = ['basic', 'intermediate', 'advanced'] as const;
@@ -319,5 +321,69 @@ describe('harness init integration', () => {
 
       fs.rmSync(tmpDir, { recursive: true });
     });
+  });
+});
+
+describe('harness init — CI workflow', () => {
+  it('writes ci.yml in existing-project mode', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-ci-existing-'));
+    fs.writeFileSync(path.join(tmp, 'package.json'), '{"name":"x"}'); // existing-project marker
+    const engine = new TemplateEngine(resolveTemplatesDir());
+    const res = engine.write(
+      { files: [{ relativePath: '.github/workflows/ci.yml', content: 'name: CI\n' }] },
+      tmp,
+      { overwrite: false, existingProject: true }
+    );
+    expect(res.ok).toBe(true);
+    expect(fs.existsSync(path.join(tmp, '.github/workflows/ci.yml'))).toBe(true);
+    fs.rmSync(tmp, { recursive: true });
+  });
+
+  it('init writes .github/workflows/ci.yml with build/lint/test + gate', async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-init-ci-'));
+    const r = await runInit({ cwd: tmp, name: 'ci-proj', level: 'basic' });
+    expect(r.ok).toBe(true);
+    const wf = path.join(tmp, '.github/workflows/ci.yml');
+    expect(fs.existsSync(wf)).toBe(true);
+    const c = fs.readFileSync(wf, 'utf-8');
+    expect(c).toContain('harness ci check --json');
+    expect(c).toContain('pnpm test');
+    expect(c).not.toMatch(/git push/);
+    fs.rmSync(tmp, { recursive: true });
+  });
+
+  it('does not overwrite an existing ci.yml', async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-init-ci-keep-'));
+    fs.mkdirSync(path.join(tmp, '.github/workflows'), { recursive: true });
+    fs.writeFileSync(path.join(tmp, '.github/workflows/ci.yml'), 'name: Hand-tuned\n');
+    await runInit({ cwd: tmp, name: 'keep', level: 'basic' });
+    expect(fs.readFileSync(path.join(tmp, '.github/workflows/ci.yml'), 'utf-8')).toBe(
+      'name: Hand-tuned\n'
+    );
+    fs.rmSync(tmp, { recursive: true });
+  });
+
+  it('language drives the generated steps (python)', async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-init-ci-py-'));
+    await runInit({ cwd: tmp, name: 'py', language: 'python' });
+    const c = fs.readFileSync(path.join(tmp, '.github/workflows/ci.yml'), 'utf-8');
+    expect(c).toContain('pytest');
+    fs.rmSync(tmp, { recursive: true });
+  });
+
+  it('creates ci.yml in an existing project with no workflow (primary persona)', async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-init-ci-existing-proj-'));
+    // Seed an existing-project marker; no .github/workflows/ci.yml present.
+    fs.writeFileSync(path.join(tmp, 'package.json'), '{"name":"existing-app"}');
+
+    const r = await runInit({ cwd: tmp, name: 'existing-app', level: 'basic' });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+
+    const wf = path.join(tmp, '.github/workflows/ci.yml');
+    expect(fs.existsSync(wf)).toBe(true);
+    const c = fs.readFileSync(wf, 'utf-8');
+    expect(c).toContain('harness ci check --json');
+    fs.rmSync(tmp, { recursive: true });
   });
 });

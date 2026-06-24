@@ -3,8 +3,8 @@ project: harness-engineering
 version: 1
 created: 2026-03-21
 updated: 2026-06-23
-last_synced: 2026-06-04T23:42:12.128Z
-last_manual_edit: 2026-06-23T20:30:00.000Z
+last_synced: 2026-06-23T18:05:08.357Z
+last_manual_edit: 2026-06-24T12:26:21.993Z
 ---
 
 # Roadmap
@@ -2551,12 +2551,12 @@ last_manual_edit: 2026-06-23T20:30:00.000Z
 
 ### Build harness:audit-harness-strength self-audit skill
 
-- **Status:** planned
-- **Spec:** —
-- **Summary:** Inspects the adopter's own harness.config.json, pre-commit hooks, CI workflows, branch protection, hook profile, and skill catalog usage against the seven gear pieces from the article AND the seven mechanical failure patterns the dogfood audit surfaced. Reports per-piece score and concrete remediation steps. **Must enumerate these seven patterns as mechanical checks (not generic prose):** (1) any hook documented "never blocks" or "always exits 0"; (2) any pre-commit branch that auto-updates baselines or thresholds on regression; (3) any `--skip` list longer than two categories without justification annotations; (4) any template with `layers` defined but `architecture.thresholds` empty; (5) any init flow that recommends the lowest adoption tier by default; (6) any baseline-update PR auto-approved without independent review; (7) any `passed: true` in a health snapshot whose `signals[]` array contains the corresponding signal name. The distinction between self-audit-as-marketing and self-audit-as-mechanical-check is whether the skill enumerates concrete detectable patterns. Source: Pass 2 #7, Pass 3 #5, Pass 7-D (recursion).
+- **Status:** done
+- **Spec:** docs/changes/audit-harness-strength/proposal.md
+- **Summary:** Inspects the adopter's own harness.config.json, pre-commit hooks, CI workflows, branch protection, hook profile, and skill catalog usage against the seven gear pieces from the article AND the seven mechanical failure patterns the dogfood audit surfaced. Reports per-piece score and concrete remediation steps. **Must enumerate these seven patterns as mechanical checks (not generic prose):** (1) any hook documented "never blocks" or "always exits 0"; (2) any pre-commit branch that auto-updates baselines or thresholds on regression; (3) any `--skip` list longer than two categories without justification annotations; (4) any template with `layers` defined but `architecture.thresholds` empty; (5) any init flow that recommends the lowest adoption tier by default; (6) any baseline-update PR auto-approved without independent review; (7) any `passed: true` in a health snapshot whose `signals[]` array contains the corresponding signal name. The distinction between self-audit-as-marketing and self-audit-as-mechanical-check is whether the skill enumerates concrete detectable patterns. Source: Pass 2 #7, Pass 3 #5, Pass 7-D (recursion). Implemented across 5 phases via autopilot (core engine + 7-rule registry STRENGTH-001..007, CLI `check-harness-strength`, rigid skill + ADR 0039, dogfood/fixture tests); shipped in PR #615 (merged).
 - **Blockers:** —
-- **Plan:** —
-- **Assignee:** —
+- **Plan:** docs/changes/audit-harness-strength/plans/2026-06-23-phase1-core-types-and-context.md, docs/changes/audit-harness-strength/plans/2026-06-23-phase2-rule-registry.md, docs/changes/audit-harness-strength/plans/2026-06-23-phase3-cli-command.md, docs/changes/audit-harness-strength/plans/2026-06-23-phase4-skill-and-wiring.md, docs/changes/audit-harness-strength/plans/2026-06-23-phase5-dogfood-verification.md
+- **Assignee:** chad.warner@capillarytech.com
 - **Priority:** P0
 - **External-ID:** github:Intense-Visions/harness-engineering#535
 
@@ -2584,7 +2584,7 @@ last_manual_edit: 2026-06-23T20:30:00.000Z
 
 ### Change init skill default recommendation away from "basic"
 
-- **Status:** planned
+- **Status:** blocked
 - **Spec:** —
 - **Summary:** `agents/skills/claude-code/initialize-harness-project/SKILL.md:45,533` recommends "basic" by default for new projects. Combined with the no-thresholds basic template, this steers adopters directly into the configuration that does NOT deliver the article's harness. Change default recommendation to a new "load-bearing minimum" tier (item below). Source: Pass 3 #1.
 - **Blockers:** Add "load-bearing minimum" tier
@@ -2595,7 +2595,7 @@ last_manual_edit: 2026-06-23T20:30:00.000Z
 
 ### Add "load-bearing minimum" tier between intermediate and advanced
 
-- **Status:** planned
+- **Status:** blocked
 - **Spec:** —
 - **Summary:** Today: basic = layer linter; intermediate = layer linter + 1 forbidden import; advanced = full kit with all the dogfood-inherited overhead. What's missing is a tier between intermediate and advanced — a "load-bearing minimum" template that ships exactly: ESLint plugin + complexity cap (15) + module-size cap + multi-persona review wired into the CI workflow template + harness:outcome-eval skill. The minimum article-aligned harness without the advanced-tier surface area. Source: Pass 3 #12.
 - **Blockers:** Build harness:outcome-eval skill, Ship a CI workflow template, Ship a required-review GitHub Action template
@@ -2606,9 +2606,9 @@ last_manual_edit: 2026-06-23T20:30:00.000Z
 
 ### Ship a CI workflow template
 
-- **Status:** planned
+- **Status:** done
 - **Spec:** —
-- **Summary:** New `templates/ci/github-actions.yml.hbs` that adopters inherit on init. Runs `harness validate && check-deps && check-arch`, runs the multi-persona review pipeline as a required check on every PR, ratchets coverage, refuses to merge if signals trigger. Today adopters write their own CI from scratch, inheriting none of the dogfood's hard-won wisdom — the dogfood's `.github/workflows/ci.yml` is in this repo, not in templates. The single largest "ships assembled vs ships in pieces" gap. Source: Pass 2 #1 (CRITICAL).
+- **Summary:** New `templates/ci/github-actions.yml.hbs` that adopters inherit on init. Runs `harness validate && check-deps && check-arch`, runs the multi-persona review pipeline as a required check on every PR, ratchets coverage, refuses to merge if signals trigger. Today adopters write their own CI from scratch, inheriting none of the dogfood's hard-won wisdom — the dogfood's `.github/workflows/ci.yml` is in this repo, not in templates. The single largest "ships assembled vs ships in pieces" gap. Source: Pass 2 #1 (CRITICAL). Shipped in PR #616 (#540).
 - **Blockers:** —
 - **Plan:** —
 - **Assignee:** —
@@ -2629,7 +2629,7 @@ last_manual_edit: 2026-06-23T20:30:00.000Z
 
 ### Invert the implementation guide framing
 
-- **Status:** planned
+- **Status:** blocked
 - **Spec:** —
 - **Summary:** `docs/standard/implementation.md:9-53` stages adoption as Level 1 (1-2 weeks) → Level 2 (2-4 weeks) → Level 3 (4-8 weeks). Total 7-14 weeks to reach what the article calls "the harness." The article: "Build the harness first. Then climb." The implementation guide: "Grow into the harness over three months." Rewrite so it doesn't sell weeks-to-the-harness. Lead with the load-bearing minimum tier as the starting point. Treat the rest as ambitious, not necessary. Source: Pass 3 #2 (CRITICAL — strategic positioning).
 - **Blockers:** Add "load-bearing minimum" tier between intermediate and advanced
@@ -2662,7 +2662,7 @@ last_manual_edit: 2026-06-23T20:30:00.000Z
 
 ### Retire ~350 shelf-ware skills
 
-- **Status:** planned
+- **Status:** blocked
 - **Spec:** —
 - **Summary:** Pass 4 catalog audit: 598 of 755 SKILL.md files (79%) self-declare `Type: knowledge — not a procedural workflow, no tools or state`; 493 of 755 (65%) end with the identical copy-paste Process boilerplate "Read / Apply / Verify"; only ~9% are genuine gear (Iron Law + gates + MCP calls). Concrete retire list: all 23 `gof-*` (LLM-prior, 1994 design patterns), pre-2020 `react-*` (`react-hoc-pattern`, `react-render-props-pattern`, `react-container-presentational`), most `otel-*` (duplicates OpenTelemetry docs), generic `astro-*`/`nuxt-*`/`svelte-*` unless actively shipped. Pair retire with item below (catalog-retrospective skill) to surface candidates and item further below (catalog tiering) to reorganize the remainder. Source: Pass 4 action 1.
 - **Blockers:** Build harness:catalog-retrospective skill
@@ -2695,7 +2695,7 @@ last_manual_edit: 2026-06-23T20:30:00.000Z
 
 ### Strip copy-paste Process boilerplate from library skills
 
-- **Status:** planned
+- **Status:** blocked
 - **Spec:** —
 - **Summary:** 493 of 755 skills end with identical boilerplate: "1. Read the instructions and examples 2. Apply the patterns 3. Verify your implementation." This is the textbook shelf-ware tell — every skill ends with the same hand-waving three steps instead of an actual procedure. For skills that should remain as library reference (post-retire-decisions), strip the Process section so the catalog stops cosplaying as workflows. Skills are then honestly typed as either gear (procedural) or library (reference). Source: Pass 4 action 4.
 - **Blockers:** Retire ~350 shelf-ware skills
@@ -2717,7 +2717,7 @@ last_manual_edit: 2026-06-23T20:30:00.000Z
 
 ### Extend skill-effectiveness scorer to skill grain (not just personas)
 
-- **Status:** planned
+- **Status:** blocked
 - **Spec:** —
 - **Summary:** `packages/intelligence/src/effectiveness/scorer.ts` currently scores personas using graph-attributed `execution_outcome` nodes. Extend the same Bayesian approach to score skills using `.harness/metrics/adoption.jsonl` data (skill+outcome+duration+phasesReached). Identify failing skills and skills abandoned mid-workflow. Feed into `harness:catalog-retrospective`. Closes the gap: the project has 1319 adoption records but no loop that uses them to improve the catalog. Source: Pass 5 #4.
 - **Blockers:** Build harness:catalog-retrospective skill
@@ -2871,7 +2871,7 @@ last_manual_edit: 2026-06-23T20:30:00.000Z
 
 ### Extend adoption.jsonl with failure-reason categorization
 
-- **Status:** planned
+- **Status:** blocked
 - **Spec:** —
 - **Summary:** `.harness/metrics/adoption.jsonl` currently captures `outcome: completed|failed` — the WHAT without the WHY. 1319 dogfood records, none with structured failure categorization. Extend the schema: add `failureCategory` field with enum (`prerequisite-missing`, `gate-rejected`, `user-cancelled`, `timeout`, `agent-error`, `dependency-failure`, `inconclusive`). Emitted by skills at gate-result events. Without this, the catalog-retrospective skill and skill-effectiveness scorer (other milestone items) operate on `outcome=failed` as undifferentiated noise. The data layer for compounding-via-learning has to record the WHY, not just the WHAT. Source: Pass 7 final-pass synthesis (collection without synthesis pattern).
 - **Blockers:** Build harness:catalog-retrospective skill, Extend skill-effectiveness scorer to skill grain
@@ -2946,6 +2946,17 @@ last_manual_edit: 2026-06-23T20:30:00.000Z
 - **Priority:** P2
 - **External-ID:** github:Intense-Visions/harness-engineering#570
 
+### Make pre-push test:coverage gate deterministic — isolate parallel-unsafe tests
+
+- **Status:** planned
+- **Spec:** —
+- **Summary:** The husky pre-push gate runs `turbo run test:coverage --concurrency=2` across all packages; several heavy IO/git tests are parallel-unsafe and flake non-deterministically under contention — the failing test/package moves run-to-run (observed: `cli#test:coverage`, then `orchestrator#test:coverage`, then cli again). All pass in isolation; CI (clean runner) tolerates them. Known offenders: `packages/cli/tests/hooks/adoption-tracker.test.ts` (writes shared project-root `.harness/metrics/adoption.jsonl` not its tmpdir), `packages/cli/tests/copy-craft/extract-commits.test.ts`, `packages/cli/tests/integration/cli.test.ts` (spawns the CLI; 30s timeout under load). A flaky gate that blocks good pushes is itself an anti-harness pattern — it erodes trust like the "warns but doesn't stop" hooks this milestone targets, inverted (stops, for the wrong reason); on 2026-06-24 it flaked 3+ consecutive times on docs-only changes, forcing API-side landing. Fix: make the heavy tests concurrency-safe (per-test tmpdir + `chdir`, never touch repo-root shared files), or pool-isolate via vitest `poolOptions`/`--no-file-parallelism`; also investigate the turbo-cache miss where `packages/cli/.harness/arch/baselines.json` (auto-mutated by the commit/push arch check) busts cli's `test:coverage` input hash and forces a full re-run. Source: dogfood 2026-06-24 (audit-harness-strength + roadmap-sync pushes).
+- **Blockers:** —
+- **Plan:** —
+- **Assignee:** —
+- **Priority:** P1
+- **External-ID:** github:Intense-Visions/harness-engineering#620
+
 ## Assignment History
 
 | Feature                                                          | Assignee                      | Action   | Date       |
@@ -2960,6 +2971,7 @@ last_manual_edit: 2026-06-23T20:30:00.000Z
 | design-pipeline sub-project #3: audit-brand-compliance           | @chadjw                       | assigned | 2026-06-02 |
 | Init design + roadmap polish follow-ups                          | @chadjw                       | assigned | 2026-06-03 |
 | Build harness:outcome-eval skill                                 | chad.warner@capillarytech.com | assigned | 2026-06-22 |
+| Build harness:audit-harness-strength self-audit skill            | chad.warner@capillarytech.com | assigned | 2026-06-23 |
 | Ship the 5-signal dashboard panel and signals.md doc             | chad.warner@capillarytech.com | assigned | 2026-06-22 |
 | Ship a required-review GitHub Action template                    | chad.warner@gmail.com         | assigned | 2026-06-23 |
 | Stop the pre-commit auto-baseline-update for arch                | chad.warner@gmail.com         | assigned | 2026-06-23 |
