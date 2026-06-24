@@ -6,7 +6,8 @@ vi.mock('@harness-engineering/core', async (importOriginal) => {
   return { ...actual, parseDiff: parseDiffMock };
 });
 
-import { resolveDiffRange, buildDiffInfo } from '../../src/commands/review-ci';
+import { resolveDiffRange, buildDiffInfo, runReviewCi } from '../../src/commands/review-ci';
+import type { CiReviewResult, RunCiReviewOptions } from '@harness-engineering/core';
 
 describe('resolveDiffRange', () => {
   it('uses provided range verbatim', () => {
@@ -65,5 +66,88 @@ describe('buildDiffInfo', () => {
   it('throws a descriptive error when parseDiff fails', () => {
     parseDiffMock.mockReturnValue({ ok: false, error: { message: 'bad diff' } });
     expect(() => buildDiffInfo('garbage')).toThrow(/Failed to parse diff: bad diff/);
+  });
+});
+
+describe('runReviewCi', () => {
+  function makeResult(exitCode: number): CiReviewResult {
+    return {
+      verdict: { assessment: 'approve' } as CiReviewResult['verdict'],
+      exitCode,
+      terminalOutput: 'ok',
+      ranLlmTier: false,
+    } as CiReviewResult;
+  }
+
+  function setup(exitCode = 0) {
+    parseDiffMock.mockReturnValue({ ok: true, value: { files: [] } });
+    const captured: { opts?: RunCiReviewOptions } = {};
+    const runCiReviewImpl = vi.fn(async (opts: RunCiReviewOptions) => {
+      captured.opts = opts;
+      return makeResult(exitCode);
+    });
+    const runGit = vi.fn(() => 'refs/remotes/origin/main');
+    const resolveRaw = vi.fn(() => 'diff --git a/x b/x\n+x');
+    return { captured, runCiReviewImpl, runGit, resolveRaw };
+  }
+
+  it('floor-only: no runner -> runner undefined and no localInvoke', async () => {
+    const { captured, runCiReviewImpl, runGit, resolveRaw } = setup();
+    await runReviewCi({ runCiReviewImpl, runGit, resolveRaw, diffRange: 'a...b' });
+    expect(runCiReviewImpl).toHaveBeenCalledTimes(1);
+    expect(captured.opts!.runner).toBeUndefined();
+    expect(captured.opts!.localInvoke).toBeUndefined();
+  });
+
+  it('runner=local -> a localInvoke function is injected', async () => {
+    const { captured, runCiReviewImpl, runGit, resolveRaw } = setup();
+    await runReviewCi({ runCiReviewImpl, runGit, resolveRaw, runner: 'local', diffRange: 'a...b' });
+    expect(captured.opts!.runner).toBe('local');
+    expect(typeof captured.opts!.localInvoke).toBe('function');
+  });
+
+  it('runner=local honors an explicitly injected localInvoke seam', async () => {
+    const { captured, runCiReviewImpl, runGit, resolveRaw } = setup();
+    const localInvoke = vi.fn(async () => '{}');
+    await runReviewCi({
+      runCiReviewImpl,
+      runGit,
+      resolveRaw,
+      runner: 'local',
+      localInvoke,
+      diffRange: 'a...b',
+    });
+    expect(captured.opts!.localInvoke).toBe(localInvoke);
+  });
+
+  it('agent-cli runner (claude) -> runner passed through, no localInvoke', async () => {
+    const { captured, runCiReviewImpl, runGit, resolveRaw } = setup();
+    await runReviewCi({
+      runCiReviewImpl,
+      runGit,
+      resolveRaw,
+      runner: 'claude',
+      diffRange: 'a...b',
+    });
+    expect(captured.opts!.runner).toBe('claude');
+    expect(captured.opts!.localInvoke).toBeUndefined();
+  });
+
+  it('propagates the orchestrator exitCode unchanged', async () => {
+    const { runCiReviewImpl, runGit, resolveRaw } = setup(1);
+    const result = await runReviewCi({ runCiReviewImpl, runGit, resolveRaw, diffRange: 'a...b' });
+    expect(result.exitCode).toBe(1);
+  });
+
+  it('forwards blockOn when provided', async () => {
+    const { captured, runCiReviewImpl, runGit, resolveRaw } = setup();
+    await runReviewCi({
+      runCiReviewImpl,
+      runGit,
+      resolveRaw,
+      blockOn: 'critical',
+      diffRange: 'a...b',
+    });
+    expect(captured.opts!.blockOn).toBe('critical');
   });
 });

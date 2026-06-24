@@ -1,6 +1,12 @@
 import { execFileSync } from 'node:child_process';
-import { parseDiff } from '@harness-engineering/core';
-import type { DiffInfo } from '@harness-engineering/core';
+import { parseDiff, runCiReview } from '@harness-engineering/core';
+import type {
+  DiffInfo,
+  RunCiReviewOptions,
+  CiReviewResult,
+  CiBlockOn,
+} from '@harness-engineering/core';
+import { createLocalInvoke } from './review-ci-local-adapter';
 
 /**
  * Injectable git seam. Returns trimmed stdout of `git <args>`.
@@ -82,4 +88,54 @@ export function buildDiffInfo(rawDiff: string): DiffInfo {
     totalDiffLines: rawDiff.split('\n').length,
     fileDiffs: new Map(files.map((f) => [f.path, perFile.get(f.path) ?? rawDiff])),
   };
+}
+
+/** Resolve the raw unified-diff string for a range via the injectable git seam. */
+function defaultResolveRaw(range: string, _cwd: string, runGit: RunGit): string {
+  return runGit(['diff', range]);
+}
+
+export interface ReviewCiOptions {
+  cwd?: string;
+  runner?: string;
+  blockOn?: CiBlockOn;
+  diffRange?: string;
+  // Injected seams for tests (default to the real implementations):
+  runCiReviewImpl?: (o: RunCiReviewOptions) => Promise<CiReviewResult>;
+  localInvoke?: RunCiReviewOptions['localInvoke'];
+  runGit?: RunGit;
+  resolveRaw?: (range: string, cwd: string, runGit: RunGit) => string;
+}
+
+/**
+ * Pure orchestration for `review-ci`: resolve the diff range, build the
+ * {@link DiffInfo}, select the runner, and delegate to core's `runCiReview`.
+ *
+ * - No runner => floor-only (runner undefined, no localInvoke).
+ * - `local` => inject the openai-compatible {@link createLocalInvoke} adapter.
+ * - agent-cli runners (claude/gemini/codex/...) => core uses its default
+ *   `execFile` seam; no localInvoke is injected.
+ *
+ * Returns the orchestrator's {@link CiReviewResult} unchanged (incl. exitCode).
+ * Contains NO `process.exit` so it stays unit-testable.
+ */
+export async function runReviewCi(opts: ReviewCiOptions): Promise<CiReviewResult> {
+  const cwd = opts.cwd ?? process.cwd();
+  const runGit = opts.runGit ?? defaultRunGit;
+  const range = resolveDiffRange({
+    ...(opts.diffRange ? { range: opts.diffRange } : {}),
+    cwd,
+    runGit,
+  });
+  const rawDiff = (opts.resolveRaw ?? defaultResolveRaw)(range, cwd, runGit);
+  const diff = buildDiffInfo(rawDiff);
+  const runner = opts.runner as RunCiReviewOptions['runner'] | undefined;
+  const callOpts: RunCiReviewOptions = {
+    projectRoot: cwd,
+    diff,
+    ...(runner ? { runner } : {}),
+    ...(opts.blockOn ? { blockOn: opts.blockOn } : {}),
+    ...(runner === 'local' ? { localInvoke: opts.localInvoke ?? createLocalInvoke() } : {}),
+  };
+  return (opts.runCiReviewImpl ?? runCiReview)(callOpts);
 }
