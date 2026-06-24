@@ -1,0 +1,41 @@
+# Rendered by `harness init` (ci-required-review template).
+# The job name below ("required-review") is the check name bound as REQUIRED
+# by required-review.ruleset.json. Keep them identical.
+#
+# NOTE ON ESCAPING: GitHub Actions expressions collide with the Handlebars
+# template engine under its strict compile mode. Each GH expression below
+# escapes the opening braces (as a backslash before the mustache) so Handlebars
+# emits them verbatim (rendered output is the literal dollar-double-brace form).
+# Only the runner, blockOn, and baseBranch mustaches are real template vars.
+name: Required Review
+
+on:
+  pull_request:
+    branches: ['{{baseBranch}}']
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  required-review:
+    name: required-review
+    runs-on: ubuntu-latest
+    env:
+      # The heuristic floor runs regardless of runner. The LLM tier only
+      # activates when its secret is present, degrading gracefully otherwise.
+      ANTHROPIC_API_KEY: $\{{ secrets.ANTHROPIC_API_KEY }}
+      GEMINI_API_KEY: $\{{ secrets.GEMINI_API_KEY }}
+      OPENAI_API_KEY: $\{{ secrets.OPENAI_API_KEY }}
+      HARNESS_LOCAL_ENDPOINT: $\{{ secrets.HARNESS_LOCAL_ENDPOINT }}
+      HARNESS_LOCAL_MODEL: $\{{ secrets.HARNESS_LOCAL_MODEL }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install -g @harness-engineering/cli@2.8.0
+      - name: Run required review gate
+        run: harness review-ci --runner {{runner}} --block-on {{blockOn}} --comment
