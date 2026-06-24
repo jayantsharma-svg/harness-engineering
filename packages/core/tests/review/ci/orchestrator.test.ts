@@ -10,6 +10,8 @@ vi.mock('../../../src/review/pipeline-orchestrator', () => ({ runReviewPipeline 
 
 // Imported AFTER vi.mock so the mock is in place.
 import { runCiReview, type ExecFileLike } from '../../../src/review/ci/orchestrator';
+import { parseCiReviewVerdict } from '../../../src/review/ci/verdict-schema';
+import type { LocalEndpointInvoke } from '../../../src/review/ci/runner-presets';
 
 const fx = (name: string): string => readFileSync(join(__dirname, 'fixtures', name), 'utf8');
 
@@ -50,6 +52,18 @@ const criticalFloorFinding = {
   rationale: 'A heuristic critical from the floor.',
   evidence: ['src/x.ts:1'],
   validatedBy: 'mechanical' as const,
+};
+
+const importantFloorFinding = {
+  id: 'floor-imp-1',
+  file: 'src/x.ts',
+  lineRange: [3, 4] as [number, number],
+  domain: 'architecture' as const,
+  severity: 'important' as const,
+  title: 'Floor important',
+  rationale: 'A heuristic important from the floor.',
+  evidence: ['src/x.ts:3'],
+  validatedBy: 'heuristic' as const,
 };
 
 beforeEach(() => {
@@ -160,5 +174,192 @@ describe('runCiReview — SC2 (secret-gated LLM tier + graceful skip)', () => {
     expect(r.ranLlmTier).toBe(false);
     expect(r.llmSkipReason).toMatch(/local endpoint not configured/);
     expect(r.verdict.runner).toBe('floor-only');
+  });
+});
+
+// Wrap an inner {assessment, findings} verdict in the claude transcript envelope the
+// claude parser reads (`.result` is a JSON string). Used to drive arbitrary assessments
+// through the REAL parser path for the threshold matrix.
+const claudeEnvelope = (inner: { assessment: string; findings: unknown[] }): string =>
+  JSON.stringify({
+    type: 'result',
+    subtype: 'success',
+    is_error: false,
+    result: JSON.stringify(inner),
+  });
+
+const commentInnerFinding = {
+  id: 'llm-comment-1',
+  file: 'src/x.ts',
+  lineRange: [10, 12],
+  domain: 'architecture',
+  severity: 'important',
+  title: 'Naming nit',
+  rationale: 'Prefer a clearer identifier.',
+  evidence: ['src/x.ts:10'],
+  validatedBy: 'heuristic',
+};
+
+const runClaude = (
+  stdout: string,
+  extra?: Partial<Parameters<typeof runCiReview>[0]>
+): ReturnType<typeof runCiReview> => {
+  const execFile: ExecFileLike = vi.fn().mockResolvedValue({ stdout });
+  return runCiReview({
+    projectRoot: '/p',
+    diff,
+    runner: 'claude',
+    env: { ANTHROPIC_API_KEY: 'x' },
+    execFile,
+    ...extra,
+  });
+};
+
+describe('runCiReview — SC3 (anti-theatre threshold matrix)', () => {
+  beforeEach(() => runReviewPipeline.mockResolvedValue(floorClean));
+
+  it('request-changes verdict under default blockOn → exitCode 1', async () => {
+    const r = await runClaude(fx('claude-verdict.json')); // request-changes + 1 critical
+    expect(r.verdict.assessment).toBe('request-changes');
+    expect(r.exitCode).toBe(1);
+  });
+
+  it('same request-changes verdict under blockOn none → exitCode 0', async () => {
+    const r = await runClaude(fx('claude-verdict.json'), { blockOn: 'none' });
+    expect(r.verdict.assessment).toBe('request-changes');
+    expect(r.exitCode).toBe(0);
+  });
+
+  it('comment verdict under blockOn request-changes (default) → exitCode 0', async () => {
+    const r = await runClaude(
+      claudeEnvelope({ assessment: 'comment', findings: [commentInnerFinding] })
+    );
+    expect(r.verdict.assessment).toBe('comment');
+    expect(r.exitCode).toBe(0);
+  });
+
+  it('comment verdict under blockOn comment → exitCode 1', async () => {
+    const r = await runClaude(
+      claudeEnvelope({ assessment: 'comment', findings: [commentInnerFinding] }),
+      {
+        blockOn: 'comment',
+      }
+    );
+    expect(r.verdict.assessment).toBe('comment');
+    expect(r.exitCode).toBe(1);
+  });
+
+  it('approve verdict under blockOn request-changes → exitCode 0', async () => {
+    const r = await runClaude(claudeEnvelope({ assessment: 'approve', findings: [] }));
+    expect(r.verdict.assessment).toBe('approve');
+    expect(r.exitCode).toBe(0);
+  });
+
+  it('required runner fails to execute (execFile rejects) → exitCode 1 even on clean floor', async () => {
+    const execFile: ExecFileLike = vi.fn().mockRejectedValue(new Error('spawn ENOENT'));
+    const r = await runCiReview({
+      projectRoot: '/p',
+      diff,
+      runner: 'claude',
+      env: { ANTHROPIC_API_KEY: 'x' },
+      execFile,
+    });
+    expect(r.ranLlmTier).toBe(false);
+    expect(r.exitCode).toBe(1);
+    expect(r.llmSkipReason).toMatch(/failed/);
+  });
+
+  it('required runner fails under blockOn none → STILL exitCode 1 (failure not gated by none)', async () => {
+    const execFile: ExecFileLike = vi.fn().mockRejectedValue(new Error('spawn ENOENT'));
+    const r = await runCiReview({
+      projectRoot: '/p',
+      diff,
+      runner: 'claude',
+      env: { ANTHROPIC_API_KEY: 'x' },
+      blockOn: 'none',
+      execFile,
+    });
+    expect(r.exitCode).toBe(1);
+    expect(r.llmSkipReason).toMatch(/failed/);
+  });
+});
+
+describe('runCiReview — SC4 (per-runner normalization against REAL fixtures)', () => {
+  beforeEach(() => runReviewPipeline.mockResolvedValue(floorClean));
+
+  it('claude fixture → runner claude, request-changes, ≥1 blocking, schema-valid', async () => {
+    const r = await runClaude(fx('claude-verdict.json'));
+    expect(() => parseCiReviewVerdict(r.verdict)).not.toThrow();
+    expect(r.verdict.runner).toBe('claude');
+    expect(r.verdict.assessment).toBe('request-changes');
+    expect(r.verdict.blockingFindings.length).toBeGreaterThanOrEqual(1);
+    expect(r.verdict.blockingFindings.every((f) => f.severity === 'critical')).toBe(true);
+  });
+
+  it('codex fixture → runner codex, approve, schema-valid', async () => {
+    const execFile: ExecFileLike = vi.fn().mockResolvedValue({ stdout: fx('codex-verdict.jsonl') });
+    const r = await runCiReview({
+      projectRoot: '/p',
+      diff,
+      runner: 'codex',
+      env: { OPENAI_API_KEY: 'x' },
+      execFile,
+    });
+    expect(() => parseCiReviewVerdict(r.verdict)).not.toThrow();
+    expect(r.verdict.runner).toBe('codex');
+    expect(r.verdict.assessment).toBe('approve');
+    expect(r.exitCode).toBe(0);
+  });
+
+  it('antigravity fixture → runner antigravity, approve, schema-valid', async () => {
+    const execFile: ExecFileLike = vi
+      .fn()
+      .mockResolvedValue({ stdout: fx('antigravity-verdict.txt') });
+    const r = await runCiReview({
+      projectRoot: '/p',
+      diff,
+      runner: 'antigravity',
+      env: { GEMINI_API_KEY: 'x' },
+      execFile,
+    });
+    expect(() => parseCiReviewVerdict(r.verdict)).not.toThrow();
+    expect(r.verdict.runner).toBe('antigravity');
+    expect(r.verdict.assessment).toBe('approve');
+  });
+
+  it('local fixture via injected localInvoke → runner local, request-changes, findings merged; seam args correct', async () => {
+    const localInvoke: LocalEndpointInvoke = vi.fn().mockResolvedValue(fx('local-verdict.json'));
+    const r = await runCiReview({
+      projectRoot: '/p',
+      diff,
+      runner: 'local',
+      env: { HARNESS_LOCAL_ENDPOINT: 'http://x', HARNESS_LOCAL_MODEL: 'm' },
+      localInvoke,
+    });
+    expect(localInvoke).toHaveBeenCalledOnce();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const seamArgs = (localInvoke as any).mock.calls[0][0];
+    expect(seamArgs).toMatchObject({ endpoint: 'http://x', model: 'm' });
+    expect(typeof seamArgs.instruction).toBe('string');
+    expect(seamArgs.diff).toContain('diff --git');
+    expect(() => parseCiReviewVerdict(r.verdict)).not.toThrow();
+    expect(r.verdict.runner).toBe('local');
+    expect(r.verdict.assessment).toBe('request-changes');
+    expect(r.exitCode).toBe(1);
+    // local fixture: 1 critical + 1 suggestion → 1 blocking.
+    expect(r.verdict.blockingFindings.every((f) => f.severity === 'critical')).toBe(true);
+  });
+
+  it('merge: floor important finding + claude critical → both findings present, assessment request-changes', async () => {
+    runReviewPipeline.mockResolvedValue({
+      ...floorClean,
+      assessment: 'comment',
+      findings: [importantFloorFinding],
+    });
+    const r = await runClaude(fx('claude-verdict.json')); // adds 1 critical
+    expect(r.verdict.findings.length).toBe(2); // floor important + llm critical
+    expect(r.verdict.assessment).toBe('request-changes');
+    expect(r.verdict.blockingFindings).toHaveLength(1);
+    expect(r.exitCode).toBe(1);
   });
 });
