@@ -2617,10 +2617,10 @@ last_manual_edit: 2026-06-24T12:26:21.993Z
 
 ### Ship a required-review GitHub Action template
 
-- **Status:** in-progress
+- **Status:** done
 - **Spec:** docs/changes/required-review-ci/proposal.md
 - **Summary:** New `templates/ci/required-review.yml.hbs`. GitHub Action that runs `/harness:code-review` (the 7-phase multi-persona pipeline) on every PR, posts findings as PR review, and **fails the check if review wasn't run successfully**. Branch protection wires this as a required check. Without this wrapper, the multi-persona review (the project's strongest single piece of gear) is optional — the adopter has to remember to invoke it. Source: Pass 2 #6.
-- **Implementation:** Phases 1–5 built on branch `docs/required-review-ci-spec` (pending PR): `CiReviewVerdict` contract + two-kind runner-preset registry (claude/codex/antigravity verified; gemini superseded, cursor/local-live deferred), the `runCiReview` core orchestrator, the `harness review-ci` CLI command, the `templates/ci/` adopter artifacts (workflow + ruleset + README), and dogfood + docs/ADRs. Deferred to follow-up: ruleset gh-apply + promote-to-required (SC8), cursor/gemini/local LIVE verification, full-agentic-local spike, `--comment` PR posting.
+- **Implementation:** Shipped in PR #623 (Phases 1–5): `CiReviewVerdict` contract + two-kind runner-preset registry (claude/codex/antigravity verified; gemini superseded by antigravity), the `runCiReview` core orchestrator (tiered floor + secret-gated LLM tier, anti-theatre `block-on`), the `harness review-ci` CLI command, the `templates/ci/` adopter artifacts (workflow + ruleset + README), and dogfood workflow + docs/ADRs (0040/0041). Deferred to follow-up: ruleset gh-apply + promote-to-required (SC8), cursor/gemini/local LIVE verification, full-agentic-local spike, `--comment` PR posting.
 - **Blockers:** —
 - **Plan:** docs/changes/required-review-ci/plans/ (phases 1–4; phase 5 done inline)
 - **Assignee:** chad.warner@gmail.com
