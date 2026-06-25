@@ -129,6 +129,12 @@ export class WorkspaceManager {
       const baseRef = await this.resolveBaseRef(repoRoot);
       await this.git(['worktree', 'add', '--detach', workspacePath, baseRef], repoRoot);
 
+      // Overlay uncommitted handoff artifacts (brainstorm proposal + promoted
+      // roadmap row) from the root working tree. The worktree was just checked
+      // out from a committed remote ref and would otherwise lack them, leaving
+      // a dispatched agent with a roadmap entry but no proposal to work from.
+      await this.seedWorkspace(workspacePath, repoRoot);
+
       return Ok(workspacePath);
     } catch (error) {
       return Err(error instanceof Error ? error : new Error(String(error)));
@@ -145,6 +151,54 @@ export class WorkspaceManager {
       await this.git(['fetch', 'origin', '--quiet'], repoRoot);
     } catch {
       // Intentional: proceed with whatever refs already exist locally.
+    }
+  }
+
+  /**
+   * Default paths seeded into a fresh worktree when {@link WorkspaceConfig.seedPaths}
+   * is unset — the artifacts produced by the brainstorm → orchestrator handoff.
+   */
+  private static readonly DEFAULT_SEED_PATHS = ['.harness/proposals', 'docs/roadmap.md'];
+
+  /**
+   * Copies the configured seed paths from the root working tree into a
+   * freshly-created worktree, overlaying the committed checkout.
+   *
+   * A new worktree is based on a committed remote ref, so it does not contain
+   * uncommitted artifacts that exist only in the root working tree (a
+   * just-written proposal under `.harness/proposals/`, a promoted row in
+   * `docs/roadmap.md`). Seeding carries them over so a dispatched agent sees
+   * the same state the orchestrator dispatched from.
+   *
+   * Best-effort by design: a missing source is skipped, and a copy failure is
+   * swallowed — neither must ever block dispatch.
+   */
+  private async seedWorkspace(workspacePath: string, repoRoot: string): Promise<void> {
+    const seedPaths = this.config.seedPaths ?? WorkspaceManager.DEFAULT_SEED_PATHS;
+    for (const entry of seedPaths) {
+      // Seed paths are repo-relative by convention, but a configured roadmap
+      // location may arrive absolute. Relativize against the repo root and skip
+      // anything that escapes it, so seeding can never copy a source from — or
+      // write a destination — outside the worktree.
+      const rel = path.isAbsolute(entry)
+        ? path.relative(repoRoot, entry).replaceAll('\\', '/')
+        : entry;
+      if (!rel || rel === '..' || rel.startsWith('../') || path.isAbsolute(rel)) {
+        continue;
+      }
+      const src = path.join(repoRoot, rel);
+      try {
+        // Only carry over what actually exists in the root working tree.
+        await fs.access(src);
+      } catch {
+        continue;
+      }
+      const dest = path.join(workspacePath, rel);
+      try {
+        await fs.cp(src, dest, { recursive: true, force: true });
+      } catch {
+        // Seeding is an enhancement, not a precondition for dispatch.
+      }
     }
   }
 
