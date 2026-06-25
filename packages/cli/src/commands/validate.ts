@@ -1,4 +1,5 @@
 import { Command } from 'commander';
+import * as fs from 'fs';
 import * as path from 'path';
 import type { AgentConfigValidation, Result } from '@harness-engineering/core';
 import { Ok } from '@harness-engineering/core';
@@ -10,6 +11,8 @@ import {
   validateSolutionsDir,
   validateStrategy,
   validateRoadmapMode,
+  parseRoadmap,
+  checkRoadmapHealth,
 } from '@harness-engineering/core';
 import { resolveConfig } from '../config/loader';
 import { OutputFormatter, OutputMode, type OutputModeType } from '../output/formatter';
@@ -41,6 +44,7 @@ interface ValidateResult {
     strategyConfig?: boolean;
     solutionsDir?: boolean;
     roadmapMode?: boolean;
+    roadmapHealth?: boolean;
     componentAnatomy?: boolean;
     driftDetection?: boolean;
     brandCompliance?: boolean;
@@ -192,6 +196,33 @@ export async function runValidate(
         suggestion: roadmapModeResult.error.suggestions[0],
       }),
     });
+  }
+
+  // Roadmap health (regression guard). Read-only diagnostics over docs/roadmap.md:
+  // catch-all milestones (error), done-outside-archive, unactionable planned rows,
+  // and oversized active milestones (warnings). Skipped silently when no roadmap
+  // file exists (file-less mode or uninitialized projects). Error-severity findings
+  // fail validation; warnings are surfaced but do not flip result.valid.
+  const roadmapPath = path.join(cwd, 'docs', 'roadmap.md');
+  if (fs.existsSync(roadmapPath)) {
+    const parsed = parseRoadmap(fs.readFileSync(roadmapPath, 'utf-8'));
+    if (parsed.ok) {
+      const findings = checkRoadmapHealth(parsed.value);
+      result.checks.roadmapHealth = !findings.some((f) => f.severity === 'error');
+      if (!result.checks.roadmapHealth) result.valid = false;
+      for (const finding of findings) {
+        result.issues.push({
+          check: 'roadmapHealth',
+          file: 'docs/roadmap.md',
+          ruleId: finding.ruleId,
+          severity: finding.severity === 'error' ? 'error' : 'warning',
+          message: finding.feature
+            ? `${finding.feature} (${finding.milestone}): ${finding.message}`
+            : finding.message,
+          ...(finding.suggestion !== undefined && { suggestion: finding.suggestion }),
+        });
+      }
+    }
   }
 
   // Component-anatomy fast-mode audit (design-pipeline #2).

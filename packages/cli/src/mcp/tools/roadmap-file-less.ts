@@ -26,7 +26,7 @@ import { ConflictError, decidePromotionForRow } from '@harness-engineering/core'
 
 export interface ManageRoadmapFileLessInput {
   path: string;
-  action: 'show' | 'add' | 'update' | 'remove' | 'promote' | 'query' | 'sync';
+  action: 'show' | 'add' | 'update' | 'remove' | 'promote' | 'query' | 'sync' | 'groom';
   feature?: string;
   milestone?: string;
   status?: 'backlog' | 'planned' | 'in-progress' | 'done' | 'blocked';
@@ -71,6 +71,8 @@ export async function handleManageRoadmapFileLess(
       return handlePromote(input, client);
     case 'sync':
       return handleSync();
+    case 'groom':
+      return err('Error: groom is only supported in file-based roadmap mode (docs/roadmap.md).');
     default:
       return err(`Error: unknown action`);
   }

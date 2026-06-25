@@ -110,3 +110,24 @@ export { loadTrackerClientConfigFromProject } from './load-tracker-client-config
  * See packages/core/src/roadmap/migrate/index.ts.
  */
 export * as migrate from './migrate';
+
+/**
+ * Roadmap maintenance: health checks (regression guard for `harness validate`)
+ * and grooming transforms (archive done, demote unactionable planned).
+ */
+export {
+  checkRoadmapHealth,
+  groomRoadmap,
+  defaultIsArchive,
+  isUnactionablePlanned,
+} from './health';
+export type {
+  RoadmapHealthFinding,
+  RoadmapHealthOptions,
+  RoadmapHealthSeverity,
+  RoadmapHealthRuleId,
+  RoadmapGroomOptions,
+  RoadmapGroomResult,
+  RoadmapGroomChange,
+  RoadmapGroomChangeKind,
+} from './health';

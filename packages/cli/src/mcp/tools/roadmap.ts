@@ -13,14 +13,14 @@ import { handleManageRoadmapFileLess } from './roadmap-file-less.js';
 export const manageRoadmapDefinition = {
   name: 'manage_roadmap',
   description:
-    'Manage the project roadmap: show, add, update, remove, promote, sync features, or query by filter. Reads and writes docs/roadmap.md. The "promote" action transitions an existing row toward planned (backlog→planned) and links its spec atomically — creating a new planned row under "Current Work" if the feature does not exist — returning a structured RoadmapPromoteResult envelope.',
+    'Manage the project roadmap: show, add, update, remove, promote, sync, groom features, or query by filter. Reads and writes docs/roadmap.md. The "promote" action transitions an existing row toward planned (backlog→planned) and links its spec atomically — creating a new planned row under the "Intake" lane if the feature does not exist — returning a structured RoadmapPromoteResult envelope. The "groom" action tidies the roadmap: it demotes unactionable planned rows (no spec & no plan) to backlog and moves completed features into docs/roadmap-archive.md, returning the list of changes.',
   inputSchema: {
     type: 'object' as const,
     properties: {
       path: { type: 'string', description: 'Path to project root' },
       action: {
         type: 'string',
-        enum: ['show', 'add', 'update', 'remove', 'promote', 'query', 'sync'],
+        enum: ['show', 'add', 'update', 'remove', 'promote', 'query', 'sync', 'groom'],
         description: 'Action to perform',
       },
       feature: {
@@ -79,7 +79,7 @@ export const manageRoadmapDefinition = {
 
 interface ManageRoadmapInput {
   path: string;
-  action: 'show' | 'add' | 'update' | 'remove' | 'promote' | 'query' | 'sync';
+  action: 'show' | 'add' | 'update' | 'remove' | 'promote' | 'query' | 'sync' | 'groom';
   feature?: string;
   milestone?: string;
   status?: 'backlog' | 'planned' | 'in-progress' | 'done' | 'blocked';
@@ -122,7 +122,56 @@ interface RoadmapDeps {
   applySyncChanges: Awaited<typeof import('@harness-engineering/core')>['applySyncChanges'];
   assignFeature: Awaited<typeof import('@harness-engineering/core')>['assignFeature'];
   promoteFeature: Awaited<typeof import('@harness-engineering/core')>['promoteFeature'];
+  groomRoadmap: Awaited<typeof import('@harness-engineering/core')>['groomRoadmap'];
   Ok: Awaited<typeof import('@harness-engineering/types')>['Ok'];
+}
+
+function archiveFilePath(projectRoot: string): string {
+  return path.join(projectRoot, 'docs', 'roadmap-archive.md');
+}
+
+/**
+ * Append archived (completed) features to docs/roadmap-archive.md under a
+ * "Shipped" milestone, creating the file/milestone on first use. Keeps the
+ * live roadmap lean (the orchestrator parses a smaller file) while preserving
+ * history. The archive is a standalone, valid roadmap document.
+ */
+function appendToArchive(
+  projectRoot: string,
+  archived: import('@harness-engineering/types').RoadmapFeature[],
+  project: string,
+  deps: RoadmapDeps
+): void {
+  if (archived.length === 0) return;
+  const { parseRoadmap, serializeRoadmap } = deps;
+  const filePath = archiveFilePath(projectRoot);
+  const nowIso = new Date().toISOString();
+
+  let archive: import('@harness-engineering/types').Roadmap | null = null;
+  try {
+    const existing = parseRoadmap(fs.readFileSync(filePath, 'utf-8'));
+    if (existing.ok) archive = existing.value;
+  } catch {
+    archive = null;
+  }
+  if (archive === null) {
+    archive = {
+      frontmatter: { project, version: 1, lastSynced: nowIso, lastManualEdit: nowIso },
+      milestones: [],
+      assignmentHistory: [],
+    };
+  }
+
+  let shipped = archive.milestones.find((m) => m.name === 'Shipped');
+  if (!shipped) {
+    shipped = { name: 'Shipped', isBacklog: false, features: [] };
+    archive.milestones.push(shipped);
+  }
+  shipped.features.push(...archived);
+  archive.frontmatter.lastManualEdit = nowIso;
+
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, serializeRoadmap(archive), 'utf-8');
 }
 
 function roadmapNotFoundError(): McpResponse {
@@ -498,6 +547,42 @@ function handleSync(
   return resultToMcpResponse(Ok({ changes, applied: false }));
 }
 
+function handleGroom(
+  projectPath: string,
+  _input: ManageRoadmapInput,
+  deps: RoadmapDeps
+): McpResponse {
+  const { parseRoadmap, serializeRoadmap, groomRoadmap, Ok } = deps;
+
+  const raw = readRoadmapFile(projectPath);
+  if (raw === null) return roadmapNotFoundError();
+
+  const result = parseRoadmap(raw);
+  if (!result.ok) return resultToMcpResponse(result);
+
+  const { roadmap: groomed, archived, changes } = groomRoadmap(result.value);
+
+  if (changes.length === 0) {
+    return resultToMcpResponse(
+      Ok({ changes: [], archived: 0, demoted: 0, message: 'Roadmap is already tidy.' })
+    );
+  }
+
+  appendToArchive(projectPath, archived, groomed.frontmatter.project, deps);
+  groomed.frontmatter.lastManualEdit = new Date().toISOString();
+  writeRoadmapFile(projectPath, serializeRoadmap(groomed));
+
+  const demoted = changes.filter((c) => c.kind === 'demoted').length;
+  return resultToMcpResponse(
+    Ok({
+      changes,
+      archived: archived.length,
+      demoted,
+      message: `Groomed: ${demoted} demoted to backlog, ${archived.length} archived to docs/roadmap-archive.md.`,
+    })
+  );
+}
+
 const readOnlyActions = new Set(['show', 'query']);
 
 function dispatchAction(
@@ -521,6 +606,8 @@ function dispatchAction(
       return handleQuery(projectPath, input, deps);
     case 'sync':
       return handleSync(projectPath, input, deps);
+    case 'groom':
+      return handleGroom(projectPath, input, deps);
     default:
       return { content: [{ type: 'text' as const, text: `Error: unknown action` }], isError: true };
   }
@@ -529,6 +616,9 @@ function dispatchAction(
 function shouldTriggerExternalSync(input: ManageRoadmapInput, response: McpResponse): boolean {
   if (response.isError || readOnlyActions.has(input.action)) return false;
   if (input.action === 'sync') return input.apply === true;
+  // Groom is a local reorganization (demote/archive). Mirroring it would read
+  // archived rows leaving roadmap.md as deletions; run `sync` explicitly instead.
+  if (input.action === 'groom') return false;
   return true;
 }
 
@@ -568,6 +658,7 @@ export async function handleManageRoadmap(input: ManageRoadmapInput): Promise<Mc
       applySyncChanges,
       assignFeature,
       promoteFeature,
+      groomRoadmap,
     } = await import('@harness-engineering/core');
     const { Ok } = await import('@harness-engineering/types');
 
@@ -579,6 +670,7 @@ export async function handleManageRoadmap(input: ManageRoadmapInput): Promise<Mc
       applySyncChanges,
       assignFeature,
       promoteFeature,
+      groomRoadmap,
       Ok,
     };
     const response = dispatchAction(input.action, projectPath, input, deps);

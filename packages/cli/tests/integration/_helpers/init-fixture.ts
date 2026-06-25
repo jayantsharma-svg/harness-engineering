@@ -92,7 +92,7 @@ export async function scaffoldInitFixture(
       },
       milestones: [
         {
-          name: 'Current Work',
+          name: 'Intake',
           isBacklog: false,
           features,
         },

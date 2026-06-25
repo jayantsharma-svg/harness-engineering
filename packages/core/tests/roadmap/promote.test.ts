@@ -45,7 +45,7 @@ describe('promoteFeature()', () => {
       expect(row.spec).toBe(SPEC);
     });
 
-    it('not found (no near neighbour) → creates a new planned row under Current Work', () => {
+    it('not found (no near neighbour) → creates a new planned row under Intake', () => {
       const roadmap = roadmapWith([feature({ name: 'Push', status: 'backlog' })]);
       const { result, nextRoadmap } = promoteFeature(roadmap, {
         feature: 'Telemetry Overhaul',
@@ -54,7 +54,7 @@ describe('promoteFeature()', () => {
       });
 
       expect(result).toEqual({ ok: true, transitioned: 'created', feature: 'Telemetry Overhaul' });
-      const current = nextRoadmap.milestones.find((m) => m.name === 'Current Work');
+      const current = nextRoadmap.milestones.find((m) => m.name === 'Intake');
       expect(current).toBeDefined();
       const created = current!.features[0]!;
       expect(created.status).toBe('planned');
