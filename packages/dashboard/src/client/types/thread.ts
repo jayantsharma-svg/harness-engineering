@@ -61,6 +61,8 @@ export const SYSTEM_PAGES = [
   { page: 'decay', label: 'Decay Trends', route: '/s/decay' },
   { page: 'traceability', label: 'Traceability', route: '/s/traceability' },
   { page: 'orchestrator', label: 'Orchestrator', route: '/s/orchestrator' },
+  // Live work-in-flight kanban — orchestrator/parallel-coordinator state as lanes.
+  { page: 'kanban', label: 'Work in Flight', route: '/s/kanban' },
   { page: 'maintenance', label: 'Maintenance', route: '/s/maintenance' },
   { page: 'streams', label: 'Streams', route: '/s/streams' },
   { page: 'roadmap', label: 'Roadmap', route: '/s/roadmap' },

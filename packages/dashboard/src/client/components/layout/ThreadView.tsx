@@ -14,6 +14,7 @@ import { Impact } from '../../pages/Impact';
 import { DecayTrends } from '../../pages/DecayTrends';
 import { Traceability } from '../../pages/Traceability';
 import { Orchestrator } from '../../pages/Orchestrator';
+import { Kanban } from '../../pages/Kanban';
 import { Maintenance } from '../../pages/Maintenance';
 import { Streams } from '../../pages/Streams';
 import { Roadmap } from '../../pages/Roadmap';
@@ -38,6 +39,7 @@ const SYSTEM_PAGE_COMPONENTS: Record<string, ComponentType> = {
   decay: DecayTrends,
   traceability: Traceability,
   orchestrator: Orchestrator,
+  kanban: Kanban,
   maintenance: Maintenance,
   streams: Streams,
   roadmap: Roadmap,

@@ -2,6 +2,7 @@ import type {
   LocalModelStatus,
   NamedLocalModelStatus,
   RoutingDecision,
+  BlockerRef,
 } from '@harness-engineering/types';
 
 export type { LocalModelStatus, NamedLocalModelStatus };
@@ -22,9 +23,16 @@ export interface RunningAgent {
   identifier: string;
   phase: string;
   startedAt: string;
+  /** Worktree path the agent runs in (already on the wire via RunningEntry). */
+  workspacePath: string;
+  /** Run-attempt number, null before the first attempt is recorded. */
+  attempt: number | null;
   issue: {
+    identifier: string;
     title: string;
     description: string | null;
+    /** Dependency edges — issues that block this one. */
+    blockedBy: BlockerRef[];
   };
   session: AgentSession | null;
 }
@@ -68,6 +76,8 @@ export interface OrchestratorSnapshot {
   running: Array<[string, RunningAgent]>;
   retryAttempts: Array<[string, RetryEntry]>;
   claimed: string[];
+  /** Bounded list of recently completed issue IDs (already on the wire). */
+  completed?: string[];
   tokenTotals: TokenTotals;
   maxConcurrentAgents: number;
   globalCooldownUntilMs: number | null;
