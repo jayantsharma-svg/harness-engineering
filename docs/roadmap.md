@@ -1200,7 +1200,7 @@ last_manual_edit: 2026-06-24T12:26:21.993Z
 
 ### Auto-promotion of brainstormed roadmap items
 
-- **Status:** planned
+- **Status:** done
 - **Spec:** docs/changes/brainstorm-auto-promote/proposal.md
 - **Summary:** Brainstorming Phase 4 promotes existing backlog rows to planned atomically with the spec commit, via new `manage_roadmap action: promote`. Sub-project 1 of 4 in the brainstorm-driven roadmap loop initiative.
 - **Blockers:** —
