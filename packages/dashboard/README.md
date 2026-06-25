@@ -27,20 +27,21 @@ harness dashboard [options]
 
 ## Pages
 
-The dashboard has 10 pages:
+The dashboard has 11 pages:
 
-| Page             | Route           | Description                                                                                                      |
-| ---------------- | --------------- | ---------------------------------------------------------------------------------------------------------------- |
-| **Overview**     | `/`             | At-a-glance project summary: roadmap progress, health score, graph stats, security/perf/arch check results       |
-| **Attention**    | `/attention`    | Escalated interactions from the orchestrator requiring human review, with enriched specs and concern signals     |
-| **Adoption**     | `/adoption`     | Skill usage metrics: invocation counts, success rates, average duration, and last-used timestamps                |
-| **Health**       | `/health`       | Entropy-based project health with collapsible sections for security findings, perf checks, and arch violations   |
-| **Analyze**      | `/analyze`      | Interactive intelligence pipeline: submit a task description and stream SEL, CML, and PESL results in real time  |
-| **Roadmap**      | `/roadmap`      | Stats bar, milestone-grouped feature table with claim workflow, dependency graph, and assignment history         |
-| **Orchestrator** | `/orchestrator` | Live orchestrator state: running agents, rate limits, concurrency, token usage, tick activity, and agent streams |
-| **Impact**       | `/impact`       | Graph anomaly detection (articulation points, outliers) and interactive blast radius visualization               |
-| **Graph**        | `/graph`        | Knowledge graph statistics: node/edge counts, type breakdown, density, connected components                      |
-| **Chat**         | `/chat`         | Full-screen AI chat interface with skill-aware context, command palette, and session management                  |
+| Page               | Route           | Description                                                                                                                                                                                                                                                                                                                                    |
+| ------------------ | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Overview**       | `/`             | At-a-glance project summary: roadmap progress, health score, graph stats, security/perf/arch check results                                                                                                                                                                                                                                     |
+| **Attention**      | `/attention`    | Escalated interactions from the orchestrator requiring human review, with enriched specs and concern signals                                                                                                                                                                                                                                   |
+| **Adoption**       | `/adoption`     | Skill usage metrics: invocation counts, success rates, average duration, and last-used timestamps                                                                                                                                                                                                                                              |
+| **Health**         | `/health`       | Entropy-based project health with collapsible sections for security findings, perf checks, and arch violations                                                                                                                                                                                                                                 |
+| **Analyze**        | `/analyze`      | Interactive intelligence pipeline: submit a task description and stream SEL, CML, and PESL results in real time                                                                                                                                                                                                                                |
+| **Roadmap**        | `/roadmap`      | Stats bar, milestone-grouped feature table with claim workflow, dependency graph, and assignment history                                                                                                                                                                                                                                       |
+| **Orchestrator**   | `/orchestrator` | Live orchestrator state: running agents, rate limits, concurrency, token usage, tick activity, and agent streams                                                                                                                                                                                                                               |
+| **Work in Flight** | `/s/kanban`     | Live kanban of orchestrator/parallel-coordinator work: Queued / In Progress / Blocked / Done lanes with per-task cards (owning agent, worktree, phase, elapsed time, blocker reason, and `blockedBy` dependency chips). Read-only — derived client-side from the same `useOrchestratorSocket` WebSocket snapshot, with no server-side changes. |
+| **Impact**         | `/impact`       | Graph anomaly detection (articulation points, outliers) and interactive blast radius visualization                                                                                                                                                                                                                                             |
+| **Graph**          | `/graph`        | Knowledge graph statistics: node/edge counts, type breakdown, density, connected components                                                                                                                                                                                                                                                    |
+| **Chat**           | `/chat`         | Full-screen AI chat interface with skill-aware context, command palette, and session management                                                                                                                                                                                                                                                |
 
 ## Architecture
 
