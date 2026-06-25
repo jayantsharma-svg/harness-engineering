@@ -2,7 +2,7 @@
 project: harness-engineering
 version: 1
 last_synced: 2026-06-25T16:24:53.529Z
-last_manual_edit: 2026-06-25T16:24:53.529Z
+last_manual_edit: 2026-06-25T18:09:53.192Z
 ---
 
 # Roadmap
@@ -1048,3 +1048,14 @@ last_manual_edit: 2026-06-25T16:24:53.529Z
 - **Assignee:** chad.warner@gmail.com
 - **Priority:** P0
 - **External-ID:** github:Intense-Visions/harness-engineering#541
+
+### Auto-promotion of brainstormed roadmap items
+
+- **Status:** done
+- **Spec:** docs/changes/brainstorm-auto-promote/proposal.md
+- **Summary:** Brainstorming Phase 4 promotes existing backlog rows to planned atomically with the spec commit, via new `manage_roadmap action: promote`. Sub-project 1 of 4 in the brainstorm-driven roadmap loop initiative.
+- **Blockers:** —
+- **Plan:** —
+- **Assignee:** —
+- **Priority:** —
+- **External-ID:** github:Intense-Visions/harness-engineering#574
