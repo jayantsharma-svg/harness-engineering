@@ -10,6 +10,7 @@ import {
   Radio,
   Map,
   BarChart3,
+  KanbanSquare,
 } from 'lucide-react';
 
 const PAGE_ICONS: Record<string, typeof Activity> = {
@@ -19,6 +20,7 @@ const PAGE_ICONS: Record<string, typeof Activity> = {
   decay: TrendingDown,
   traceability: Link2,
   orchestrator: Bot,
+  kanban: KanbanSquare,
   maintenance: Wrench,
   streams: Radio,
   roadmap: Map,

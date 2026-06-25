@@ -26,18 +26,11 @@ export interface KanbanLane {
   cards: KanbanCard[];
 }
 
-/** Run-attempt phases that represent healthy, active in-flight work. */
-const ACTIVE_PHASES = new Set([
-  'PreparingWorkspace',
-  'BuildingPrompt',
-  'LaunchingAgent',
-  'InitializingSession',
-  'StreamingTurn',
-  'Finishing',
-  'Succeeded',
-]);
-
-/** Run-attempt phases that indicate the agent is stuck or failing. */
+/**
+ * Run-attempt phases that indicate the agent is stuck or failing. Every other
+ * phase (active work, or transient terminal states like
+ * CanceledByReconciliation) routes to the in-progress lane.
+ */
 const BLOCKED_PHASES = new Set(['RateLimitSleeping', 'Stalled', 'Failed', 'TimedOut']);
 
 const LANE_LABELS: Record<LaneId, string> = {
@@ -56,22 +49,48 @@ function blockerReasonForPhase(phase: string): string | null {
 }
 
 function cardFromRunning(agent: RunningAgent, blockerReason: string | null): KanbanCard {
+  // `issue`, `workspacePath`, `attempt`, and `startedAt` are required on
+  // RunningAgent (they match the wire payload), so no fallback guards are
+  // needed — only `session` is nullable.
+  const { issue, session } = agent;
   return {
     issueId: agent.issueId,
-    identifier: agent.issue?.identifier ?? agent.identifier,
-    title: agent.issue?.title ?? agent.identifier,
+    identifier: issue.identifier,
+    title: issue.title,
     phase: agent.phase,
-    backendName: agent.session?.backendName ?? null,
-    workspacePath: agent.workspacePath ?? null,
-    attempt: agent.attempt ?? null,
-    startedAt: agent.startedAt ?? null,
-    blockedBy: agent.issue?.blockedBy ?? [],
+    backendName: session?.backendName ?? null,
+    workspacePath: agent.workspacePath,
+    attempt: agent.attempt,
+    startedAt: agent.startedAt,
+    blockedBy: issue.blockedBy,
     blockerReason,
-    session: agent.session,
+    session,
   };
 }
 
-function idOnlyCard(issueId: string, blockerReason: string | null, attempt: number | null): KanbanCard {
+/** Which lane a running agent belongs to, based on its run-attempt phase. */
+function laneForPhase(phase: string): 'in-progress' | 'blocked' {
+  return BLOCKED_PHASES.has(phase) ? 'blocked' : 'in-progress';
+}
+
+/** A blocked card synthesized from a retry-queue entry. */
+function cardFromRetry(entry: {
+  issueId: string;
+  identifier: string;
+  attempt: number;
+  error: string | null;
+}): KanbanCard {
+  const card = idOnlyCard(entry.issueId, entry.error ?? 'awaiting retry', entry.attempt);
+  card.identifier = entry.identifier;
+  card.title = entry.identifier;
+  return card;
+}
+
+function idOnlyCard(
+  issueId: string,
+  blockerReason: string | null,
+  attempt: number | null
+): KanbanCard {
   return {
     issueId,
     identifier: issueId,
@@ -101,28 +120,18 @@ export function deriveLanes(snapshot: OrchestratorSnapshot): KanbanLane[] {
   const runningIds = new Set(snapshot.running.map(([id]) => id));
 
   for (const [, agent] of snapshot.running) {
-    if (BLOCKED_PHASES.has(agent.phase)) {
-      blocked.push(cardFromRunning(agent, blockerReasonForPhase(agent.phase)));
-    } else if (ACTIVE_PHASES.has(agent.phase)) {
-      inProgress.push(cardFromRunning(agent, null));
-    } else {
-      // Unknown / transient terminal phases (e.g. CanceledByReconciliation)
-      // default to in-progress for the brief window before they leave `running`.
-      inProgress.push(cardFromRunning(agent, null));
-    }
+    // Unknown / transient terminal phases (e.g. CanceledByReconciliation) fall
+    // through laneForPhase to in-progress for the brief window they linger.
+    const lane = laneForPhase(agent.phase) === 'blocked' ? blocked : inProgress;
+    lane.push(cardFromRunning(agent, blockerReasonForPhase(agent.phase)));
   }
 
   for (const [, entry] of snapshot.retryAttempts) {
-    blocked.push(idOnlyCard(entry.issueId, entry.error ?? 'awaiting retry', entry.attempt));
-    // Preserve the human identifier from the retry entry.
-    const last = blocked[blocked.length - 1]!;
-    last.identifier = entry.identifier;
-    last.title = entry.identifier;
+    blocked.push(cardFromRetry(entry));
   }
 
   for (const id of snapshot.claimed) {
-    if (runningIds.has(id)) continue;
-    queued.push(idOnlyCard(id, null, null));
+    if (!runningIds.has(id)) queued.push(idOnlyCard(id, null, null));
   }
 
   for (const id of snapshot.completed ?? []) {
