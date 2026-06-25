@@ -14,6 +14,20 @@ class FakeOrchestrator extends EventEmitter {
   }
 }
 
+/**
+ * Best-effort recursive removal of an os.tmpdir() scratch dir. The orchestrator's
+ * audit writer flushes asynchronously (fire-and-forget) and can recreate a file
+ * mid-removal, so even retried rmSync occasionally throws ENOTEMPTY. Temp-dir
+ * teardown is not an assertion — swallow any error and let the OS reclaim it.
+ */
+function safeRmTemp(target: string): void {
+  try {
+    rmSync(target, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
+  } catch {
+    // Intentionally ignored — see doc comment above.
+  }
+}
+
 let dir: string;
 let server: OrchestratorServer;
 let port: number;
@@ -84,7 +98,7 @@ describe('v1 alias coverage + Deprecation header', () => {
     await new Promise<void>((resolve) => {
       (server as unknown as { httpServer: http.Server }).httpServer.close(() => resolve());
     });
-    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
+    safeRmTemp(dir);
     delete process.env['HARNESS_TOKENS_PATH'];
     delete process.env['HARNESS_AUDIT_PATH'];
   });
@@ -168,11 +182,14 @@ describe('v1 bridge primitives — HTTP integration through dispatchAuthedReques
     await new Promise<void>((resolve) => {
       (bridgeServer as unknown as { httpServer: http.Server }).httpServer.close(() => resolve());
     });
-    // maxRetries handles the residual race where the orchestrator's audit
-    // writer flushes a final entry between rmSync's directory scan and the
-    // rmdir syscall. Reproduces consistently on Linux tmpfs; macOS passes
-    // because of different fs-flush timing.
-    rmSync(bridgeDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
+    // Best-effort temp cleanup. The orchestrator's audit writer flushes its
+    // final entry asynchronously (fire-and-forget, not awaitable from the test),
+    // so it can re-create a file between rmSync's directory scan and the rmdir
+    // syscall — surfacing ENOTEMPTY even with retries (observed on Linux tmpfs in
+    // CI). The dir lives under os.tmpdir() and is not part of any assertion, so a
+    // residual-write race must never fail an otherwise-passing test; the OS
+    // reclaims it.
+    safeRmTemp(bridgeDir);
     delete process.env['HARNESS_TOKENS_PATH'];
     delete process.env['HARNESS_AUDIT_PATH'];
   });
