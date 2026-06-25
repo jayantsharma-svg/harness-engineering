@@ -86,6 +86,7 @@ describe('manage_roadmap tool definition', () => {
       'promote',
       'query',
       'sync',
+      'groom',
     ]);
   });
 
@@ -766,7 +767,7 @@ describe('manage_roadmap promote action', () => {
     expect(mobileBlock).toMatch(/\*\*Status:\*\* planned/);
   });
 
-  it('creates a new planned row under "Current Work" when the feature does not exist', async () => {
+  it('creates a new planned row under "Intake" when the feature does not exist', async () => {
     const NEW_SPEC = 'docs/changes/telemetry-overhaul/proposal.md';
     const response = await handleManageRoadmap({
       path: tmpDir,
@@ -785,7 +786,7 @@ describe('manage_roadmap promote action', () => {
     const parsed = JSON.parse(
       (await handleManageRoadmap({ path: tmpDir, action: 'show' })).content[0].text
     );
-    const current = parsed.milestones.find((m: { name: string }) => m.name === 'Current Work');
+    const current = parsed.milestones.find((m: { name: string }) => m.name === 'Intake');
     expect(current).toBeTruthy();
     const created = current.features.find((f: { name: string }) => f.name === 'Telemetry Overhaul');
     expect(created.status).toBe('planned');

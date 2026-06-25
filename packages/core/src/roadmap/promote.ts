@@ -15,8 +15,14 @@ import type { Roadmap, RoadmapFeature, FeatureStatus } from '@harness-engineerin
 
 const EM_DASH = '—';
 
-/** "Current Work" milestone hosts rows created by the not-found create path (D5/S3-002). */
-const DEFAULT_MILESTONE = 'Current Work';
+/**
+ * The "Intake" milestone hosts rows created by the not-found create path
+ * (D5/S3-002). A single, intentionally-named inbox — not a lifecycle catch-all
+ * like the former "Current Work" — that grooming drains into themed milestones.
+ * Keeping intake in one known lane is what prevents the backlog from rebuilding
+ * itself as an undifferentiated dump. See docs/knowledge/roadmap/roadmap-maintenance.md.
+ */
+const DEFAULT_MILESTONE = 'Intake';
 
 /** Max nearest-neighbour suggestions returned on a not-found refusal (D1). */
 const MAX_CLOSEST_MATCHES = 3;
@@ -179,7 +185,7 @@ function makeCreatedFeature(args: RoadmapPromoteArgs): RoadmapFeature {
   };
 }
 
-/** Append a brand-new planned row under "Current Work", creating it if absent (D5/S3-002). */
+/** Append a brand-new planned row under the "Intake" lane, creating it if absent (D5/S3-002). */
 function appendCreatedRow(roadmap: Roadmap, args: RoadmapPromoteArgs): Roadmap {
   const next = cloneRoadmap(roadmap);
   let milestone = next.milestones.find(

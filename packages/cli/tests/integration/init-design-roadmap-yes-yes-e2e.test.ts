@@ -8,7 +8,7 @@
 //   (i)  design.enabled === true
 //   (ii) docs/roadmap.md file exists
 //   (iii) "Set up design system" feature is present
-//   (iv) the milestone is `Current Work` and the entry's status is `planned`
+//   (iv) the milestone is `Intake` and the entry's status is `planned`
 //
 // parseRoadmap is used for the structural check (more robust than substring).
 import { describe, it, expect } from 'vitest';
@@ -17,7 +17,7 @@ import { parseRoadmap } from '@harness-engineering/core';
 import { scaffoldInitFixture } from './_helpers/init-fixture';
 
 describe('harness init — yes/yes end-to-end (spec #14)', () => {
-  it('produces design.enabled=true, docs/roadmap.md, and a "Set up design system" planned entry under Current Work', async () => {
+  it('produces design.enabled=true, docs/roadmap.md, and a "Set up design system" planned entry under Intake', async () => {
     const fixture = await scaffoldInitFixture({ design: 'yes', roadmap: 'yes' });
     const { configPath, roadmapPath, cleanup } = fixture;
 
@@ -36,7 +36,7 @@ describe('harness init — yes/yes end-to-end (spec #14)', () => {
       if (!parseResult.ok) return;
       const roadmap = parseResult.value;
 
-      const currentWork = roadmap.milestones.find((m) => m.name === 'Current Work');
+      const currentWork = roadmap.milestones.find((m) => m.name === 'Intake');
       expect(currentWork).toBeDefined();
 
       const designItem = currentWork?.features.find((f) => f.name === 'Set up design system');
