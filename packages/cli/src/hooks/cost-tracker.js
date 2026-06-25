@@ -7,13 +7,36 @@ import { readFileSync, mkdirSync, appendFileSync } from 'node:fs';
 import { join } from 'node:path';
 import process from 'node:process';
 
-function main() {
-  let raw = '';
-  try {
-    raw = readFileSync(0, 'utf-8');
-  } catch {
-    process.exit(0);
+/** Synchronous sleep (no busy-spin) used to back off between stdin read retries. */
+function sleepMs(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+/**
+ * Read all of stdin synchronously, tolerating the EAGAIN that fd 0 throws when
+ * it is a non-blocking pipe with data not yet delivered. Under load (notably CI
+ * under v8 coverage) the first read can race ahead of the writer; without the
+ * retry the hook silently fail-opens and drops the cost entry. A genuinely empty
+ * stdin returns '' immediately (EOF, no EAGAIN), so the empty/malformed paths
+ * stay fast. Bounded so a stuck pipe can't hang the hook.
+ */
+function readStdin() {
+  const deadline = Date.now() + 2000;
+  for (;;) {
+    try {
+      return readFileSync(0, 'utf-8');
+    } catch (err) {
+      if (err && err.code === 'EAGAIN' && Date.now() < deadline) {
+        sleepMs(10);
+        continue;
+      }
+      return '';
+    }
   }
+}
+
+function main() {
+  const raw = readStdin();
 
   if (!raw.trim()) {
     process.exit(0);
