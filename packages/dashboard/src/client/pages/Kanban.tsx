@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useOrchestratorSocket } from '../hooks/useOrchestratorSocket';
 import { deriveLanes, indexBoardIdentifiers } from '../utils/kanban-lanes';
 import { KanbanLane } from '../components/kanban/KanbanLane';
@@ -58,11 +58,12 @@ function KanbanBoard({
   snapshot: NonNullable<ReturnType<typeof useOrchestratorSocket>['snapshot']>;
   nowMs: number;
 }) {
-  const lanes = deriveLanes(snapshot);
-  const onBoardIdentifiers = indexBoardIdentifiers(lanes);
+  // Derive lanes only when the snapshot changes — not on every 1s elapsed tick.
+  const lanes = useMemo(() => deriveLanes(snapshot), [snapshot]);
+  const onBoardIdentifiers = useMemo(() => indexBoardIdentifiers(lanes), [lanes]);
   const isEmpty = lanes.every((lane) => lane.cards.length === 0);
   const inCooldown =
-    snapshot.globalCooldownUntilMs !== null && Date.now() < snapshot.globalCooldownUntilMs;
+    snapshot.globalCooldownUntilMs !== null && nowMs < snapshot.globalCooldownUntilMs;
 
   if (isEmpty) {
     return <EmptyState message="No work in flight." />;
