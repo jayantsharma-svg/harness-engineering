@@ -555,8 +555,8 @@ last_manual_edit: 2026-06-25T18:09:53.192Z
 
 ### Live Work-in-Flight Kanban for Parallel/Autopilot Runs
 
-- **Status:** backlog
-- **Spec:** —
+- **Status:** planned
+- **Spec:** docs/changes/live-work-in-flight-kanban/proposal.md
 - **Summary:** Add a live work-in-flight kanban to the harness dashboard fed by orchestrator/parallel-coordinator state: per-task lane, owning agent, worktree, blockers, and dependency edges — surfacing in-flight agent work rather than only retrospective health signals. Reuses the existing dashboard package and orchestrator state machine. Complements Dashboard v3: Team & Stakeholder Views (#124). Adapted from Spec Kitty's local kanban control plane. Adoption #2 from docs/research/spec-kitty-comparison-analysis.md [SPECKITTY-2]
 - **Blockers:** —
 - **Plan:** —
