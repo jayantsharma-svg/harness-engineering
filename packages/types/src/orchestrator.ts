@@ -270,6 +270,23 @@ export interface WorkspaceConfig {
    * branch agents off a long-running integration branch).
    */
   baseRef?: string;
+  /**
+   * Repo-relative paths to seed into a freshly-created worktree by copying
+   * them from the orchestrator's root working tree.
+   *
+   * New worktrees are based on a committed remote ref (e.g. `origin/main`), so
+   * they do NOT inherit uncommitted artifacts that live only in the root
+   * working tree. The brainstorm → orchestrator handoff produces exactly such
+   * artifacts: a proposal under `.harness/proposals/` and a promoted row in
+   * `docs/roadmap.md`, both written uncommitted. Without seeding, a dispatched
+   * agent sees a roadmap entry but cannot find its proposal and stalls.
+   *
+   * When unset, defaults to `['.harness/proposals', 'docs/roadmap.md']`. Each
+   * path is copied best-effort: missing sources are skipped and copy failures
+   * never block dispatch. Set explicitly to override (e.g. a non-default
+   * roadmap location).
+   */
+  seedPaths?: string[];
 }
 
 /**

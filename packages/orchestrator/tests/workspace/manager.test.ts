@@ -214,6 +214,175 @@ describe('WorkspaceManager', () => {
     });
   });
 
+  describe('seeding brainstorm handoff artifacts', () => {
+    // Regression: when a brainstorm wrote a proposal (.harness/proposals/*.json)
+    // and promoted a roadmap row (docs/roadmap.md), those artifacts live ONLY as
+    // uncommitted files in the orchestrator's root working tree. The orchestrator
+    // detects the item (it reads the live roadmap) and dispatches, but the worktree
+    // is created from a committed remote ref (origin/main) and inherited NEITHER
+    // file — so the agent had a roadmap entry but no proposal and could not continue.
+    // The fix seeds those paths from the root working tree into the fresh worktree.
+
+    function newWorktreeWithSeedSources() {
+      // .git / stale-dir checks reject (worktree is new); seed sources under the
+      // repo root resolve so they are carried over.
+      vi.mocked(fs.access).mockImplementation(async (p) => {
+        const s = String(p);
+        if (s.endsWith('.git')) throw new Error('ENOENT');
+        if (s.startsWith('/repo/')) return undefined;
+        throw new Error('ENOENT');
+      });
+      vi.mocked(fs.cp).mockResolvedValue(undefined);
+      manager.setGitImpl((args) => {
+        if (args[0] === 'rev-parse' && args[1] === '--show-toplevel') return '/repo\n';
+        if (args[0] === 'symbolic-ref') return 'origin/main\n';
+        return '';
+      });
+    }
+
+    it('copies the proposal dir and roadmap from the root tree into the worktree', async () => {
+      newWorktreeWithSeedSources();
+
+      const result = await manager.ensureWorkspace('test-issue');
+      expect(result.ok).toBe(true);
+
+      const workspacePath = path.resolve('/tmp/workspaces', 'test-issue');
+      expect(fs.cp).toHaveBeenCalledWith(
+        path.join('/repo', '.harness/proposals'),
+        path.join(workspacePath, '.harness/proposals'),
+        { recursive: true, force: true }
+      );
+      expect(fs.cp).toHaveBeenCalledWith(
+        path.join('/repo', 'docs/roadmap.md'),
+        path.join(workspacePath, 'docs/roadmap.md'),
+        { recursive: true, force: true }
+      );
+    });
+
+    it('seeds AFTER the worktree is created (so it overlays the checkout)', async () => {
+      newWorktreeWithSeedSources();
+
+      await manager.ensureWorkspace('test-issue');
+
+      const addIdx = manager.gitCalls.findIndex(
+        (c) => c.args[0] === 'worktree' && c.args[1] === 'add'
+      );
+      const cpOrder = vi.mocked(fs.cp).mock.invocationCallOrder[0];
+      // The worktree-add git call must have happened before any cp.
+      expect(addIdx).toBeGreaterThanOrEqual(0);
+      expect(cpOrder).toBeGreaterThan(0);
+    });
+
+    it('skips seed paths that do not exist in the root tree', async () => {
+      // No seed sources exist → nothing is copied, dispatch still succeeds.
+      vi.mocked(fs.access).mockRejectedValue(new Error('ENOENT'));
+      vi.mocked(fs.cp).mockResolvedValue(undefined);
+      manager.setGitImpl((args) => {
+        if (args[0] === 'rev-parse' && args[1] === '--show-toplevel') return '/repo\n';
+        if (args[0] === 'symbolic-ref') return 'origin/main\n';
+        return '';
+      });
+
+      const result = await manager.ensureWorkspace('test-issue');
+      expect(result.ok).toBe(true);
+      expect(fs.cp).not.toHaveBeenCalled();
+    });
+
+    it('honors a custom workspace.seedPaths override', async () => {
+      const custom = new TestableWorkspaceManager({
+        root: '/tmp/workspaces',
+        seedPaths: ['docs/specs'],
+      });
+      vi.mocked(fs.access).mockImplementation(async (p) => {
+        const s = String(p);
+        if (s.endsWith('.git')) throw new Error('ENOENT');
+        if (s.startsWith('/repo/')) return undefined;
+        throw new Error('ENOENT');
+      });
+      vi.mocked(fs.cp).mockResolvedValue(undefined);
+      custom.setGitImpl((args) => {
+        if (args[0] === 'rev-parse' && args[1] === '--show-toplevel') return '/repo\n';
+        if (args[0] === 'symbolic-ref') return 'origin/main\n';
+        return '';
+      });
+
+      await custom.ensureWorkspace('test-issue');
+
+      const workspacePath = path.resolve('/tmp/workspaces', 'test-issue');
+      expect(fs.cp).toHaveBeenCalledWith(
+        path.join('/repo', 'docs/specs'),
+        path.join(workspacePath, 'docs/specs'),
+        { recursive: true, force: true }
+      );
+      // Default paths are NOT used when an override is supplied.
+      expect(fs.cp).not.toHaveBeenCalledWith(
+        path.join('/repo', '.harness/proposals'),
+        expect.anything(),
+        expect.anything()
+      );
+    });
+
+    it('relativizes an absolute seed path against the repo root', async () => {
+      // A configured roadmap filePath may arrive absolute; it should still be
+      // seeded by copying the in-repo source to the matching worktree path.
+      const abs = new TestableWorkspaceManager({
+        root: '/tmp/workspaces',
+        seedPaths: ['/repo/docs/roadmap.md'],
+      });
+      vi.mocked(fs.access).mockImplementation(async (p) => {
+        const s = String(p);
+        if (s.endsWith('.git')) throw new Error('ENOENT');
+        if (s.startsWith('/repo/')) return undefined;
+        throw new Error('ENOENT');
+      });
+      vi.mocked(fs.cp).mockResolvedValue(undefined);
+      abs.setGitImpl((args) => {
+        if (args[0] === 'rev-parse' && args[1] === '--show-toplevel') return '/repo\n';
+        if (args[0] === 'symbolic-ref') return 'origin/main\n';
+        return '';
+      });
+
+      await abs.ensureWorkspace('test-issue');
+
+      const workspacePath = path.resolve('/tmp/workspaces', 'test-issue');
+      expect(fs.cp).toHaveBeenCalledWith(
+        path.join('/repo', 'docs/roadmap.md'),
+        path.join(workspacePath, 'docs/roadmap.md'),
+        { recursive: true, force: true }
+      );
+    });
+
+    it('skips a seed path that escapes the repo root (no copy outside the worktree)', async () => {
+      const escaping = new TestableWorkspaceManager({
+        root: '/tmp/workspaces',
+        seedPaths: ['/etc/passwd'],
+      });
+      // Even if the source "exists", an escaping path must never be copied.
+      vi.mocked(fs.access).mockImplementation(async (p) => {
+        if (String(p).endsWith('.git')) throw new Error('ENOENT');
+        return undefined;
+      });
+      vi.mocked(fs.cp).mockResolvedValue(undefined);
+      escaping.setGitImpl((args) => {
+        if (args[0] === 'rev-parse' && args[1] === '--show-toplevel') return '/repo\n';
+        if (args[0] === 'symbolic-ref') return 'origin/main\n';
+        return '';
+      });
+
+      const result = await escaping.ensureWorkspace('test-issue');
+      expect(result.ok).toBe(true);
+      expect(fs.cp).not.toHaveBeenCalled();
+    });
+
+    it('does not fail dispatch when a copy throws (best-effort seeding)', async () => {
+      newWorktreeWithSeedSources();
+      vi.mocked(fs.cp).mockRejectedValue(new Error('EACCES'));
+
+      const result = await manager.ensureWorkspace('test-issue');
+      expect(result.ok).toBe(true);
+    });
+  });
+
   it('removes stale directory before creating worktree', async () => {
     // First access (.git check) rejects; second access (dir exists check) resolves
     vi.mocked(fs.access)

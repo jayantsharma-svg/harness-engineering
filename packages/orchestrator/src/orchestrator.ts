@@ -77,6 +77,25 @@ import { resolveOrchestratorId } from './core/orchestrator-identity';
 import { StreamRecorder } from './core/stream-recorder';
 
 /**
+ * Derives the worktree seed paths from a workflow config when
+ * {@link WorkspaceConfig.seedPaths} is not set explicitly.
+ *
+ * A new worktree is checked out from a committed remote ref and therefore lacks
+ * the uncommitted artifacts of the brainstorm → orchestrator handoff. Seeding
+ * carries them over: the proposal directory, plus the roadmap file at its
+ * *configured* location — a roadmap tracker may point `filePath` somewhere
+ * other than the default `docs/roadmap.md`, and the default seed list would
+ * otherwise miss it.
+ */
+export function deriveSeedPaths(config: WorkflowConfig): string[] {
+  const roadmapPath =
+    config.tracker.kind === 'roadmap' && config.tracker.filePath
+      ? config.tracker.filePath
+      : 'docs/roadmap.md';
+  return ['.harness/proposals', roadmapPath];
+}
+
+/**
  * The central orchestrator that manages the lifecycle of coding agents.
  *
  * It polls an issue tracker for candidate tasks, manages ephemeral workspaces,
@@ -305,16 +324,25 @@ export class Orchestrator extends EventEmitter {
 
     // Initialize adapters based on config or overrides
     this.tracker = overrides?.tracker || this.createTracker();
-    this.workspace = new WorkspaceManager(config.workspace, {
-      emitEvent: (event) => {
-        // Phase 3 / spec D6 / R4: surface worktree base-ref fallback in
-        // the same maintenance/event stream the dashboard subscribes to.
-        // Two parallel channels mirror the maintenance task pattern at
-        // orchestrator.ts:520-534: WebSocket fan-out + Node EventEmitter.
-        this.server?.broadcastMaintenance('maintenance:baseref_fallback', event);
-        this.emit('maintenance:baseref_fallback', event);
+    this.workspace = new WorkspaceManager(
+      {
+        ...config.workspace,
+        // Seed the brainstorm handoff artifacts into each fresh worktree. An
+        // explicit `seedPaths` wins; otherwise derive from the tracker config
+        // so a non-default roadmap location is still carried over.
+        seedPaths: config.workspace.seedPaths ?? deriveSeedPaths(config),
       },
-    });
+      {
+        emitEvent: (event) => {
+          // Phase 3 / spec D6 / R4: surface worktree base-ref fallback in
+          // the same maintenance/event stream the dashboard subscribes to.
+          // Two parallel channels mirror the maintenance task pattern at
+          // orchestrator.ts:520-534: WebSocket fan-out + Node EventEmitter.
+          this.server?.broadcastMaintenance('maintenance:baseref_fallback', event);
+          this.emit('maintenance:baseref_fallback', event);
+        },
+      }
+    );
     this.hooks = new WorkspaceHooks(config.hooks);
     this.renderer = new PromptRenderer();
     // Spec 2 SC30 / Task 11: capture the test-only backend override (if
