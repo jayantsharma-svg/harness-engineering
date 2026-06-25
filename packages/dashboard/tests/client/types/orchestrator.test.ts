@@ -33,14 +33,26 @@ describe('orchestrator dashboard types', () => {
       issueId: 'issue-1',
       identifier: 'test-issue',
       phase: 'StreamingTurn',
+      startedAt: new Date().toISOString(),
+      workspacePath: '/tmp/wt/test-issue',
+      attempt: 1,
+      issue: {
+        identifier: 'TEST-1',
+        title: 'Add feature X',
+        description: null,
+        blockedBy: [],
+      },
       session: {
         backendName: 'local',
+        inputTokens: 40,
+        outputTokens: 60,
         totalTokens: 100,
         turnCount: 3,
         lastMessage: 'Working...',
       },
     };
     expect(agent.session?.totalTokens).toBe(100);
+    expect(agent.workspacePath).toContain('test-issue');
   });
 
   it('PendingInteraction has context fields', () => {
