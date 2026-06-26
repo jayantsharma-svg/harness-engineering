@@ -32,7 +32,7 @@ describe('hooks CLI integration: init -> list -> remove cycle', () => {
     );
     expect(settings.hooks).toBeDefined();
     expect(settings.hooks.PreToolUse).toHaveLength(2); // block-no-verify + protect-config
-    expect(settings.hooks.PostToolUse).toHaveLength(1); // quality-gate
+    expect(settings.hooks.PostToolUse).toHaveLength(1); // quality-warner
     expect(settings.hooks.PreCompact).toHaveLength(1); // pre-compact-state
     expect(settings.hooks.Stop).toHaveLength(2); // adoption-tracker + telemetry-reporter
 
@@ -77,7 +77,7 @@ describe('hooks CLI integration: init -> list -> remove cycle', () => {
     initHooks({ profile: 'strict', projectDir: tmpDir });
     const strictList = listHooks(tmpDir);
     expect(strictList.profile).toBe('strict');
-    expect(strictList.hooks).toHaveLength(9);
+    expect(strictList.hooks).toHaveLength(10);
 
     // Verify settings.json reflects strict
     const settings = JSON.parse(

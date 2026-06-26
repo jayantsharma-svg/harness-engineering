@@ -12,8 +12,8 @@ Hook profiles implement a tiered safety system for Claude Code automation, contr
 ## Profile Tiers
 
 - **Minimal** — Safety floor: `block-no-verify` (prevents Bash execution without verification)
-- **Standard** (default) — Adds: `protect-config` (guards config edits), `quality-gate` (validates post-edit outputs), `pre-compact-state` (preserves state before compaction), `adoption-tracker`, `telemetry-reporter`
-- **Strict** — Adds: `cost-tracker` (monitors token spend), `sentinel-pre`/`sentinel-post` (comprehensive security scanning)
+- **Standard** (default) — Adds: `protect-config` (guards config edits), `quality-warner` (warns on post-edit format/lint issues; never blocks), `pre-compact-state` (preserves state before compaction), `adoption-tracker`, `telemetry-reporter`
+- **Strict** — Adds: `strict-quality-gate` (blocks with exit 2 on real format/lint violations; fails open on infra errors), `cost-tracker` (monitors token spend), `sentinel-pre`/`sentinel-post` (comprehensive security scanning)
 
 ## Cumulative Rule
 

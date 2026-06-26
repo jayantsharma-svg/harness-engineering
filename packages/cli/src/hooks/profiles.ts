@@ -3,8 +3,8 @@
  *
  * Profiles are additive: each higher tier includes all hooks from lower tiers.
  * - minimal: safety floor (block-no-verify only)
- * - standard: + protect-config, quality-gate, pre-compact-state (default)
- * - strict: + cost-tracker, sentinel-pre, sentinel-post
+ * - standard: + protect-config, quality-warner (warns, never blocks), pre-compact-state (default)
+ * - strict: + strict-quality-gate (blocks on violations), cost-tracker, sentinel-pre, sentinel-post
  */
 
 export type HookProfile = 'minimal' | 'standard' | 'strict';
@@ -23,10 +23,16 @@ export interface HookScript {
 export const HOOK_SCRIPTS: HookScript[] = [
   { name: 'block-no-verify', event: 'PreToolUse', matcher: 'Bash', minProfile: 'minimal' },
   { name: 'protect-config', event: 'PreToolUse', matcher: 'Write|Edit', minProfile: 'standard' },
-  { name: 'quality-gate', event: 'PostToolUse', matcher: 'Edit|Write', minProfile: 'standard' },
+  { name: 'quality-warner', event: 'PostToolUse', matcher: 'Edit|Write', minProfile: 'standard' },
   { name: 'pre-compact-state', event: 'PreCompact', matcher: '*', minProfile: 'standard' },
   { name: 'adoption-tracker', event: 'Stop', matcher: '*', minProfile: 'standard' },
   { name: 'telemetry-reporter', event: 'Stop', matcher: '*', minProfile: 'standard' },
+  {
+    name: 'strict-quality-gate',
+    event: 'PostToolUse',
+    matcher: 'Edit|Write',
+    minProfile: 'strict',
+  },
   { name: 'cost-tracker', event: 'Stop', matcher: '*', minProfile: 'strict' },
   { name: 'sentinel-pre', event: 'PreToolUse', matcher: '*', minProfile: 'strict' },
   { name: 'sentinel-post', event: 'PostToolUse', matcher: '*', minProfile: 'strict' },

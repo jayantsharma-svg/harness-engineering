@@ -4,7 +4,7 @@ import { resolve, join } from 'node:path';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 
-const HOOK_PATH = resolve(__dirname, '../../src/hooks/quality-gate.js');
+const HOOK_PATH = resolve(__dirname, '../../src/hooks/quality-warner.js');
 
 function runHook(stdinData: string, cwd?: string): { exitCode: number; stderr: string } {
   const dir = cwd ?? process.cwd();
@@ -23,11 +23,11 @@ function runHook(stdinData: string, cwd?: string): { exitCode: number; stderr: s
   };
 }
 
-describe('quality-gate', { timeout: 60000 }, () => {
+describe('quality-warner', { timeout: 60000 }, () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = mkdtempSync(join(tmpdir(), 'quality-gate-'));
+    tmpDir = mkdtempSync(join(tmpdir(), 'quality-warner-'));
     // ESM hooks require "type": "module" to be resolvable from cwd
     writeFileSync(join(tmpDir, 'package.json'), '{"type":"module"}\n');
   });
