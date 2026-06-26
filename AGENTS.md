@@ -260,6 +260,7 @@ Each package has a clear responsibility:
 - **constraints** (`packages/core/src/constraints/`): Validates architectural layers, detects circular dependencies, and enforces boundary rules across modules.
 - **context** (`packages/core/src/context/`): Documentation coverage analysis, knowledge map validation, and progressive skill loading with token budgets.
 - **entropy** (`packages/core/src/entropy/`): Detects and remediates codebase entropy including dead code, drift, complexity violations, and coupling problems.
+- **health-signals** (`packages/core/src/health-signals/`): Canonical signal<->check contract. `SIGNAL_REGISTRY` is the single source of truth from which `SignalName`, `CHECK_SIGNAL_MAP`, `SIGNAL_CATEGORY_MAP`, and `HEALTH_SIGNAL_NAMES` are derived; `reconcilePassed(checks, signals)` keeps a check's `passed` true only if assess passed and no contradicting signal is present (never flips false→true). Consumed by the cli health-snapshot/dispatch surface and core `strength-007`. See [ADR-0047](docs/knowledge/decisions/0047-canonical-signal-check-contract-in-core.md) and [`docs/knowledge/core/health-signal-contract.md`](docs/knowledge/core/health-signal-contract.md).
 - **feedback** (`packages/core/src/feedback/`): Self-review, peer review, telemetry, and action tracking for code change analysis and agent feedback loops.
 - **interaction** (`packages/core/src/interaction/`): Schemas and types for structured agent-to-human interactions (questions, confirmations, transitions).
 - **locks** (`packages/core/src/locks/`): Compound locking mechanisms for coordinating concurrent access to shared resources.
@@ -492,9 +493,9 @@ _Infrastructure:_ `middleware/injection-guard.ts` — wraps tool handlers with i
 **Skill Dispatch** (`packages/cli/src/skill/`): Intelligent skill recommendation and dispatch.
 
 - `recommendation-engine.ts` — Three-layer system combining hard rules, health scoring, and topological sequencing
-- `recommendation-types.ts` — Standardized health signal identifiers and recommendation result types
+- `recommendation-types.ts` — Standardized health signal identifiers and recommendation result types; the health portion of `HEALTH_SIGNALS` is single-sourced from core's `HEALTH_SIGNAL_NAMES`
 - `recommendation-rules.ts` — Fallback address rules for bundled skills without declared addresses
-- `health-snapshot.ts` — Captures and caches codebase health state with checks, metrics, and freshness validation
+- `health-snapshot.ts` — Captures and caches codebase health state with checks, metrics, and freshness validation; reconciles each check's `passed` flag against active signals (via core's `reconcilePassed`) so a check can never report passing while a contradicting signal is present
 - `dispatch-types.ts` — Types for enriched dispatch context combining snapshots with change-type and domain signals
 - `dispatch-session.ts` — Session-start dispatch integration that detects HEAD delta and returns skill recommendations
 - `dispatch-engine.ts` — Enriches health snapshots with change-type and domain signals for recommendation engine
