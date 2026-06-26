@@ -21,8 +21,7 @@ export const PLUGIN_CONFIGS = {
     // Hook scripts live in the repo at .harness/hooks/. Plugin install
     // copies the whole repo, so the scripts are at <plugin-root>/.harness/hooks/.
     // Claude exposes the install dir as ${CLAUDE_PLUGIN_ROOT}.
-    hooksCommandTemplate: (name) =>
-      `node "\${CLAUDE_PLUGIN_ROOT}/.harness/hooks/${name}.js"`,
+    hooksCommandTemplate: (name) => `node "\${CLAUDE_PLUGIN_ROOT}/.harness/hooks/${name}.js"`,
     cursorMode: undefined,
     commandExt: '.md',
     generateCommands: true,
