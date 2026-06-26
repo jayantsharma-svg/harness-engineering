@@ -705,6 +705,12 @@ describe('captureHealthSnapshot', () => {
       expect(snapshot.signals).toContain('dead-code');
       expect(snapshot.signals).toContain('drift');
       expect(snapshot.signals).toContain('doc-gaps');
+      // SC1 end-to-end: a contradicting signal must demote the captured check's
+      // passed flag — reconcilePassed is wired into captureHealthSnapshot, not
+      // just tested in isolation. circular-deps -> deps, security-findings -> security.
+      expect(snapshot.signals).toContain('security-findings');
+      expect(snapshot.checks.deps.passed).toBe(false);
+      expect(snapshot.checks.security.passed).toBe(false);
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
