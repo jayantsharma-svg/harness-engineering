@@ -54,7 +54,7 @@ export function ensureHarnessGitignore(targetDir: string): void {
 
   // Tracked categories (intentionally NOT ignored):
   //   hooks/                       — team-policy enforcement scripts (block-no-verify,
-  //                                  protect-config, quality-gate, …) plus profile.json.
+  //                                  protect-config, quality-warner, …) plus profile.json.
   //                                  Treated like a lockfile: review CLI-upgrade diffs.
   //   security/timeline.json       — shared security trend ledger keyed by commit hash.
   //                                  Lifecycle paths are repo-relative.

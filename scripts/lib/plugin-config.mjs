@@ -93,7 +93,7 @@ export const PLUGIN_CONFIGS = {
 export const STANDARD_HOOKS = [
   { name: 'block-no-verify', event: 'PreToolUse', matcher: 'Bash' },
   { name: 'protect-config', event: 'PreToolUse', matcher: 'Write|Edit' },
-  { name: 'quality-gate', event: 'PostToolUse', matcher: 'Edit|Write' },
+  { name: 'quality-warner', event: 'PostToolUse', matcher: 'Edit|Write' },
   { name: 'pre-compact-state', event: 'PreCompact', matcher: '*' },
   { name: 'adoption-tracker', event: 'Stop', matcher: '*' },
   { name: 'telemetry-reporter', event: 'Stop', matcher: '*' },

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
+import { spawnSync } from 'node:child_process';
 import { createHooksCommand } from '../../src/commands/hooks/index';
 import { initHooks, buildSettingsHooks, mergeSettings } from '../../src/commands/hooks/init';
 import { listHooks } from '../../src/commands/hooks/list';
@@ -41,10 +42,10 @@ describe('buildSettingsHooks', () => {
     expect(hooks.Stop[1].hooks[0].command).toContain('telemetry-reporter.js');
   });
 
-  it('builds strict profile with all 9 hooks across 4 events', () => {
+  it('builds strict profile with all 10 hooks across 4 events', () => {
     const hooks = buildSettingsHooks('strict');
     expect(hooks.PreToolUse).toHaveLength(3); // block-no-verify, protect-config (from standard), sentinel-pre
-    expect(hooks.PostToolUse).toHaveLength(2); // quality-gate (from standard), sentinel-post
+    expect(hooks.PostToolUse).toHaveLength(3); // quality-warner (from standard), strict-quality-gate, sentinel-post
     expect(hooks.PreCompact).toHaveLength(1);
     expect(hooks.Stop).toHaveLength(3);
     expect(hooks.Stop[0].hooks[0].command).toContain('adoption-tracker.js');
@@ -141,6 +142,64 @@ describe('initHooks', () => {
   });
 });
 
+describe('initHooks support files (format-check.js)', () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-hooks-support-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  const hooksDir = () => path.join(tmpDir, '.harness', 'hooks');
+
+  it('standard copies quality-warner.js + format-check.js (and never quality-gate.js)', () => {
+    initHooks({ profile: 'standard', projectDir: tmpDir });
+    expect(fs.existsSync(path.join(hooksDir(), 'quality-warner.js'))).toBe(true);
+    expect(fs.existsSync(path.join(hooksDir(), 'format-check.js'))).toBe(true);
+    expect(fs.existsSync(path.join(hooksDir(), 'quality-gate.js'))).toBe(false);
+  });
+
+  it('strict additionally copies strict-quality-gate.js', () => {
+    initHooks({ profile: 'strict', projectDir: tmpDir });
+    expect(fs.existsSync(path.join(hooksDir(), 'strict-quality-gate.js'))).toBe(true);
+    expect(fs.existsSync(path.join(hooksDir(), 'format-check.js'))).toBe(true);
+  });
+
+  it('removes a pre-existing quality-gate.js from the dest', () => {
+    fs.mkdirSync(hooksDir(), { recursive: true });
+    fs.writeFileSync(path.join(hooksDir(), 'quality-gate.js'), '// stale\n');
+    initHooks({ profile: 'standard', projectDir: tmpDir });
+    expect(fs.existsSync(path.join(hooksDir(), 'quality-gate.js'))).toBe(false);
+  });
+
+  it('downgrade to minimal drops the orphaned format-check.js', () => {
+    initHooks({ profile: 'standard', projectDir: tmpDir });
+    expect(fs.existsSync(path.join(hooksDir(), 'format-check.js'))).toBe(true);
+    initHooks({ profile: 'minimal', projectDir: tmpDir });
+    const remaining = fs.readdirSync(hooksDir()).filter((f) => f.endsWith('.js'));
+    expect(remaining).toEqual(['block-no-verify.js']);
+  });
+
+  it('the copied strict-quality-gate.js resolves its sibling import and runs (exit 0 on empty stdin)', () => {
+    initHooks({ profile: 'strict', projectDir: tmpDir });
+    // Simulate an ESM adopter context so the copied .js is treated as a module.
+    fs.writeFileSync(path.join(tmpDir, 'package.json'), '{"type":"module"}\n');
+    const result = spawnSync('node', [path.join(hooksDir(), 'strict-quality-gate.js')], {
+      input: '',
+      encoding: 'utf-8',
+      cwd: tmpDir,
+      timeout: 30000,
+    });
+    // A failed `import './format-check.js'` would crash before reading stdin and
+    // exit non-zero with ERR_MODULE_NOT_FOUND. Exit 0 proves resolution worked.
+    expect(result.signal ? 0 : (result.status ?? 1)).toBe(0);
+    expect(result.stderr ?? '').not.toContain('ERR_MODULE_NOT_FOUND');
+  });
+});
+
 describe('listHooks', () => {
   let tmpDir: string;
 
@@ -164,7 +223,7 @@ describe('listHooks', () => {
     const result = listHooks(tmpDir);
     expect(result.installed).toBe(true);
     expect(result.profile).toBe('strict');
-    expect(result.hooks).toHaveLength(9); // all hooks including adoption-tracker, telemetry-reporter, sentinel-pre, and sentinel-post
+    expect(result.hooks).toHaveLength(10); // all hooks incl. strict-quality-gate, adoption-tracker, telemetry-reporter, sentinel-pre, and sentinel-post
   });
 
   it('returns correct hook metadata', () => {

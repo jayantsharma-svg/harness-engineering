@@ -2,7 +2,7 @@
 
 Hooks are Claude Code lifecycle hooks that enforce security and quality policies during AI agent sessions. They run automatically at key moments -- before a tool executes, after a tool produces output, before context compaction, and when a session ends -- giving you guardrails without manual intervention.
 
-Harness ships nine hooks organized into three profiles. Each hook is a standalone Node.js script that reads JSON from stdin, performs its check, and exits with code 0 (allow) or 2 (block).
+Harness ships ten hooks organized into three profiles. Each hook is a standalone Node.js script that reads JSON from stdin, performs its check, and exits with code 0 (allow) or 2 (block).
 
 ## How Hooks Work
 
@@ -17,7 +17,7 @@ Claude Code exposes four lifecycle events:
 
 Each hook script is registered in `.claude/settings.json` with a **matcher** that determines which tool invocations trigger it. A matcher of `*` means the hook runs on every tool call; a matcher of `Bash` means it only runs when Bash is invoked.
 
-All hooks follow a **fail-open** design: if a hook encounters a parse error, missing stdin, or an unexpected exception, it exits 0 (allow) rather than blocking the agent. The only hooks that can block (exit 2) are `PreToolUse` hooks, and they only do so on confirmed policy violations.
+All hooks follow a **fail-open** design: if a hook encounters a parse error, missing stdin, or an unexpected exception, it exits 0 (allow) rather than blocking the agent. Most blocking happens in `PreToolUse` hooks, which can stop a tool call before it runs. The one exception is `strict-quality-gate` (strict profile): a `PostToolUse` hook that exits 2 on confirmed format/lint violations, which Claude Code surfaces to the agent as a must-fix on the edit it just made.
 
 ## Available Hooks
 
@@ -41,7 +41,7 @@ The second line of prompt injection defense. Scans tool **outputs** for the same
 
 Together, sentinel-pre and sentinel-post form a detection-taint-blocking loop (see [Taint Tracking](#taint-tracking) below).
 
-### quality-gate.js
+### quality-warner.js
 
 **Event:** `PostToolUse:Edit|Write` | **Profile:** standard | **Can block:** No
 
@@ -52,7 +52,17 @@ Runs the project's formatter or linter after every file edit. Detects the active
 3. **Ruff** -- `.ruff.toml` or `ruff.toml`
 4. **gofmt** -- any `.go` file (detected by extension, not config)
 
-Violations are reported as warnings on stderr. The hook never blocks -- it alerts the agent to formatting issues so it can self-correct.
+Violations are reported as warnings on stderr. The hook never blocks -- it alerts the agent to formatting issues so it can self-correct. (Renamed from `quality-gate.js`: the old name implied enforcement the hook never provided. For real blocking, use `strict-quality-gate` below.)
+
+Detection is shared with `strict-quality-gate` through a support module, `format-check.js`, which the installer ships alongside whichever quality hook is active.
+
+### strict-quality-gate.js
+
+**Event:** `PostToolUse:Edit|Write` | **Profile:** strict | **Can block:** Yes (exit 2)
+
+The blocking sibling of `quality-warner`. Uses the same `format-check.js` detection, but on a **genuine** format/lint violation it writes a must-fix message to stderr and **exits 2**, which Claude Code surfaces back to the agent as a correction it must make (the edit already landed).
+
+It **fails open** on infrastructure errors: if the formatter is absent, times out, or emits output that cannot be parsed as violations, the hook writes a loud warning and exits 0 rather than walling off every edit. A formatter that crashes mid-check therefore passes -- an accepted trade-off to keep a missing tool from blocking all work.
 
 ### protect-config.js
 
@@ -143,7 +153,7 @@ Adds config protection, quality checks, state preservation, and usage tracking.
 | ------------------ | ----------- | ----------- |
 | block-no-verify    | PreToolUse  | Bash        |
 | protect-config     | PreToolUse  | Write\|Edit |
-| quality-gate       | PostToolUse | Edit\|Write |
+| quality-warner     | PostToolUse | Edit\|Write |
 | pre-compact-state  | PreCompact  | \*          |
 | adoption-tracker   | Stop        | \*          |
 | telemetry-reporter | Stop        | \*          |
@@ -152,17 +162,18 @@ Adds config protection, quality checks, state preservation, and usage tracking.
 
 Adds full prompt injection defense and cost tracking.
 
-| Hook               | Event       | Matcher     |
-| ------------------ | ----------- | ----------- |
-| block-no-verify    | PreToolUse  | Bash        |
-| protect-config     | PreToolUse  | Write\|Edit |
-| quality-gate       | PostToolUse | Edit\|Write |
-| pre-compact-state  | PreCompact  | \*          |
-| adoption-tracker   | Stop        | \*          |
-| telemetry-reporter | Stop        | \*          |
-| cost-tracker       | Stop        | \*          |
-| sentinel-pre       | PreToolUse  | \*          |
-| sentinel-post      | PostToolUse | \*          |
+| Hook                | Event       | Matcher     |
+| ------------------- | ----------- | ----------- |
+| block-no-verify     | PreToolUse  | Bash        |
+| protect-config      | PreToolUse  | Write\|Edit |
+| quality-warner      | PostToolUse | Edit\|Write |
+| pre-compact-state   | PreCompact  | \*          |
+| adoption-tracker    | Stop        | \*          |
+| telemetry-reporter  | Stop        | \*          |
+| strict-quality-gate | PostToolUse | Edit\|Write |
+| cost-tracker        | Stop        | \*          |
+| sentinel-pre        | PreToolUse  | \*          |
+| sentinel-post       | PostToolUse | \*          |
 
 ## Installation
 
@@ -322,10 +333,12 @@ After installation, the hooks system creates these files:
     profile.json              # Active profile (minimal/standard/strict)
     block-no-verify.js        # Hook scripts (varies by profile)
     protect-config.js
-    quality-gate.js
+    quality-warner.js
+    format-check.js           # shared support module for the quality hooks
     pre-compact-state.js
     adoption-tracker.js
     telemetry-reporter.js
+    strict-quality-gate.js    # strict only
     cost-tracker.js           # strict only
     sentinel-pre.js           # strict only
     sentinel-post.js          # strict only

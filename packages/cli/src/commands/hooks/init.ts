@@ -3,6 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { HOOK_SCRIPTS, PROFILES, type HookProfile } from '../../hooks/profiles';
+import { supportFilesFor } from '../../hooks/support-files';
 import { logger } from '../../output/logger';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -115,6 +116,18 @@ export function initHooks(options: { profile: HookProfile; projectDir: string })
     if (fs.existsSync(srcFile)) {
       fs.copyFileSync(srcFile, destFile);
       copiedScripts.push(script.name);
+    }
+  }
+
+  // Copy shared support modules required by the active hooks (e.g. format-check.js).
+  // The stale-.js wipe above removed any prior copy; we re-copy here so the
+  // sibling `import` resolves at the adopter, and so a downgrade that drops the
+  // dependent hook also drops its now-orphaned support file.
+  for (const supportFile of supportFilesFor(activeNames)) {
+    const srcFile = path.join(sourceDir, supportFile);
+    const destFile = path.join(hooksDestDir, supportFile);
+    if (fs.existsSync(srcFile)) {
+      fs.copyFileSync(srcFile, destFile);
     }
   }
 

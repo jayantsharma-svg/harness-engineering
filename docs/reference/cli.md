@@ -2138,8 +2138,8 @@ harness hooks init [options]
 **Profiles:**
 
 - **minimal** — Safety floor: `block-no-verify`
-- **standard** — Balanced enforcement (default): all minimal hooks plus `protect-config`, `quality-gate`, `pre-compact-state`, `adoption-tracker`, `telemetry-reporter`
-- **strict** — Full enforcement: all standard hooks plus `cost-tracker`, `sentinel-pre`, `sentinel-post`
+- **standard** — Balanced enforcement (default): all minimal hooks plus `protect-config`, `quality-warner`, `pre-compact-state`, `adoption-tracker`, `telemetry-reporter`
+- **strict** — Full enforcement: all standard hooks plus `strict-quality-gate`, `cost-tracker`, `sentinel-pre`, `sentinel-post`
 
 **Examples:**
 

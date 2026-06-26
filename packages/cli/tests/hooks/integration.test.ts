@@ -29,7 +29,8 @@ describe('hook scripts integration', () => {
     const failOpenHooks = [
       'block-no-verify',
       'protect-config',
-      'quality-gate',
+      'quality-warner',
+      'strict-quality-gate',
       'pre-compact-state',
       'cost-tracker',
       'telemetry-reporter',

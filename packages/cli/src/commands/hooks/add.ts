@@ -3,6 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { HOOK_SCRIPTS } from '../../hooks/profiles';
+import { supportFilesFor } from '../../hooks/support-files';
 import { logger } from '../../output/logger';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -70,6 +71,17 @@ export function addHooks(hookName: string, projectDir: string): AddResult {
       result.added.push(name);
     }
     registerHook(settings, def.event, def.matcher, name);
+  }
+
+  // Ship shared support modules (e.g. format-check.js) for any added hook that
+  // imports a sibling. Always (re)copy so a freshly added hook resolves even if
+  // a prior partial install left the support file missing.
+  for (const supportFile of supportFilesFor(names)) {
+    const src = path.join(srcDir, supportFile);
+    const dest = path.join(destDir, supportFile);
+    if (fs.existsSync(src)) {
+      fs.copyFileSync(src, dest);
+    }
   }
 
   fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n');
