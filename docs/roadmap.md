@@ -31,7 +31,7 @@ last_manual_edit: 2026-06-26T01:25:24.050Z
 - **Summary:** `packages/cli/src/hooks/quality-gate.js:4-6` is literally documented as "Never blocks (always exits 0). Warnings go to stderr." This hook ships in the default **standard** profile. The hook NAMED "quality-gate" gates nothing. Rename to `quality-warner` or `format-checker`. Add a `strict-quality-gate` hook variant for strict-profile adopters that exits 2 on lint/format failure. Source: Pass 5 #1.
 - **Blockers:** —
 - **Plan:** —
-- **Assignee:** @chadjw
+- **Assignee:** —
 - **Priority:** P0
 - **External-ID:** github:Intense-Visions/harness-engineering#526
 - **Updated-At:** 2026-06-25T23:56:30.691Z
@@ -572,7 +572,7 @@ last_manual_edit: 2026-06-26T01:25:24.050Z
 - **Summary:** Add a live work-in-flight kanban to the harness dashboard fed by orchestrator/parallel-coordinator state: per-task lane, owning agent, worktree, blockers, and dependency edges — surfacing in-flight agent work rather than only retrospective health signals. Reuses the existing dashboard package and orchestrator state machine. Complements Dashboard v3: Team & Stakeholder Views (#124). Adapted from Spec Kitty's local kanban control plane. Adoption #2 from docs/research/spec-kitty-comparison-analysis.md [SPECKITTY-2]
 - **Blockers:** —
 - **Plan:** —
-- **Assignee:** @chadjw
+- **Assignee:** —
 - **Priority:** —
 - **External-ID:** github:Intense-Visions/harness-engineering#599
 - **Updated-At:** 2026-06-25T22:03:47.094Z
@@ -630,7 +630,7 @@ last_manual_edit: 2026-06-26T01:25:24.050Z
 - **Summary:** Carry-forward polish from init-design-roadmap-config: (S2) refresh proposal.md:146 stale Registrations bullet to reflect harness-roadmap skill invocation, (S3) add harness-roadmap to initialize-harness-project skill.yaml depends_on for symmetry with harness-design-system, plus FINAL-S1 helper extraction, FINAL-S2 'not sure' vocabulary homogenization, FINAL-S3 catalog-consistency test docstring clarification.
 - **Blockers:** —
 - **Plan:** —
-- **Assignee:** @chadjw
+- **Assignee:** —
 - **Priority:** —
 - **External-ID:** github:Intense-Visions/harness-engineering#257
 
@@ -1418,7 +1418,7 @@ last_manual_edit: 2026-06-26T01:25:24.050Z
 - **Summary:** External test consumer `examples/slack-echo-bridge/` — ~150 LOC Node bridge that subscribes to `maintenance.completed` webhooks, verifies HMAC SHA-256 signatures, posts to Slack. Validates the Phase 0 API contract is usable from an external bridge author's perspective (anti-success #4). Deferred from Phase 0 to ship Phase 0 surface promptly.
 - **Blockers:** —
 - **Plan:** docs/changes/hermes-phase-0-gateway-api/plans/2026-05-15-phase-6-reference-slack-bridge-plan.md
-- **Assignee:** @cwarner
+- **Assignee:** —
 - **Priority:** —
 - **External-ID:** —
 
@@ -1473,7 +1473,7 @@ last_manual_edit: 2026-06-26T01:25:24.050Z
 - **Summary:** Agent-emitted skill proposals routed through review queue gated by harness:soundness-review; per-skill provenance (community/agent-proposed/user-authored) and usage telemetry; refinement deltas use same flow. Dashboard review queue page with approve/reject/edit actions. From Hermes adoption meta-spec.
 - **Blockers:** —
 - **Plan:** —
-- **Assignee:** @chadjw
+- **Assignee:** —
 - **Priority:** —
 - **External-ID:** github:Intense-Visions/harness-engineering#314
 - **Updated-At:** 2026-05-18T11:28:52.297Z
@@ -1654,7 +1654,7 @@ last_manual_edit: 2026-06-26T01:25:24.050Z
 - **Summary:** Maps codebase characteristics (coupling score, test coverage, violation types, complexity distribution) to optimal skill sequences via decision-tree scoring. Recommends the right skills for the current codebase state. [D11]
 - **Blockers:** —
 - **Plan:** docs/changes/skill-recommendation-engine/plans/2026-04-04-skill-recommendation-engine-phase1-types-plan.md
-- **Assignee:** @chadjw
+- **Assignee:** —
 - **Priority:** —
 - **External-ID:** github:Intense-Visions/harness-engineering#82
 
@@ -1676,7 +1676,7 @@ last_manual_edit: 2026-06-26T01:25:24.050Z
 - **Summary:** Clusters recurring violations by pattern. When N similar violations appear in M weeks, suggests a new constraint rule. Learns architectural norms from team behavior rather than requiring hand-coded rules. [L1]
 - **Blockers:** —
 - **Plan:** —
-- **Assignee:** @chadjw
+- **Assignee:** —
 - **Priority:** —
 - **External-ID:** github:Intense-Visions/harness-engineering#84
 - **Updated-At:** 2026-04-18T00:44:19.169Z
@@ -1745,7 +1745,7 @@ last_manual_edit: 2026-06-26T01:25:24.050Z
 - **Summary:** Explicit confidence model per review finding: validation method (mechanical > graph > heuristic) x evidence quality x cross-agent agreement x historical accuracy. Every finding shows a visible confidence percentage for human triage. [E6]
 - **Blockers:** —
 - **Plan:** —
-- **Assignee:** @chadjw
+- **Assignee:** —
 - **Priority:** —
 - **External-ID:** github:Intense-Visions/harness-engineering#90
 - **Updated-At:** 2026-04-19T22:15:02.628Z
@@ -1812,7 +1812,7 @@ last_manual_edit: 2026-06-26T01:25:24.050Z
 - **Summary:** Agent memory system tracking task-type performance over time. Specialization scoring and dynamic persona weighting. Agents develop expertise in specific codebase areas through accumulated experience. [F10]
 - **Blockers:** —
 - **Plan:** —
-- **Assignee:** @chadjw
+- **Assignee:** —
 - **Priority:** —
 - **External-ID:** github:Intense-Visions/harness-engineering#96
 - **Updated-At:** 2026-04-18T11:43:48.349Z
@@ -1870,7 +1870,7 @@ last_manual_edit: 2026-06-26T01:25:24.050Z
 - **Summary:** VS Code extension with sidebar and skill launcher, multi-CI recipes (GitLab, Jenkins, CircleCI, Azure DevOps), per-package config overrides for monorepos, and config inheritance chain (global to org to project to package). [B3/B7-B9]
 - **Blockers:** —
 - **Plan:** —
-- **Assignee:** @chadjw
+- **Assignee:** —
 - **Priority:** —
 - **External-ID:** github:Intense-Visions/harness-engineering#101
 
@@ -1883,7 +1883,7 @@ last_manual_edit: 2026-06-26T01:25:24.050Z
 - **Summary:** Graph schema extensions (5 node types, 2 edge types), BusinessKnowledgeIngestor reading from docs/knowledge/, harness://business-knowledge MCP resource, gather_context integration, pilot authoring for 1-2 domains
 - **Blockers:** —
 - **Plan:** —
-- **Assignee:** @chadjw
+- **Assignee:** —
 - **Priority:** —
 - **External-ID:** github:Intense-Visions/harness-engineering#225
 - **Updated-At:** 2026-04-21T14:12:28.459Z
@@ -1895,7 +1895,7 @@ last_manual_edit: 2026-06-26T01:25:24.050Z
 - **Summary:** Test description extractor, enum/constant extractor, validation rule extractor, API path extractor writing to .harness/knowledge/extracted/
 - **Blockers:** Phase 1: Knowledge Foundation
 - **Plan:** —
-- **Assignee:** @chadjw
+- **Assignee:** —
 - **Priority:** —
 - **External-ID:** github:Intense-Visions/harness-engineering#226
 - **Updated-At:** 2026-04-23T02:04:58.806Z
@@ -1907,7 +1907,7 @@ last_manual_edit: 2026-06-26T01:25:24.050Z
 - **Summary:** Configurable truncation limits with tiered LLM summarization, Jira comments/custom fields/acceptance criteria, Confluence full content/hierarchy/labels, Slack thread structure/reactions, KnowledgeLinker post-processing pass
 - **Blockers:** Phase 1: Knowledge Foundation
 - **Plan:** —
-- **Assignee:** @chadjw
+- **Assignee:** —
 - **Priority:** —
 - **External-ID:** github:Intense-Visions/harness-engineering#227
 - **Updated-At:** 2026-04-23T17:38:57.275Z
@@ -1919,7 +1919,7 @@ last_manual_edit: 2026-06-26T01:25:24.050Z
 - **Summary:** /harness:knowledge-pipeline skill (4-phase convergence loop), diagram-as-code parser (Mermaid/D2/PlantUML), staging workflow, drift detection and gap reporting
 - **Blockers:** —
 - **Plan:** docs/changes/business-knowledge-foundation/plans/2026-04-23-phase-4-knowledge-pipeline-diagrams-plan.md
-- **Assignee:** @chadjw
+- **Assignee:** —
 - **Priority:** —
 - **External-ID:** github:Intense-Visions/harness-engineering#228
 - **Updated-At:** 2026-04-24T02:10:03.701Z
@@ -1931,7 +1931,7 @@ last_manual_edit: 2026-06-26T01:25:24.050Z
 - **Summary:** Vision model analysis of image attachments, design tool API connectors (Figma, Miro), cross-source contradiction detection, knowledge coverage scoring per domain
 - **Blockers:** —
 - **Plan:** —
-- **Assignee:** @chadjw
+- **Assignee:** —
 - **Priority:** —
 - **External-ID:** github:Intense-Visions/harness-engineering#229
 - **Updated-At:** 2026-04-24T11:23:48.933Z
