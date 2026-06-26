@@ -732,6 +732,39 @@ Export graph
 
 - `--format` — Output format (json, mermaid)
 
+### `harness graph ingest`
+
+Ingest data into the knowledge graph
+
+**Options:**
+
+- `--source` — Source to ingest (code, knowledge, git, requirements, business-signals, jira, slack, ci, confluence, figma, miro)
+- `--all` — Run all sources (code, knowledge, git, and configured connectors)
+- `--full` — Force full re-ingestion
+
+### `harness graph query <rootNodeId>`
+
+Query the knowledge graph
+
+**Arguments:**
+
+- `rootNodeId` (required) — Starting node ID
+
+**Options:**
+
+- `--depth` — Max traversal depth (default: "3")
+- `--types` — Comma-separated node types to include
+- `--edges` — Comma-separated edge types to include
+- `--bidirectional` — Traverse both directions
+
+### `harness graph scan [path]`
+
+Scan project and build knowledge graph
+
+**Arguments:**
+
+- `path` (optional) — Project root path
+
 ### `harness graph status`
 
 Show graph statistics
