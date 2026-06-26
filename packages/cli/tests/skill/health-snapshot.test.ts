@@ -716,6 +716,92 @@ describe('captureHealthSnapshot', () => {
     }
   });
 
+  it('flips a check that assess passed but a signal contradicts (SC1 reconcile wiring)', async () => {
+    // Genuine true->false flip: assess_project reports `deps` as passed:true, but
+    // check_dependencies surfaces a CIRCULAR_DEP violation. deriveSignals emits
+    // 'circular-deps', which CHECK_SIGNAL_MAP maps to `deps`, so reconcilePassed
+    // MUST demote deps.passed from true to false. This test fails if the reconcile
+    // call is removed from captureHealthSnapshot — the raw check would stay true.
+    const realCP = await import('child_process');
+    vi.doMock('child_process', () => ({
+      ...realCP,
+      execSync: vi.fn().mockReturnValue('feed00d\n'),
+    }));
+
+    vi.doMock('../../src/mcp/tools/assess-project', () => ({
+      handleAssessProject: vi.fn().mockResolvedValue({
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              healthy: true,
+              checks: [
+                // deps PASSES at the assess layer — the contradiction comes solely
+                // from the granular check_dependencies mock below.
+                { name: 'deps', passed: true, issueCount: 0 },
+                { name: 'entropy', passed: true, issueCount: 0 },
+                { name: 'security', passed: true, issueCount: 0 },
+                { name: 'perf', passed: true, issueCount: 0 },
+                { name: 'docs', passed: true, issueCount: 0 },
+                { name: 'lint', passed: true, issueCount: 0 },
+              ],
+            }),
+          },
+        ],
+      }),
+    }));
+    vi.doMock('../../src/mcp/tools/architecture', () => ({
+      handleCheckDependencies: vi.fn().mockResolvedValue({
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              valid: false,
+              violations: [
+                {
+                  reason: 'CIRCULAR_DEP',
+                  file: 'a.ts',
+                  imports: 'b.ts',
+                  fromLayer: 'x',
+                  toLayer: 'y',
+                  line: 1,
+                  suggestion: '',
+                },
+              ],
+            }),
+          },
+        ],
+      }),
+    }));
+    vi.doMock('../../src/mcp/tools/entropy', () => ({
+      handleDetectEntropy: vi.fn().mockResolvedValue({
+        content: [{ type: 'text', text: JSON.stringify({ deadCode: {}, drift: {} }) }],
+      }),
+    }));
+    vi.doMock('../../src/mcp/tools/security', () => ({
+      handleRunSecurityScan: vi.fn().mockResolvedValue({
+        content: [{ type: 'text', text: JSON.stringify({ findings: [] }) }],
+      }),
+    }));
+    vi.doMock('../../src/mcp/utils/graph-loader', () => ({
+      loadGraphStore: vi.fn().mockResolvedValue(null),
+    }));
+
+    const { captureHealthSnapshot } = await import('../../src/skill/health-snapshot');
+    const tmpDir = path.join(os.tmpdir(), `snapshot-flip-${Date.now()}`);
+    fs.mkdirSync(path.join(tmpDir, '.harness'), { recursive: true });
+
+    try {
+      const snapshot = await captureHealthSnapshot(tmpDir);
+      // The contradicting signal is present...
+      expect(snapshot.signals).toContain('circular-deps');
+      // ...and it genuinely demoted the deps check from assess's passed:true to false.
+      expect(snapshot.checks.deps.passed).toBe(false);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
   it('handles non-git directory gracefully (empty gitHead)', async () => {
     const realCP = await import('child_process');
     vi.doMock('child_process', () => ({
