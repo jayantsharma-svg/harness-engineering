@@ -343,51 +343,6 @@ describe('GitHubIssuesSyncAdapter', () => {
     });
   });
 
-  describe('getAuthenticatedUser', () => {
-    it('returns @login from GET /user', async () => {
-      const fetchFn = mockFetch(200, { login: 'cwarner' });
-      const adapter = new GitHubIssuesSyncAdapter({
-        token: 'tok',
-        config: DEFAULT_CONFIG,
-        fetchFn,
-      });
-
-      const result = await adapter.getAuthenticatedUser();
-      expect(result.ok).toBe(true);
-      if (!result.ok) return;
-      expect(result.value).toBe('@cwarner');
-
-      const [url] = (fetchFn as ReturnType<typeof vi.fn>).mock.calls[0]!;
-      expect(url).toBe('https://api.github.com/user');
-    });
-
-    it('caches result after first call', async () => {
-      const fetchFn = mockFetch(200, { login: 'cwarner' });
-      const adapter = new GitHubIssuesSyncAdapter({
-        token: 'tok',
-        config: DEFAULT_CONFIG,
-        fetchFn,
-      });
-
-      await adapter.getAuthenticatedUser();
-      await adapter.getAuthenticatedUser();
-      expect(fetchFn).toHaveBeenCalledTimes(1);
-    });
-
-    it('returns Err on API failure', async () => {
-      const fetchFn = mockFetch(401, { message: 'Bad credentials' });
-      const adapter = new GitHubIssuesSyncAdapter({
-        token: 'bad',
-        config: DEFAULT_CONFIG,
-        fetchFn,
-        maxRetries: 0,
-      });
-
-      const result = await adapter.getAuthenticatedUser();
-      expect(result.ok).toBe(false);
-    });
-  });
-
   describe('createTicket with assignee', () => {
     it('includes assignees in payload when feature has assignee', async () => {
       const fetchFn = mockFetchSequence(

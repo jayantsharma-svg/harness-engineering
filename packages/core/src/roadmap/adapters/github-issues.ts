@@ -122,8 +122,6 @@ export class GitHubIssuesSyncAdapter implements TrackerSyncAdapter {
   private readonly retryOpts: { maxRetries: number; baseDelayMs: number };
   /** Cached GitHub milestone name -> ID mapping */
   private milestoneCache: Map<string, number> | null = null;
-  /** Cached authenticated user login (e.g., "@octocat") */
-  private authenticatedUserCache: string | null = null;
 
   constructor(options: GitHubAdapterOptions) {
     this.token = options.token;
@@ -181,30 +179,6 @@ export class GitHubIssuesSyncAdapter implements TrackerSyncAdapter {
     const data = (await response.json()) as { number: number };
     cache.set(name, data.number);
     return data.number;
-  }
-
-  async getAuthenticatedUser(): Promise<Result<string>> {
-    if (this.authenticatedUserCache) return Ok(this.authenticatedUserCache);
-
-    try {
-      const response = await fetchWithRetry(
-        this.fetchFn,
-        `${this.apiBase}/user`,
-        { method: 'GET', headers: this.headers() },
-        this.retryOpts
-      );
-
-      if (!response.ok) {
-        const text = await response.text();
-        return Err(new Error(`GitHub API error ${response.status}: ${text}`));
-      }
-
-      const data = (await response.json()) as { login: string };
-      this.authenticatedUserCache = `@${data.login}`;
-      return Ok(this.authenticatedUserCache);
-    } catch (error) {
-      return Err(error instanceof Error ? error : new Error(String(error)));
-    }
   }
 
   /**
