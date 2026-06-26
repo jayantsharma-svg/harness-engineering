@@ -122,8 +122,8 @@ const SIGNAL_RULES: Array<[SignalName, (c: HealthChecks, m: HealthMetrics) => bo
  * Derive active signal identifiers from health checks and metrics.
  * Uses threshold-based rules to map numeric values to named signals.
  */
-export function deriveSignals(checks: HealthChecks, metrics: HealthMetrics): string[] {
-  const signals = new Set<string>();
+export function deriveSignals(checks: HealthChecks, metrics: HealthMetrics): SignalName[] {
+  const signals = new Set<SignalName>();
   for (const [name, predicate] of SIGNAL_RULES) {
     if (predicate(checks, metrics)) signals.add(name);
   }
