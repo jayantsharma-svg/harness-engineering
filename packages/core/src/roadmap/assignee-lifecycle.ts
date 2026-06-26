@@ -77,6 +77,25 @@ function pushUnassigned(
 }
 
 /**
+ * Coordination guard: may `assignee` take this row *without stealing a live
+ * claim held by someone else*?
+ *
+ * This is the **single, status-agnostic first-claim-wins rule** the orchestrator
+ * relies on: a row is claimable by `assignee` only when it is currently
+ * unassigned or already held by `assignee` itself. Any other (foreign) assignee
+ * — human or machine, in-progress or not — blocks the claim, so the orchestrator
+ * never dispatches onto a row a human (or peer orchestrator) has touched.
+ *
+ * It is intentionally *stricter* than {@link claim}, which permits reassigning a
+ * *non*-in-progress row's stale owner (the human-driven `manage_roadmap update`
+ * path). Centralizing the predicate here keeps the orchestrator adapter from
+ * re-deriving its own divergent compare-and-set inline (D4: one definition).
+ */
+export function isClaimableBy(feature: RoadmapFeature, assignee: string): boolean {
+  return feature.assignee === null || feature.assignee === assignee;
+}
+
+/**
  * Execution-start transition: mark the feature `in-progress` and record who is
  * executing it.
  *

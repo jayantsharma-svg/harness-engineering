@@ -75,6 +75,7 @@ export {
   isMachineAssignee,
   assigneeInvariantHolds,
   pushAssigneeToExternal,
+  isClaimableBy,
   claim,
   release,
   setStatus,

@@ -3,6 +3,7 @@ import {
   isMachineAssignee,
   assigneeInvariantHolds,
   pushAssigneeToExternal,
+  isClaimableBy,
   claim,
   release,
   setStatus,
@@ -61,9 +62,9 @@ describe('assigneeInvariantHolds()', () => {
       assigneeInvariantHolds(feature({ name: 'b', status: 'in-progress', assignee: '@x' }))
     ).toBe(true);
     // Violations: the pilot bug (assignee on a non-in-progress row) and the orphan.
-    expect(
-      assigneeInvariantHolds(feature({ name: 'c', status: 'planned', assignee: '@x' }))
-    ).toBe(false);
+    expect(assigneeInvariantHolds(feature({ name: 'c', status: 'planned', assignee: '@x' }))).toBe(
+      false
+    );
     expect(
       assigneeInvariantHolds(feature({ name: 'd', status: 'in-progress', assignee: null }))
     ).toBe(false);
@@ -75,6 +76,38 @@ describe('pushAssigneeToExternal()', () => {
     expect(pushAssigneeToExternal('@chadjw')).toBe(true);
     expect(pushAssigneeToExternal('orchestrator-5c895000')).toBe(false);
     expect(pushAssigneeToExternal(null)).toBe(false);
+  });
+});
+
+describe('isClaimableBy()', () => {
+  it('is true for an unassigned row or one already held by the same assignee', () => {
+    expect(isClaimableBy(feature({ name: 'a', assignee: null }), 'orchestrator-5c895000')).toBe(
+      true
+    );
+    expect(
+      isClaimableBy(
+        feature({ name: 'b', status: 'in-progress', assignee: 'orchestrator-5c895000' }),
+        'orchestrator-5c895000'
+      )
+    ).toBe(true);
+  });
+
+  it('is false for ANY foreign assignee regardless of status (status-agnostic, stricter than claim)', () => {
+    // A peer orchestrator's live claim.
+    expect(
+      isClaimableBy(
+        feature({ name: 'c', status: 'in-progress', assignee: 'orchestrator-deadbeef' }),
+        'orchestrator-5c895000'
+      )
+    ).toBe(false);
+    // A human handle on a *non*-in-progress row — claim() would reassign this,
+    // but the orchestrator must not steal it.
+    expect(
+      isClaimableBy(
+        feature({ name: 'd', status: 'planned', assignee: '@alice' }),
+        'orchestrator-5c895000'
+      )
+    ).toBe(false);
   });
 });
 

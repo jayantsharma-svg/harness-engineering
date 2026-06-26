@@ -8,6 +8,9 @@ import {
   // setStatus is the status-change chokepoint: moving away from in-progress
   // auto-clears the assignee, preserving `assignee ≠ null ⟺ in-progress` (RMH005).
   setStatus as setFeatureStatus,
+  // The single, status-agnostic first-claim-wins guard — owned by core so the
+  // adapter does not re-derive its own divergent compare-and-set (D4).
+  isClaimableBy,
   // Phase 1 of the file-less roadmap proposal: tracker types have their
   // canonical home in core/roadmap/tracker/ (source path); re-exported
   // from the @harness-engineering/core package root for consumers.
@@ -144,8 +147,11 @@ export class RoadmapTrackerAdapter implements IssueTrackerClient {
       // Compare-and-set: never overwrite an assignment held by a third
       // party (another orchestrator OR a human). The no-op write lets the
       // post-claim verify in ClaimManager.claimAndVerify read back the
-      // unchanged file and return 'rejected'.
-      if (target.assignee != null && target.assignee !== orchestratorId) {
+      // unchanged file and return 'rejected'. The rule lives in core
+      // (isClaimableBy) so there is exactly one definition of it (D4); it is
+      // intentionally stricter than core claim()'s reassign-on-non-in-progress
+      // path, which the human-driven manage_roadmap update uses.
+      if (!isClaimableBy(target, orchestratorId)) {
         return Ok(undefined);
       }
 
