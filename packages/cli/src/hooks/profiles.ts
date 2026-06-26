@@ -4,10 +4,10 @@
  * Profiles are additive: each higher tier includes all hooks from lower tiers.
  * - minimal: safety floor (block-no-verify only)
  * - standard: + protect-config, quality-warner (quality gates warn, never block),
- *   pre-compact-state, adoption-tracker, telemetry-reporter, plus security/safety
- *   floors: sentinel-pre, sentinel-post. Quality gates warn-never-block here; the
- *   security floors may block (e.g. a destructive bash op in an already-tainted
- *   session) — the same safety-floor class as block-no-verify. (default)
+ *   pre-compact-state, adoption-tracker, telemetry-reporter, plus the security floor:
+ *   sentinel-pre (exit-2 blocks a destructive op in an already-tainted session — the
+ *   same safety-floor class as block-no-verify) and sentinel-post (detection only;
+ *   always exit 0, never blocks). Quality gates warn-never-block here. (default)
  * - strict: + strict-quality-gate (blocks on quality violations), cost-tracker
  */
 

@@ -11,8 +11,9 @@ source: docs/changes/sentinel-standard-profile/proposal.md
 
 `sentinel-pre` / `sentinel-post` provide prompt-injection defense (zero-width and
 RTL/LTR override detection, role-reassignment and permission-escalation detection,
-base64 exfiltration detection, and blocking of destructive bash during an
-already-tainted session). They shipped at the `strict` profile only, while the default
+base64 exfiltration detection, and — for `sentinel-pre` specifically — blocking of
+destructive bash during an already-tainted session; `sentinel-post` is detection-only
+and always exits 0). They shipped at the `strict` profile only, while the default
 profile is `standard` (`packages/cli/src/commands/setup.ts`). The overwhelming majority
 of adopters therefore received none of this defense.
 
@@ -29,8 +30,9 @@ The `standard` tier carries a **security/safety floor** distinct from quality ga
 
 - Quality gates (`quality-warner`) warn-never-block until `strict` (where
   `strict-quality-gate` enforces). This is unchanged.
-- Safety floors (`block-no-verify`, and now `sentinel-pre` / `sentinel-post`) may block.
-  `sentinel-pre`'s exit-2 block is preserved, not neutered.
+- Safety floors may block: `block-no-verify` and `sentinel-pre` exit-2 block;
+  `sentinel-post` is detection-only (always exit 0, never blocks). `sentinel-pre`'s
+  exit-2 block is preserved, not neutered.
 
 Concretely: `sentinel-pre` and `sentinel-post` move to `minProfile: 'standard'`, and the
 tier-contract doc comment is corrected to read "quality gates warn-never-block PLUS

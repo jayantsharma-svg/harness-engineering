@@ -97,6 +97,8 @@ export const STANDARD_HOOKS = [
   { name: 'pre-compact-state', event: 'PreCompact', matcher: '*' },
   { name: 'adoption-tracker', event: 'Stop', matcher: '*' },
   { name: 'telemetry-reporter', event: 'Stop', matcher: '*' },
+  { name: 'sentinel-pre', event: 'PreToolUse', matcher: '*' },
+  { name: 'sentinel-post', event: 'PostToolUse', matcher: '*' },
 ];
 
 export function getConfig(target) {
