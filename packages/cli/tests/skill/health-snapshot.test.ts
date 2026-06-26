@@ -21,6 +21,7 @@ import {
   deriveSignals,
 } from '../../src/skill/health-snapshot';
 import type { HealthSnapshot } from '../../src/skill/health-snapshot';
+import { reconcilePassed } from '@harness-engineering/core';
 
 function makeSnapshot(overrides: Partial<HealthSnapshot> = {}): HealthSnapshot {
   return {
@@ -477,7 +478,11 @@ describe('runGraphMetrics', () => {
     vi.doMock('../../src/mcp/utils/graph-loader', () => ({
       loadGraphStore: vi.fn().mockResolvedValue(fakeStore),
     }));
-    vi.doMock('@harness-engineering/graph', () => ({
+    vi.doMock('@harness-engineering/graph', async (importOriginal) => ({
+      // Spread the real module so core's eager imports (e.g. skipDirGlobs) still
+      // resolve now that health-snapshot.ts loads core at runtime; override only
+      // the graph adapters this test exercises.
+      ...(await importOriginal<typeof import('@harness-engineering/graph')>()),
       GraphCouplingAdapter: class {
         computeCouplingData() {
           return {
@@ -725,5 +730,30 @@ describe('captureHealthSnapshot', () => {
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
+  });
+});
+
+describe('reconcilePassed wiring (snapshot honesty)', () => {
+  it('demotes a check that passed assess but has a contradicting signal (SC1)', () => {
+    const checks = {
+      security: { passed: true, findingCount: 16, criticalCount: 16 },
+      docs: { passed: true, undocumentedCount: 27481 },
+    };
+    const out = reconcilePassed(checks, ['security-findings', 'doc-gaps']);
+    expect(out.security.passed).toBe(false);
+    expect(out.docs.passed).toBe(false);
+  });
+
+  it('preserves a lint assess-failure that has no signal (SC2 conjunction)', () => {
+    const out = reconcilePassed({ lint: { passed: false, issueCount: 3 } }, []);
+    expect(out.lint.passed).toBe(false);
+  });
+
+  it('does not let metrics-only signals change passed (SC3)', () => {
+    const out = reconcilePassed(
+      { deps: { passed: true, issueCount: 0, circularDeps: 0, layerViolations: 0 } },
+      ['high-coupling', 'low-coverage']
+    );
+    expect(out.deps.passed).toBe(true);
   });
 });

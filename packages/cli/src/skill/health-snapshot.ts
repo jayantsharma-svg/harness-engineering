@@ -7,6 +7,7 @@ import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import type { SignalName } from '@harness-engineering/core';
+import { reconcilePassed } from '@harness-engineering/core';
 import { logger } from '../output/logger';
 
 /** Granular check results from assess_project and related tools. */
@@ -381,11 +382,15 @@ export async function captureHealthSnapshot(projectPath: string): Promise<Health
   // Derive signals
   const signals = deriveSignals(checks, metrics);
 
+  // Reconcile: demote any check that passed assess but has a contradicting signal.
+  // Conjunction, monotonic toward fail — never promotes a real failure to green.
+  const reconciledChecks = reconcilePassed(checks, signals);
+
   const snapshot: HealthSnapshot = {
     capturedAt: new Date().toISOString(),
     gitHead,
     projectPath,
-    checks,
+    checks: reconciledChecks,
     metrics,
     signals,
   };
