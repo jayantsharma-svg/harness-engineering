@@ -4,7 +4,7 @@ version: 1
 created: 2026-03-21
 updated: 2026-06-26
 last_synced: 2026-06-23T18:05:08.357Z
-last_manual_edit: 2026-06-26T01:25:24.050Z
+last_manual_edit: 2026-06-27T12:59:34.263Z
 ---
 
 # Roadmap
@@ -40,7 +40,7 @@ last_manual_edit: 2026-06-26T01:25:24.050Z
 ### Make protect-config fail-closed in ambiguous cases
 
 - **Status:** planned
-- **Spec:** —
+- **Spec:** docs/changes/protect-config-fail-closed/proposal.md
 - **Summary:** `packages/cli/src/hooks/protect-config.js:36,41,49` — three branches currently fail-open (parse error → allow, empty stdin → allow, missing `file_path` → allow). The security-flavored hook that protects config silently yields whenever its input is malformed. Change to fail-closed with a clear error message. Defense-in-depth. Source: Pass 5 #2.
 - **Blockers:** —
 - **Plan:** —
@@ -1422,7 +1422,7 @@ last_manual_edit: 2026-06-26T01:25:24.050Z
 - **Plan:** docs/changes/hermes-phase-0-gateway-api/plans/2026-05-15-phase-6-reference-slack-bridge-plan.md
 - **Assignee:** —
 - **Priority:** —
-- **External-ID:** —
+- **External-ID:** github:Intense-Visions/harness-engineering#645
 
 ### Hermes Phase 0.2: Gateway Tunnel Guide
 
