@@ -11,6 +11,8 @@ import type { Confidence, JudgedAgainst, Authority } from '../outcome-eval/types
 
 export type { Confidence, JudgedAgainst, Authority };
 
+// Legend: (a) criteria quality · (b) test coverage · (c) measurability gate.
+
 /** (c) the measurability gate dimension. */
 export type Measurability = 'MEASURABLE' | 'NOT_MEASURABLE' | 'INCONCLUSIVE';
 
