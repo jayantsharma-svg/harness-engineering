@@ -8,7 +8,7 @@
 - When the problem space is ambiguous and needs exploration
 - When multiple approaches exist and tradeoffs must be weighed
 - When `on_new_feature` trigger fires and scope is non-trivial
-- NOT when the implementation path is already clear (go straight to harness-planning)
+- NOT when the implementation path is already clear (go straight to harness-planning, or harness-autopilot if the spec already exists)
 - NOT when fixing a bug with an obvious root cause (use harness-debugging or harness-tdd)
 - NOT for simple refactors with no design decisions (use harness-refactoring)
 
@@ -241,14 +241,21 @@ These flow into `handoff.json` `contextKeywords` field. Select keywords that hel
    }
    ```
 
-   Call `emit_interaction`:
+   **Choose the next skill with the human — ask in plain text, not via `emit_interaction`** (a `transition` records the handoff; it does not surface the choice). Present both paths and recommend autopilot:
+
+   > Spec approved. How do you want to build it?
+   >
+   > - **Autopilot (recommended)** — autonomously chains plan → execute → verify → review, pausing only at decision points. Best when the spec's `## Implementation Order` lays out clear phases.
+   > - **Planning** — work the implementation plan interactively before any execution. Choose this when phases are uncertain or you want to drive the breakdown by hand.
+
+   Record the answer as `<next>` (`autopilot` or `planning`), then call `emit_interaction`:
 
    ```json
    {
      "type": "transition",
      "transition": {
        "completedPhase": "brainstorming",
-       "suggestedNext": "planning",
+       "suggestedNext": "<next>",
        "reason": "Spec approved and written to docs/",
        "artifacts": ["<spec path>"],
        "requiresConfirmation": true,
@@ -269,7 +276,10 @@ These flow into `handoff.json` `contextKeywords` field. Select keywords that hel
    }
    ```
 
-   If confirmed: invoke harness-planning with the spec path.
+   If confirmed, dispatch by the recorded choice:
+   - `autopilot` → invoke harness-autopilot with `--spec <spec path>`.
+   - `planning` → invoke harness-planning with the spec path.
+
    If declined: stop. The handoff is written for future invocation.
 
 ---
@@ -348,11 +358,11 @@ Technical claims about existing code, architecture, or tradeoffs MUST cite evide
 - **`harness check-docs`** -- Verify spec does not conflict with existing docs.
 - **`STRATEGY.md` grounding (Phase 1 step 0a)** -- When present at repo root and valid, loaded via the `read_strategy` MCP tool (which the harness MCP server backs with `validateStrategy` + `parseStrategyDoc` + `asStrategyDoc` from `@harness-engineering/core` — projects do not need core installed). Soft-fails when absent or invalid; cites strategy sections in the spec's evidence annotations when present. Boundary with `harness-strategy`: brainstorming READS; `harness-strategy` WRITES. Never modify `STRATEGY.md` from this skill.
 - **Spec location** -- `docs/changes/<feature>/proposal.md`.
-- **Handoff** -- Once approved, invoke harness-planning to create the implementation plan.
+- **Handoff** -- Once approved, hand off per the human's choice: harness-autopilot (recommended -- autonomous plan → execute → verify → review) or harness-planning (interactive plan only).
 - **Session directory** — When session slug is known, handoff goes to `.harness/sessions/<slug>/handoff.json`. The session directory structure is: `handoff.json`, `state.json`, `artifacts.json` (registry of spec/plan paths and file lists). Do not write to `.harness/handoff.json` in session context.
 - **Spec commit** -- After sign-off, the Phase 4 step 8 commit captures `docs/changes/<feature>/proposal.md`, `docs/changes/<feature>/SKILLS.md`, and the promoted `docs/roadmap.md` together so the spec enters git history at approval, not retroactively. `harness-execution` does not backfill these — see issue #487.
 - **Roadmap promotion** -- After approval (Phase 4 step 7), call `manage_roadmap` action `promote` to transition the named row to `planned` and link the spec atomically with the spec commit. Falls back to `add` (create new row) when the row does not exist; refuses on `in-progress`/`done`/`ambiguous`. Skip silently if no roadmap.
-- **`emit_interaction`** -- End of Phase 4 to suggest transition to harness-planning (confirmed transition).
+- **`emit_interaction`** -- End of Phase 4 to record the transition to harness-autopilot or harness-planning (the human picks; default autopilot). The choice itself is asked in plain text -- `emit_interaction` records the confirmed transition, it does not surface the question.
 
 #### Requirement Phrasing
 
