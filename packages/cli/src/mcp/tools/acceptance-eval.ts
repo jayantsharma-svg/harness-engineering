@@ -131,9 +131,13 @@ export async function resolveTestContent(
   const seen = new Set<string>();
   const parts: string[] = [];
   for (const pattern of input.testGlobs) {
+    // Glob patterns are POSIX-separated; normalize Windows backslashes so a
+    // path.join-built glob still matches on win32 (the glob lib treats `\` as
+    // an escape, which otherwise silently matches nothing).
+    const normalized = pattern.replace(/\\/g, '/');
     let files: string[];
     try {
-      files = await findFiles(pattern);
+      files = await findFiles(normalized);
     } catch {
       continue; // unmatched/invalid glob: degrade-safe skip
     }

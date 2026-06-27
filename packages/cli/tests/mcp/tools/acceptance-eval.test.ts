@@ -125,8 +125,11 @@ describe('resolveTestContent (b) evidence resolution', () => {
 
     expect(out).toContain('AAA');
     expect(out).toContain('BBB');
-    expect(out).toContain(a);
-    expect(out).toContain(b);
+    // Path headers come from the glob lib, which returns POSIX separators even
+    // on win32; compare separator-agnostically so the assertion holds cross-OS.
+    const slash = (s: string) => s.replace(/\\/g, '/');
+    expect(slash(out ?? '')).toContain(slash(a));
+    expect(slash(out ?? '')).toContain(slash(b));
   });
 
   it('returns undefined when neither testContent nor testGlobs yields content', async () => {
