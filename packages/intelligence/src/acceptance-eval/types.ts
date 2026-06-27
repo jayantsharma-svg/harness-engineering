@@ -4,8 +4,8 @@
  * `authority` is DERIVED in TypeScript from (measurability, confidence) via
  * `deriveAcceptanceAuthority` in `./authority.js`. It is NEVER read from the
  * LLM response — see `acceptanceVerdictSchema` in `./prompts.js`, which omits
- * it. `Confidence`, `JudgedAgainst`, and `Authority` are REUSED from
- * outcome-eval (not forked), consistent with the imported section-resolver.
+ * it. `Confidence`, `JudgedAgainst`, and `Authority` are REUSED from the
+ * outcome-eval module — not forked — consistent with the imported section-resolver.
  */
 import type { Confidence, JudgedAgainst, Authority } from '../outcome-eval/types.js';
 
