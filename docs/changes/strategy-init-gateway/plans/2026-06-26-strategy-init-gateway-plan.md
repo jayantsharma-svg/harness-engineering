@@ -92,7 +92,7 @@ Operate ONLY in this worktree. Do not `cd` into the main repo.
 
    Run this before anything else — it is the first thing init does and the first question it asks the human.
    Offer to capture `STRATEGY.md`, the durable upstream product anchor read by `harness-brainstorming`,
-   `harness-ideate`, and `harness-roadmap-pilot`. *Think first (strategy), build second (scaffold).*
+   `harness-ideate`, and `harness-roadmap-pilot`. _Think first (strategy), build second (scaffold)._
 
    Before prompting, check whether `STRATEGY.md` already exists at repo root. Three cases:
 
@@ -203,18 +203,16 @@ Apply these exact replacements (line numbers are pre-Task-1 anchors; locate by t
 
 1. **Harness Integration — `harness-strategy` bullet** (orig line 328). Replace the sentence
    `Phase 3 step 5c delegates to this skill on "Yes".` with `Phase 0: GROUND delegates to this skill on "Yes".`
-   and replace `On "No" init writes \`init.strategy.declined: true\` to \`.harness/state.json\`.` with
-   `On "No" the decline is recorded in working memory and persisted as \`init.strategy.declined: true\` to
+   and replace `On "No" init writes \`init.strategy.declined: true\` to \`.harness/state.json\`.`with`On "No" the decline is recorded in working memory and persisted as \`init.strategy.declined: true\` to
    \`.harness/state.json\` by Phase 3: CONFIGURE step 0 (after SCAFFOLD).`
 
 2. **Harness Integration — `validateStrategy` bullet** (orig line 329). Replace the whole bullet:
-   - OLD: `- **\`validateStrategy\`** — \`@harness-engineering/core\` helper used by Phase 3 step 5c to detect present-but-invalid \`STRATEGY.md\`. Invoked through a Node one-liner so init does not require importing core directly.`
-   - NEW: `- **\`validate_strategy\` / \`write_strategy\` MCP tools** — used by Phase 0: GROUND to doc-validate \`STRATEGY.md\` and to detect a present-but-invalid one. Routed through the MCP server (which already has \`@harness-engineering/core\` loaded) so init does not require local \`node_modules\` or a \`node -e\` one-liner.`
+   - OLD: `- **\`validateStrategy\`\*\* — \`@harness-engineering/core\` helper used by Phase 3 step 5c to detect present-but-invalid \`STRATEGY.md\`. Invoked through a Node one-liner so init does not require importing core directly.`
+   - NEW: `- **\`validate_strategy\` / \`write_strategy\` MCP tools\*\* — used by Phase 0: GROUND to doc-validate \`STRATEGY.md\` and to detect a present-but-invalid one. Routed through the MCP server (which already has \`@harness-engineering/core\` loaded) so init does not require local \`node_modules\` or a \`node -e\` one-liner.`
 
 3. **Success Criteria** (orig line 346). Replace `The strategy question (Phase 3 step 5c) was asked` with
    `The strategy question (Phase 0: GROUND) was asked`, and within the same bullet replace
-   `Yes → \`STRATEGY.md\` exists and \`harness validate\` passes against \`StrategyDocSchema\`` with
-   `Yes → \`STRATEGY.md\` exists, doc-validated via \`validate_strategy\` against \`StrategyDocSchema\` (no project-level \`harness validate\` is run in Phase 0)`.
+   `Yes → \`STRATEGY.md\` exists and \`harness validate\` passes against \`StrategyDocSchema\``with`Yes → \`STRATEGY.md\` exists, doc-validated via \`validate_strategy\` against \`StrategyDocSchema\` (no project-level \`harness validate\` is run in Phase 0)`.
 
 4. **Rationalizations row** (orig line 361). Replace `Phase 3 step 5c is the only point` with
    `Phase 0: GROUND is the only point`.

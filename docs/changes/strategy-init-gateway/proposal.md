@@ -3,7 +3,16 @@ title: Promote the strategic anchor to a gateway position in init
 feature: strategy-init-gateway
 status: planned
 tier: small
-keywords: [initialize-harness-project, STRATEGY.md, harness-strategy, init-phase-ordering, strategic-anchor, plugin-mirrors, decline-flag]
+keywords:
+  [
+    initialize-harness-project,
+    STRATEGY.md,
+    harness-strategy,
+    init-phase-ordering,
+    strategic-anchor,
+    plugin-mirrors,
+    decline-flag,
+  ]
 roadmap-row: Promote harness:strategy to gateway position in init
 external-id: github:Intense-Visions/harness-engineering#543
 ---
@@ -20,12 +29,12 @@ or never reach it, finish init with no strategic anchor, so `harness-brainstormi
 (`STRATEGY.md#target-problem` — "each agent invocation starts cold").
 
 This change promotes the prompt to a new **Phase 0: GROUND** that runs first, making the
-strategic anchor the gateway to init: *think first (strategy), build second (scaffold)*. It
+strategic anchor the gateway to init: _think first (strategy), build second (scaffold)_. It
 directly advances the `STRATEGY.md#tracks` **Upstream grounding** track, which names this exact
 wiring ("make the strategic substrate durable enough that downstream skills ground reliably
 instead of starting cold each invocation").
 
-It is a documentation-only change to the `initialize-harness-project` skill (the skill *is* the
+It is a documentation-only change to the `initialize-harness-project` skill (the skill _is_ the
 init procedure), applied across all four platform mirrors with the generated plugin artifacts
 regenerated.
 
@@ -37,8 +46,8 @@ regenerated.
   Yes / No / Not-sure offer, the same absent / present-valid / present-invalid branching, and
   the same `init.strategy.declined` meaning.
 - Resolve the ordering hazard the relocation exposes: the `init.strategy.declined` flag is
-  persisted to `.harness/state.json`, which only exists **after** SCAFFOLD. Split the *offer*
-  (Phase 0) from the *flag persistence* (post-SCAFFOLD) so the relocation does not corrupt
+  persisted to `.harness/state.json`, which only exists **after** SCAFFOLD. Split the _offer_
+  (Phase 0) from the _flag persistence_ (post-SCAFFOLD) so the relocation does not corrupt
   `Phase 1: ASSESS` new-vs-migration classification.
 - Document the cross-phase ordering contract so the relocation cannot silently regress into a
   double-prompt or a blocking init.
@@ -48,7 +57,7 @@ regenerated.
 ### Non-goals (YAGNI)
 
 - No change to the `harness-strategy` skill or its interview content.
-- No change to the **meaning** of `init.strategy.declined` (only its write *point* moves).
+- No change to the **meaning** of `init.strategy.declined` (only its write _point_ moves).
 - No change to the i18n (step 5) or design-system (step 5b) prompts.
 
 ## Decisions made
@@ -56,7 +65,7 @@ regenerated.
 1. **Placement = new `Phase 0: GROUND` before `Phase 1: ASSESS`.** Chosen over front-of-ASSESS
    and first-in-CONFIGURE. Rationale: the roadmap intent is "the FIRST question init asks," and
    `STRATEGY.md#our-approach` ("humans own the thinking layer — specs, decisions, strategy")
-   argues for establishing *why* before *how*. (Roadmap row: "Promote harness:strategy to
+   argues for establishing _why_ before _how_. (Roadmap row: "Promote harness:strategy to
    gateway position in init"; `github:...#543`.)
 
 2. **Capture the anchor in Phase 0; defer only the decline-flag bookkeeping.** Phase 0 runs the
@@ -67,12 +76,12 @@ regenerated.
    after SCAFFOLD has created `.harness/`. Rationale: writing the flag in Phase 0 would either
    fail (no `.harness/`) or fabricate `.harness/` early and make `Phase 1: ASSESS` step 1
    (`SKILL.md:36`) misclassify a new project as a migration. This is the only semantic change —
-   the flag's *meaning* is unchanged, only its write location moves.
+   the flag's _meaning_ is unchanged, only its write location moves.
 
 3. **Phase 0 prompt is delivered in plain text, not `emit_interaction`.** `SKILL.md:32` already
    mandates plain-text prompts for this whole skill; the legacy step 5c used an
    `emit_interaction({type:"question"})` block, which renders/records but does not surface to the
-   user (a known failure mode in this repo). Promoting the step to the *first* user interaction
+   user (a known failure mode in this repo). Promoting the step to the _first_ user interaction
    amplifies the risk: an invisible prompt means the anchor is silently skipped and every
    downstream skill loses its grounding — the exact opposite of the goal. Phase 0 therefore asks
    in plain text.
@@ -111,7 +120,7 @@ byte-identical mirrors under `agents/skills/{cursor,codex,gemini-cli}/initialize
      Phase 0 must not pre-empt; (c) **No / Not-sure proceeds immediately into ASSESS; Phase 0
      never blocks.**
    - Reword the trailing "Mirror the i18n / design-system pattern" line so it does not point
-     *forward* to steps that now appear later (e.g. "This mirrors the ask-once-record-the-answer
+     _forward_ to steps that now appear later (e.g. "This mirrors the ask-once-record-the-answer
      pattern also used by the i18n and design-system prompts in Phase 3").
 
 2. **Add `Phase 3: CONFIGURE` step 1 — "Persist the Phase 0 grounding decision."** After SCAFFOLD
