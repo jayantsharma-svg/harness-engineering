@@ -34,7 +34,7 @@ Structured ideation and exploration with harness methodology
 - **Platforms:** claude-code, gemini-cli, cursor, codex
 - **Type:** rigid
 - **Cognitive mode:** constructive-architect
-- **Depends on:** harness-planning, harness-soundness-review
+- **Depends on:** harness-planning, harness-autopilot, harness-soundness-review
 
 ### harness-debugging
 

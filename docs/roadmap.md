@@ -2,7 +2,7 @@
 project: harness-engineering
 version: 1
 created: 2026-03-21
-updated: 2026-06-25
+updated: 2026-06-26
 last_synced: 2026-06-23T18:05:08.357Z
 last_manual_edit: 2026-06-27T12:51:51.967Z
 ---
@@ -13,7 +13,7 @@ last_manual_edit: 2026-06-27T12:51:51.967Z
 
 ### Assignee means who is executing — set at execution, not selection
 
-- **Status:** planned
+- **Status:** done
 - **Spec:** docs/changes/assignee-execution-lifecycle/proposal.md
 - **Summary:** Establish the invariant assignee ≠ null ⟺ in-progress via a centralized core authority: roadmap-pilot stops assigning at selection, harness-execution claims at execution start, machine claims never use the GitHub assignee field, inbound sync never clobbers a live machine claim, and RMH005 + groom enforce/migrate. Fixes the orchestrator silently skipping pilot-touched items.
 - **Blockers:** —
@@ -21,6 +21,7 @@ last_manual_edit: 2026-06-27T12:51:51.967Z
 - **Assignee:** —
 - **Priority:** —
 - **External-ID:** github:Intense-Visions/harness-engineering#640
+- **Updated-At:** 2026-06-26T17:46:10.000Z
 
 ## v5.0 — Enforcement Hardening
 
@@ -49,7 +50,7 @@ last_manual_edit: 2026-06-27T12:51:51.967Z
 
 ### Reconcile health-snapshot.json passed flags with active signals
 
-- **Status:** planned
+- **Status:** done
 - **Spec:** docs/changes/health-snapshot-signal-honesty/proposal.md
 - **Summary:** `.harness/health-snapshot.json` reports `entropy.passed: true` while listing "dead-code" in `signals[]`; same for docs (`passed: true`, `undocumentedCount: 27481`) and security (`passed: true`, `findingCount: 16`). The harness's own dogfooded output says all checks "passed" while listing seven active drift signals. Make `checks.X.passed` return `false` when `signals[]` includes the corresponding signal name. Source: Pass 1 #2.
 - **Blockers:** —
@@ -57,6 +58,7 @@ last_manual_edit: 2026-06-27T12:51:51.967Z
 - **Assignee:** —
 - **Priority:** P0
 - **External-ID:** github:Intense-Visions/harness-engineering#528
+- **Updated-At:** 2026-06-26T23:31:52.000Z
 
 ### Audit and cap the pre-commit --skip list
 
@@ -172,8 +174,8 @@ last_manual_edit: 2026-06-27T12:51:51.967Z
 
 ### Promote harness:strategy to gateway position in init
 
-- **Status:** planned
-- **Spec:** —
+- **Status:** done
+- **Spec:** docs/changes/strategy-init-gateway/proposal.md
 - **Summary:** `initialize-harness-project/SKILL.md` currently asks the strategy question as Phase 3, step 5c — buried after scaffolding and configuration. The article's gear item #1 is "specs operated FROM," and strategy is the foundational spec. Move the strategy prompt to the FIRST question init asks, not the fifth. Adopters who skip it end up with no strategic anchor, which means brainstorming/ideate/roadmap-pilot start cold. Source: Pass 3 #13.
 - **Blockers:** —
 - **Plan:** —
