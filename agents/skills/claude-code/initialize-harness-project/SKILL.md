@@ -37,43 +37,34 @@ Run this before anything else — it is the first thing init does and the first 
 Offer to capture `STRATEGY.md`, the durable upstream product anchor read by `harness-brainstorming`,
 `harness-ideate`, and `harness-roadmap-pilot`. _Think first (strategy), build second (scaffold)._
 
+Ask in plain text in your reply, same as the design-system step (Phase 3 step 5b) — never via `emit_interaction`, `AskUserQuestion`, or any tool (the human won't see a tool-routed prompt; only plain text reaches them across Claude Code, Cursor, Codex, and Gemini CLI). State your recommendation, then STOP and wait for the human's reply:
+
+```markdown
+### Capture strategic anchor (STRATEGY.md) now?
+
+|            | A) Yes — run the strategy interview                                                                                        | B) No — this project does not need a strategy doc                           | C) Not sure yet                                                       |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| **Pros**   | Grounds brainstorm/ideate/roadmap-pilot in product-level context; durable across milestones and phases (peer of README.md) | Permanent decline recorded; init does not re-ask on rerun                   | Decision deferred without commitment; can run /harness:strategy later |
+| **Cons**   | Adds an interview (10-20 minutes) to init                                                                                  | Re-running init will not re-offer; user must run /harness:strategy manually | No decline flag set; init may re-offer on rerun                       |
+| **Risk**   | Low                                                                                                                        | Low                                                                         | Low                                                                   |
+| **Effort** | Medium                                                                                                                     | Low                                                                         | Low                                                                   |
+
+**Recommendation:** A) Yes — run the strategy interview (confidence: medium) — strategy grounds brainstorm/ideate/roadmap-pilot; value compounds as the project grows.
+```
+
 Before prompting, check whether `STRATEGY.md` already exists at repo root. Three cases:
 
-- **Absent (most common on init).** Ask the human in plain text (do **not** use an `emit_interaction` block —
-  `SKILL.md` already mandates plain-text prompts for this skill):
+- **Absent (most common on init).** Present the prompt above. Apply the answer:
+  - **Yes:** delegate to `harness-strategy` (which routes via its own Phase 0 to the first-run interview). It writes a valid `STRATEGY.md` at repo root, doc-validated via the `write_strategy` / `validate_strategy` MCP tools. Do **not** run a project-level `harness validate` here — `harness.config.json` does not exist until SCAFFOLD. When `harness-strategy` completes, proceed to Phase 1.
+  - **No:** record the decline in working memory. `Phase 3: CONFIGURE` step 0 persists `init.strategy.declined: true` to `.harness/state.json` after SCAFFOLD creates it. Do **not** touch `.harness/` here — it does not exist yet.
+  - **Not sure:** record nothing. `/harness:strategy` remains available standalone, and a future re-run of init will re-offer.
 
-  > Capture strategic anchor (STRATEGY.md) now? It grounds brainstorm / ideate / roadmap-pilot in
-  > product-level context and is durable across milestones (a peer of `README.md`). The interview takes
-  > 10-20 minutes.
-  >
-  > - **Yes** — run the strategy interview now.
-  > - **No** — this project does not need a strategy doc (recorded as a permanent decline; init will not
-  >   re-offer on rerun).
-  > - **Not sure** — defer; `/harness:strategy` stays available and a future init re-offers.
+- **Present and valid.** Skip the prompt silently. Surface a one-line note: `STRATEGY.md detected — downstream skills will pick it up as grounding`. No decline is recorded.
 
-  Apply the answer:
-  - **Yes:** delegate to `harness-strategy` (which routes via its own Phase 0 to the first-run interview).
-    It writes a valid `STRATEGY.md` at repo root, doc-validated via the `write_strategy` / `validate_strategy`
-    MCP tools. Do **not** run a project-level `harness validate` here — `harness.config.json` does not exist
-    until SCAFFOLD. When `harness-strategy` completes, proceed to Phase 1.
-  - **No:** record the decline in working memory. `Phase 3: CONFIGURE` step 0 persists
-    `init.strategy.declined: true` to `.harness/state.json` after SCAFFOLD creates it. Do **not** touch
-    `.harness/` here — it does not exist yet.
-  - **Not sure:** record nothing. `/harness:strategy` remains available standalone, and a future re-run of
-    init will re-offer.
-
-- **Present and valid.** Skip the prompt silently. Surface a one-line note:
-  `STRATEGY.md detected — downstream skills will pick it up as grounding`. No decline is recorded.
-
-- **Present but invalid.** Surface the validation error via the `validate_strategy` MCP tool (the MCP server
-  already has `@harness-engineering/core` loaded, so this resolves even for plugin-only adopters with no
-  `node_modules`). Offer three paths (mirror `harness-strategy` Phase 0):
-  - **a) Fix now via `/harness:strategy` update** → delegate to `harness-strategy` with the broken section
-    pre-selected.
-  - **b) Move file to `STRATEGY.md.bak.<YYYY-MM-DD-HHmm>` and run a fresh interview** → rename, then delegate
-    to `harness-strategy` Phase 1.
-  - **c) Ignore for this init and proceed** → record the decline (persisted in `Phase 3: CONFIGURE` step 0)
-    and continue. Init does NOT block on a present-but-invalid `STRATEGY.md`.
+- **Present but invalid.** Surface the validation error via the `validate_strategy` MCP tool (the MCP server already has `@harness-engineering/core` loaded, so this resolves even for plugin-only adopters with no `node_modules`). Offer three paths (mirror `harness-strategy` Phase 0):
+  - **a) Fix now via `/harness:strategy` update** → delegate to `harness-strategy` with the broken section pre-selected.
+  - **b) Move file to `STRATEGY.md.bak.<YYYY-MM-DD-HHmm>` and run a fresh interview** → rename, then delegate to `harness-strategy` Phase 1.
+  - **c) Ignore for this init and proceed** → record the decline (persisted in `Phase 3: CONFIGURE` step 0) and continue. Init does NOT block on a present-but-invalid `STRATEGY.md`.
 
 **Guards:**
 
@@ -163,39 +154,21 @@ This mirrors the ask-once-record-the-answer pattern also used by the i18n and de
    - **No:** Set `i18n.enabled: false` in `harness.config.json`. The `harness-i18n-process` skill will still fire gentle prompts for unconfigured projects when features touch user-facing strings.
    - **Not sure:** Skip i18n configuration entirely. Do not set `i18n.enabled`. The project can enable i18n later by running `harness-i18n-workflow` directly.
 
-5b. **Configure design system (non-test-suite projects).** Ask: "Will this project have a UI requiring a design system?" Mirror the i18n step's three-way response shape. Use `emit_interaction`:
+5b. **Configure design system (non-test-suite projects).** Mirror the i18n step's three-way response shape.
 
-    ```json
-    emit_interaction({
-      type: "question",
-      question: {
-        text: "Will this project have a UI requiring a design system?",
-        options: [
-          {
-            label: "Yes — capture design intent now",
-            pros: ["Records platforms in harness.config.json", "harness-design-system fires automatically on first design-touching feature"],
-            cons: ["One extra follow-up question (which platforms)"],
-            risk: "low",
-            effort: "low"
-          },
-          {
-            label: "No — this project has no UI",
-            pros: ["No future design nudges", "Permanent decline recorded"],
-            cons: ["Re-running init is required if a UI is added later"],
-            risk: "low",
-            effort: "low"
-          },
-          {
-            label: "Not sure yet",
-            pros: ["Decision deferred without commitment", "Can run harness-design-system later"],
-            cons: ["No design.enabled flag set; on_new_feature will prompt later"],
-            risk: "low",
-            effort: "low"
-          }
-        ],
-        recommendation: { optionIndex: 0, reason: "Most product/service projects benefit from a centralized design system", confidence: "medium" }
-      }
-    })
+    **Ask directly in your reply. Do NOT route this question through `emit_interaction`, `AskUserQuestion`, or any tool.** `emit_interaction` records the prompt but does not display it to the human — the client collapses the call to "Called harness" and the rendered text only returns to the model, so the human sees nothing. `AskUserQuestion` is Claude-Code-only and caps headers at 12 chars / 4 options. Plain text in your own message is the only channel that reliably reaches the human across every tool (Claude Code, Cursor, Codex, Gemini CLI). State your recommendation, then STOP and wait for the human's reply:
+
+    ```markdown
+    ### Will this project have a UI requiring a design system?
+
+    | | A) Yes — capture design intent now | B) No — this project has no UI | C) Not sure yet |
+    |---|---|---|---|
+    | **Pros** | Records platforms in harness.config.json; harness-design-system fires automatically on first design-touching feature | No future design nudges; permanent decline recorded | Decision deferred without commitment; can run harness-design-system later |
+    | **Cons** | One extra follow-up question (which platforms) | Re-running init is required if a UI is added later | No design.enabled flag set; on_new_feature will prompt later |
+    | **Risk** | Low | Low | Low |
+    | **Effort** | Low | Low | Low |
+
+    **Recommendation:** A) Yes — capture design intent now (confidence: medium) — most product/service projects benefit from a centralized design system.
     ```
 
     Based on the answer:
@@ -284,32 +257,21 @@ This phase closes the parity gap that the marketplace plugin install does not co
 
 ### Phase 6: FINALIZE — Roadmap and Commit
 
-1. **Set up project roadmap.** Ask: "Set up a project roadmap now? `docs/roadmap.md` tracks features, milestones, and status across your specs and plans." Use `emit_interaction`:
+1. **Set up project roadmap.** `docs/roadmap.md` tracks features, milestones, and status across your specs and plans.
 
-   ```json
-   emit_interaction({
-     type: "question",
-     question: {
-       text: "Set up a project roadmap now?",
-       options: [
-         {
-           label: "Yes — create docs/roadmap.md now",
-           pros: ["Roadmap visible from day one", "Future specs auto-discovered on next sync"],
-           cons: ["Adds one file to the initial commit"],
-           risk: "low",
-           effort: "low"
-         },
-         {
-           label: "No — skip for now",
-           pros: ["Smaller initial footprint"],
-           cons: ["Run `/harness:roadmap --create` later when ready"],
-           risk: "low",
-           effort: "low"
-         }
-       ],
-       recommendation: { optionIndex: 0, reason: "Validation has just passed — a tangible 'project works' signal is the right moment to introduce planning artifacts", confidence: "medium" }
-     }
-   })
+   **Ask in plain text in your reply, same as Phase 0: GROUND and Phase 3 step 5b — never via `emit_interaction`, `AskUserQuestion`, or any tool (the human won't see a tool-routed prompt; only plain text reaches them across Claude Code, Cursor, Codex, and Gemini CLI).** State your recommendation, then STOP and wait for the human's reply:
+
+   ```markdown
+   ### Set up a project roadmap now?
+
+   |            | A) Yes — create docs/roadmap.md now                                     | B) No — skip for now                             |
+   | ---------- | ----------------------------------------------------------------------- | ------------------------------------------------ |
+   | **Pros**   | Roadmap visible from day one; future specs auto-discovered on next sync | Smaller initial footprint                        |
+   | **Cons**   | Adds one file to the initial commit                                     | Run `/harness:roadmap --create` later when ready |
+   | **Risk**   | Low                                                                     | Low                                              |
+   | **Effort** | Low                                                                     | Low                                              |
+
+   **Recommendation:** A) Yes — create docs/roadmap.md now (confidence: medium) — validation has just passed; a tangible "project works" signal is the right moment to introduce planning artifacts.
    ```
 
    Based on the answer:
