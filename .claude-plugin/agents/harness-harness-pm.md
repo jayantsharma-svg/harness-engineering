@@ -90,7 +90,7 @@ confidence:      high
 judgedAgainst:   success-criteria
 authority:       blocking
 criteriaFindings:
-  - "No observable assertion: 'works well' / 'users are happy' cannot be tested."
+  - { target: "'works well' / 'users are happy'", message: "No observable assertion — cannot be tested." }
 rationale:       "The success section contains only subjective statements; nothing can be judged at outcome time."
 ```
 
@@ -100,7 +100,7 @@ rationale:       "The success section contains only subjective statements; nothi
 
 **Input:** a spec whose Success Criteria list concrete, testable assertions; one user-visible behavior lacks an obvious covering test.
 
-**Verdict:** `measurability: MEASURABLE confidence: high authority: advisory`, with one `coverageFindings` entry surfaced for review. The workflow proceeds.
+**Verdict:** `measurability: MEASURABLE confidence: high authority: advisory`, with one `coverageFindings` `{target, message}` object (the one user-visible behavior lacking a covering test) surfaced for review. The workflow proceeds.
 
 ## Gates
 
