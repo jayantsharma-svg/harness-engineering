@@ -59,21 +59,27 @@ export class AcceptanceEvaluator {
     resolved: { judgedAgainst: JudgedAgainst; body: string },
     input: AcceptanceEvalInput
   ): Promise<AcceptanceVerdict> {
-    const response = await this.provider.analyze<LlmAcceptanceVerdict>({
-      prompt: buildUserPrompt(resolved.body, input.testContent),
-      systemPrompt: ACCEPTANCE_EVAL_SYSTEM_PROMPT,
-      responseSchema: acceptanceVerdictSchema,
-      ...(this.options.model !== undefined && { model: this.options.model }),
-    });
-    const llm = acceptanceVerdictSchema.parse(response.result);
-    return this.buildVerdict(
-      llm.measurability,
-      llm.confidence,
-      llm.rationale,
-      resolved.judgedAgainst,
-      llm.criteriaFindings,
-      llm.coverageFindings
-    );
+    try {
+      const response = await this.provider.analyze<LlmAcceptanceVerdict>({
+        prompt: buildUserPrompt(resolved.body, input.testContent),
+        systemPrompt: ACCEPTANCE_EVAL_SYSTEM_PROMPT,
+        responseSchema: acceptanceVerdictSchema,
+        ...(this.options.model !== undefined && { model: this.options.model }),
+      });
+      // Defensive strict re-parse: rejects any extra key (e.g. an injected
+      // `authority`) even if the provider did not enforce strict mode.
+      const llm = acceptanceVerdictSchema.parse(response.result);
+      return this.buildVerdict(
+        llm.measurability,
+        llm.confidence,
+        llm.rationale,
+        resolved.judgedAgainst,
+        llm.criteriaFindings,
+        llm.coverageFindings
+      );
+    } catch {
+      return this.degradedVerdict(resolved.judgedAgainst);
+    }
   }
 
   private degradedVerdict(judgedAgainst: JudgedAgainst): AcceptanceVerdict {

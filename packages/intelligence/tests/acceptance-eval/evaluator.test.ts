@@ -141,3 +141,68 @@ describe('AcceptanceEvaluator — provider path', () => {
     expect(v.criteriaFindings[0].message).toBe('no measurable outcome');
   });
 });
+
+function makeRejectingProvider(reason: string) {
+  const analyzeSpy = vi.fn();
+  const provider: AnalysisProvider = {
+    async analyze<T>(request: AnalysisRequest): Promise<AnalysisResponse<T>> {
+      analyzeSpy(request);
+      throw new Error(reason);
+    },
+  };
+  return { provider, analyzeSpy };
+}
+
+describe('AcceptanceEvaluator — degrade-safe error boundary', () => {
+  it('degrades to INCONCLUSIVE/advisory when the provider rejects (no secret leak)', async () => {
+    const { provider, analyzeSpy } = makeRejectingProvider('429 rate limited: sk-secret-token');
+    const v = await new AcceptanceEvaluator(provider).evaluate({
+      specPath: writeSpec(SPEC_WITH_CRITERIA),
+    });
+    expect(analyzeSpy).toHaveBeenCalledOnce();
+    expect(v.measurability).toBe('INCONCLUSIVE');
+    expect(v.confidence).toBe('low');
+    expect(v.authority).toBe('advisory');
+    expect(v.judgedAgainst).toBe('success-criteria');
+    expect(v.rationale).not.toContain('sk-secret-token');
+    expect(v.rationale).toMatch(/could not be completed/i);
+  });
+
+  it('degrades when the strict re-parse fails on a malformed payload', async () => {
+    const { provider } = makeProvider({ measurability: 'MAYBE' });
+    const v = await new AcceptanceEvaluator(provider).evaluate({
+      specPath: writeSpec(SPEC_WITH_CRITERIA),
+    });
+    expect(v.measurability).toBe('INCONCLUSIVE');
+    expect(v.authority).toBe('advisory');
+    expect(v.judgedAgainst).toBe('success-criteria');
+  });
+
+  it('never surfaces an LLM-injected authority key; degrades to advisory', async () => {
+    const { provider } = makeProvider({
+      measurability: 'NOT_MEASURABLE',
+      confidence: 'high',
+      rationale: 'x',
+      criteriaFindings: [],
+      coverageFindings: [],
+      authority: 'blocking',
+    });
+    const v = await new AcceptanceEvaluator(provider).evaluate({
+      specPath: writeSpec(SPEC_WITH_CRITERIA),
+    });
+    expect(v.authority).toBe('advisory'); // injected 'blocking' never surfaces
+    expect(v.measurability).toBe('INCONCLUSIVE');
+    expect(v.confidence).toBe('low');
+  });
+
+  it('degrades to advisory when the spec file is missing; provider NOT called', async () => {
+    const { provider, analyzeSpy } = makeProvider({});
+    const v = await new AcceptanceEvaluator(provider).evaluate({
+      specPath: '/definitely/missing/spec.md',
+    });
+    expect(analyzeSpy).not.toHaveBeenCalled();
+    expect(v.measurability).toBe('INCONCLUSIVE');
+    expect(v.authority).toBe('advisory');
+    expect(v.judgedAgainst).toBe('overview');
+  });
+});
