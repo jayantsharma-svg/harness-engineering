@@ -4,7 +4,7 @@ version: 1
 created: 2026-03-21
 updated: 2026-06-26
 last_synced: 2026-06-23T18:05:08.357Z
-last_manual_edit: 2026-06-26T01:25:24.050Z
+last_manual_edit: 2026-06-27T01:01:00.244Z
 ---
 
 # Roadmap
@@ -174,8 +174,8 @@ last_manual_edit: 2026-06-26T01:25:24.050Z
 
 ### Promote harness:strategy to gateway position in init
 
-- **Status:** planned
-- **Spec:** —
+- **Status:** done
+- **Spec:** docs/changes/strategy-init-gateway/proposal.md
 - **Summary:** `initialize-harness-project/SKILL.md` currently asks the strategy question as Phase 3, step 5c — buried after scaffolding and configuration. The article's gear item #1 is "specs operated FROM," and strategy is the foundational spec. Move the strategy prompt to the FIRST question init asks, not the fifth. Adopters who skip it end up with no strategic anchor, which means brainstorming/ideate/roadmap-pilot start cold. Source: Pass 3 #13.
 - **Blockers:** —
 - **Plan:** —
@@ -1422,7 +1422,7 @@ last_manual_edit: 2026-06-26T01:25:24.050Z
 - **Plan:** docs/changes/hermes-phase-0-gateway-api/plans/2026-05-15-phase-6-reference-slack-bridge-plan.md
 - **Assignee:** —
 - **Priority:** —
-- **External-ID:** —
+- **External-ID:** github:Intense-Visions/harness-engineering#645
 
 ### Hermes Phase 0.2: Gateway Tunnel Guide
 
