@@ -111,8 +111,7 @@ Tool name `mcp__harness__acceptance_eval`, registered in
 `packages/cli/src/mcp/server.ts`. Inputs: `specPath` (required),
 `testGlobs` / `testContent` (optional — the (b) evidence; omitting them degrades
 (b) coverage findings to advisory-empty but never affects the (c) gate),
-`model?`, `path?` (project root for graph persistence, matching
-`outcome-eval`). Returns the `AcceptanceVerdict` with `authority` exactly as
+`model?`. Returns the `AcceptanceVerdict` with `authority` exactly as
 derived. The handler builds the cli `AnalysisProvider`, constructs the
 `AcceptanceEvaluator`, and returns the verdict — never overriding `authority`.
 
