@@ -21,6 +21,11 @@ Phases:
 - gate: Render the verdict; on a blocking verdict (NOT_MEASURABLE + high confidence) HALT before merge
   </objective>
 
+<execution_context>
+@agents/skills/claude-code/acceptance-eval/SKILL.md
+@agents/skills/claude-code/acceptance-eval/skill.yaml
+</execution_context>
+
 <process>
 1. Try: invoke mcp__harness__acceptance_eval with skill: "acceptance-eval"
 2. If MCP unavailable: read SKILL.md and follow its workflow directly
