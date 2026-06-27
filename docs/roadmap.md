@@ -4,7 +4,7 @@ version: 1
 created: 2026-03-21
 updated: 2026-06-26
 last_synced: 2026-06-23T18:05:08.357Z
-last_manual_edit: 2026-06-26T01:25:24.050Z
+last_manual_edit: 2026-06-27T01:01:00.244Z
 ---
 
 # Roadmap
@@ -175,7 +175,7 @@ last_manual_edit: 2026-06-26T01:25:24.050Z
 ### Promote harness:strategy to gateway position in init
 
 - **Status:** planned
-- **Spec:** —
+- **Spec:** docs/changes/strategy-init-gateway/proposal.md
 - **Summary:** `initialize-harness-project/SKILL.md` currently asks the strategy question as Phase 3, step 5c — buried after scaffolding and configuration. The article's gear item #1 is "specs operated FROM," and strategy is the foundational spec. Move the strategy prompt to the FIRST question init asks, not the fifth. Adopters who skip it end up with no strategic anchor, which means brainstorming/ideate/roadmap-pilot start cold. Source: Pass 3 #13.
 - **Blockers:** —
 - **Plan:** —
@@ -1422,7 +1422,7 @@ last_manual_edit: 2026-06-26T01:25:24.050Z
 - **Plan:** docs/changes/hermes-phase-0-gateway-api/plans/2026-05-15-phase-6-reference-slack-bridge-plan.md
 - **Assignee:** —
 - **Priority:** —
-- **External-ID:** —
+- **External-ID:** github:Intense-Visions/harness-engineering#645
 
 ### Hermes Phase 0.2: Gateway Tunnel Guide
 
@@ -1939,23 +1939,22 @@ last_manual_edit: 2026-06-26T01:25:24.050Z
 - **Updated-At:** 2026-04-24T11:23:48.933Z
 
 ## Assignment History
-
-| Feature                                                          | Assignee                      | Action     | Date       |
-| ---------------------------------------------------------------- | ----------------------------- | ---------- | ---------- |
-| Performance Engineering Knowledge Skills                         | @chadjw                       | assigned   | 2026-04-09 |
-| Phase 2: Code Signal Extractors                                  | @chadjw                       | assigned   | 2026-04-23 |
-| Phase 3: Connector Enhancement                                   | @chadjw                       | assigned   | 2026-04-22 |
-| Phase 4: Knowledge Pipeline & Diagrams                           | @chadjw                       | assigned   | 2026-04-23 |
-| Hermes Phase 0.1: Reference Slack Bridge                         | @cwarner                      | assigned   | 2026-05-15 |
-| design-pipeline sub-project #2: audit-component-anatomy          | @chadjw                       | assigned   | 2026-05-23 |
-| design-pipeline sub-project #0: brand-guidelines source-of-truth | @chadjw                       | assigned   | 2026-05-23 |
-| design-pipeline sub-project #3: audit-brand-compliance           | @chadjw                       | assigned   | 2026-06-02 |
-| Init design + roadmap polish follow-ups                          | @chadjw                       | assigned   | 2026-06-03 |
-| Build harness:outcome-eval skill                                 | chad.warner@capillarytech.com | assigned   | 2026-06-22 |
-| Build harness:audit-harness-strength self-audit skill            | chad.warner@capillarytech.com | assigned   | 2026-06-23 |
-| Ship the 5-signal dashboard panel and signals.md doc             | chad.warner@capillarytech.com | assigned   | 2026-06-22 |
-| Ship a required-review GitHub Action template                    | chad.warner@gmail.com         | assigned   | 2026-06-23 |
-| Stop the pre-commit auto-baseline-update for arch                | chad.warner@gmail.com         | assigned   | 2026-06-23 |
-| Add architecture thresholds to basic and intermediate templates  | chad.warner@gmail.com         | assigned   | 2026-06-23 |
-| Add architecture thresholds to basic and intermediate templates  | @chadjw                       | assigned   | 2026-06-25 |
-| Add architecture thresholds to basic and intermediate templates  | @chadjw                       | unassigned | 2026-06-25 |
+| Feature | Assignee | Action | Date |
+|---------|----------|--------|------|
+| Performance Engineering Knowledge Skills | @chadjw | assigned | 2026-04-09 |
+| Phase 2: Code Signal Extractors | @chadjw | assigned | 2026-04-23 |
+| Phase 3: Connector Enhancement | @chadjw | assigned | 2026-04-22 |
+| Phase 4: Knowledge Pipeline & Diagrams | @chadjw | assigned | 2026-04-23 |
+| Hermes Phase 0.1: Reference Slack Bridge | @cwarner | assigned | 2026-05-15 |
+| design-pipeline sub-project #2: audit-component-anatomy | @chadjw | assigned | 2026-05-23 |
+| design-pipeline sub-project #0: brand-guidelines source-of-truth | @chadjw | assigned | 2026-05-23 |
+| design-pipeline sub-project #3: audit-brand-compliance | @chadjw | assigned | 2026-06-02 |
+| Init design + roadmap polish follow-ups | @chadjw | assigned | 2026-06-03 |
+| Build harness:outcome-eval skill | chad.warner@capillarytech.com | assigned | 2026-06-22 |
+| Build harness:audit-harness-strength self-audit skill | chad.warner@capillarytech.com | assigned | 2026-06-23 |
+| Ship the 5-signal dashboard panel and signals.md doc | chad.warner@capillarytech.com | assigned | 2026-06-22 |
+| Ship a required-review GitHub Action template | chad.warner@gmail.com | assigned | 2026-06-23 |
+| Stop the pre-commit auto-baseline-update for arch | chad.warner@gmail.com | assigned | 2026-06-23 |
+| Add architecture thresholds to basic and intermediate templates | chad.warner@gmail.com | assigned | 2026-06-23 |
+| Add architecture thresholds to basic and intermediate templates | @chadjw | assigned | 2026-06-25 |
+| Add architecture thresholds to basic and intermediate templates | @chadjw | unassigned | 2026-06-25 |
