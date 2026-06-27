@@ -4,7 +4,7 @@ version: 1
 created: 2026-03-21
 updated: 2026-06-25
 last_synced: 2026-06-23T18:05:08.357Z
-last_manual_edit: 2026-06-26T01:25:24.050Z
+last_manual_edit: 2026-06-27T00:27:42.937Z
 ---
 
 # Roadmap
@@ -432,7 +432,7 @@ last_manual_edit: 2026-06-26T01:25:24.050Z
 ### Build harness-pm persona for eval suite and acceptance criteria ownership
 
 - **Status:** planned
-- **Spec:** —
+- **Spec:** docs/changes/harness-pm-persona/proposal.md
 - **Summary:** The companion article "AI Ate My Role" defines three surviving Project Manager lanes: Taste PM (product thesis), **Harness PM (eval suite design + acceptance criteria)**, Boundary PM (compliance). The project ships 15 personas — all engineering-shaped (code-reviewer, architecture-enforcer, security-reviewer, performance-guardian, planner, task-executor, etc.). **Zero PM-shaped personas exist.** Build `harness-pm` persona that owns: (a) reviewing every spec's acceptance criteria for observability/testability/completeness, (b) ensuring eval suite coverage matches the spec's user-visible behavior section, (c) catching specs that ship without measurable success criteria. Pairs with `harness:outcome-eval` (which produces the eval verdicts) to give that eval an organizational owner. The article: "Quality became something that happened _to_ the work, not something that lived _inside_ the work. The new role sits at parity with engineering, not downstream." Source: Pass 8 (AI Ate My Role + Anatomy companion articles).
 - **Blockers:** Build harness:outcome-eval skill
 - **Plan:** —
@@ -1420,7 +1420,7 @@ last_manual_edit: 2026-06-26T01:25:24.050Z
 - **Plan:** docs/changes/hermes-phase-0-gateway-api/plans/2026-05-15-phase-6-reference-slack-bridge-plan.md
 - **Assignee:** —
 - **Priority:** —
-- **External-ID:** —
+- **External-ID:** github:Intense-Visions/harness-engineering#645
 
 ### Hermes Phase 0.2: Gateway Tunnel Guide
 
