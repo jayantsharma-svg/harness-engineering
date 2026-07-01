@@ -36,7 +36,6 @@ import { createGenerateSlashCommandsCommand } from './generate-slash-commands';
 import { createGraphCommand } from './graph';
 import { createHooksCommand } from './hooks';
 import { createImpactPreviewCommand } from './impact-preview';
-import { createIngestCommand } from './graph/ingest';
 import { createInitCommand } from './init';
 import { createInsightsCommand } from './insights';
 import { createInstallCommand } from './install';
@@ -60,12 +59,10 @@ import { createPredictCommand } from './predict';
 import { createProposalsCommand } from './proposals';
 import { createPublishAnalysesCommand } from './publish-analyses';
 import { createPulseCommand } from './pulse';
-import { createQueryCommand } from './graph/query';
 import { createRecommendCommand } from './recommend';
 import { createReviewCiCommand } from './review-ci';
 import { createRoadmapCommand } from './roadmap';
 import { createRoutingCommand } from './routing';
-import { createScanCommand } from './graph/scan';
 import { createScanConfigCommand } from './scan-config';
 import { createSearchCommand } from './search';
 import { createSecurityCraftCommand } from './security-craft';
@@ -129,7 +126,6 @@ export const commandCreators: Array<() => Command> = [
   createGraphCommand,
   createHooksCommand,
   createImpactPreviewCommand,
-  createIngestCommand,
   createInitCommand,
   createInsightsCommand,
   createInstallCommand,
@@ -153,12 +149,10 @@ export const commandCreators: Array<() => Command> = [
   createProposalsCommand,
   createPublishAnalysesCommand,
   createPulseCommand,
-  createQueryCommand,
   createRecommendCommand,
   createReviewCiCommand,
   createRoadmapCommand,
   createRoutingCommand,
-  createScanCommand,
   createScanConfigCommand,
   createSearchCommand,
   createSecurityCraftCommand,
